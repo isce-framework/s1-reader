@@ -126,6 +126,19 @@ def doppler_poly1d_to_lut2d(doppler_poly1d, starting_slant_range,
                             np.vstack((freq_1d, freq_1d)))
 
 def get_burst_centers(tree):
+    '''
+    Parse grid points list and calculate burst center lat and lon
+
+    Parameters:
+    -----------
+    tree : Element
+        Element containing geolocation grid points.
+
+    Returns:
+    --------
+    _ : list
+        List of burst centers in degree longitude, latitude tuples.
+    '''
     # find element tree
     grid_pt_list = tree.find('geolocationGrid/geolocationGridPointList')
 
@@ -148,9 +161,9 @@ def get_burst_centers(tree):
     for i, (ln0, ln1) in enumerate(zip(ln_unique[:-1], ln_unique[1:])):
         mask0 = lines==ln0
         mask1 = lines==ln1
-        center_lat = np.mean(np.concatenate((lats[mask0], lats[mask1])))
         center_lon = np.mean(np.concatenate((lons[mask0], lons[mask1])))
-        center_pts.append((center_lat, center_lon))
+        center_lat = np.mean(np.concatenate((lats[mask0], lats[mask1])))
+        center_pts.append((center_lon, center_lat))
 
     return center_pts
 
@@ -158,8 +171,8 @@ def xml2bursts(annotation_path: str, tiff_path: str, open_method=open):
     '''
     Parse bursts in Sentinel 1 annotation XML.
 
-    Parameters
-    ----------
+    Parameters:
+    -----------
     annotation_path : str
         Path to Sentinel 1 annotation XML file.
     tiff_path : str
@@ -168,7 +181,7 @@ def xml2bursts(annotation_path: str, tiff_path: str, open_method=open):
         Function used to open annotation file.
 
     Returns:
-    ------
+    --------
     bursts : list
         List of Sentinel1BurstSlc objects found in annotation XML.
     '''
@@ -257,15 +270,16 @@ def xml2bursts(annotation_path: str, tiff_path: str, open_method=open):
         n_valid_samples = last_sample - first_valid_sample
 
         burst_id = f't{track_number}_{subswath_id.lower()}_{id_burst}'
-        print(burst_id, f'{center_pts[i][0]:.3f}, 'f'{center_pts[i][1]:.3f}')
+
         bursts[i] = Sentinel1BurstSlc(sensing_start, radar_freq, wavelength,
                                       azimuth_steer_rate, azimuth_time_interval,
                                       slant_range_time, starting_range,
                                       range_sampling_rate, range_pxl_spacing,
                                       (n_lines, n_samples), az_fm_rate, doppler,
                                       rng_processing_bandwidth, pol, burst_id,
-                                      platform_id, tiff_path, i, first_valid_sample,
-                                      last_sample, first_valid_line, last_line)
+                                      platform_id, center_pts[i], tiff_path, i,
+                                      first_valid_sample, last_sample,
+                                      first_valid_line, last_line)
 
     return bursts
 
@@ -273,6 +287,8 @@ def zip2bursts(zip_path: str, n_subswath: int, pol: str):
     '''
     Find bursts in a Sentinel 1 zip file
 
+    Parameters:
+    -----------
     zip_path : str
         Path the zip file.
     n_subswath : int
@@ -281,7 +297,7 @@ def zip2bursts(zip_path: str, n_subswath: int, pol: str):
         Polarization of desired burst. {HH, HV}
 
     Returns:
-    ------
+    --------
     bursts : list
         List of Sentinel1BurstSlc objects found in annotation XML.
     '''

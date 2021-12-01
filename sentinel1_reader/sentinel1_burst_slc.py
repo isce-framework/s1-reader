@@ -33,10 +33,11 @@ class Sentinel1BurstSlc:
     pol: str # {VV, VH}
     burst_id: str # t{track_number}_iw{1,2,3}_{burst_index}
     platform_id: str # S1{A,B}
+    burst_center: tuple # {center lon, center lat} in degrees
     # VRT params
     # TODO maybe make these own dataclass?
     tiff_path: str
-    i_subswath: int
+    i_burst: int
     first_valid_sample: int
     last_valid_sample: int
     first_valid_line: int
@@ -47,7 +48,7 @@ class Sentinel1BurstSlc:
         Init and return isce3.product.RadarGridParameters.
 
         Returns:
-        ------
+        --------
         _ : RadarGridParameters
             RadarGridParameters constructed from class members.
         '''
@@ -77,11 +78,11 @@ class Sentinel1BurstSlc:
         Write burst to VRT file.
 
         Parameters:
-        ----------
+        -----------
         out_path : string
             Path of output VRT file.
         '''
-        line_offset = self.i_subswath * self.shape[0]
+        line_offset = self.i_burst * self.shape[0]
 
         inwidth = self.last_valid_sample - self.first_valid_sample
         inlength = self.last_valid_line - self.first_valid_line
@@ -115,7 +116,7 @@ class Sentinel1BurstSlc:
         Returns sensing mid as datetime object.
 
         Returns:
-        ------
+        --------
         _ : datetime
             Sensing mid as datetime object.
         '''
@@ -127,12 +128,12 @@ class Sentinel1BurstSlc:
         Init and return ISCE3 orbit.
 
         Parameters:
-        ----------
+        -----------
         orbit_dir : string
             Path to directory containing orbit files.
 
         Returns:
-        ------
+        --------
         _ : datetime
             Sensing mid as datetime object.
         '''

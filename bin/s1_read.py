@@ -13,4 +13,4 @@ if __name__ == "__main__":
         raise ValueError("polarization not 'vv' or 'vh'")
     bursts = sentinel1_reader.zip2bursts(zip_path, i_subswath, pol)
     for i, burst in enumerate(bursts):
-        ss = burst.sensing_start
+        print(burst.burst_id, burst.burst_center)
