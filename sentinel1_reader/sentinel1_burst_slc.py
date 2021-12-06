@@ -31,9 +31,10 @@ class Sentinel1BurstSlc:
     doppler: Doppler
     range_processing_bandwidth: float
     pol: str # {VV, VH}
-    burst_id: str # t{track_number}_iw{1,2,3}_{burst_index}
+    id_str: str # t{track_number}_iw{1,2,3}_{burst_index}
     platform_id: str # S1{A,B}
-    burst_center: tuple # {center lon, center lat} in degrees
+    center: tuple # {center lon, center lat} in degrees
+    border: list
     # VRT params
     # TODO maybe make these own dataclass?
     tiff_path: str

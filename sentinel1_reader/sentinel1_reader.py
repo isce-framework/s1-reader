@@ -6,7 +6,7 @@ import zipfile
 import numpy as np
 
 import isce3
-from sentinel1_burst_slc import Doppler, Sentinel1BurstSlc
+from sentinel1_reader.sentinel1_burst_slc import Doppler, Sentinel1BurstSlc
 
 # TODO evaluate if it make sense to combine below into a class
 def as_datetime(t_str, fmt = "%Y-%m-%dT%H:%M:%S.%f"):
@@ -138,6 +138,8 @@ def get_burst_centers(tree):
     --------
     _ : list
         List of burst centers in degree longitude, latitude tuples.
+    _ : list
+        List of burst boundaries as list of degree longitude, latitude tuples.
     '''
     # find element tree
     grid_pt_list = tree.find('geolocationGrid/geolocationGridPointList')
@@ -154,18 +156,31 @@ def get_burst_centers(tree):
         lats[i] = float(grid_pt[4].text)
         lons[i] = float(grid_pt[5].text)
 
-    ln_unique = np.unique(lines)
-    center_lats = np.empty(len(ln_unique)-1)
-    center_lons = np.empty(len(ln_unique)-1)
-    center_pts = []
-    for i, (ln0, ln1) in enumerate(zip(ln_unique[:-1], ln_unique[1:])):
+    unique_line_indices = np.unique(lines)
+    n_bursts = len(unique_line_indices) - 1
+    center_pts = [[]] * n_bursts
+    boundary_pts = [[]] * n_bursts
+
+    # zip lines numbers of bursts together and iterate
+    for i, (ln0, ln1) in enumerate(zip(unique_line_indices[:-1],
+                                       unique_line_indices[1:])):
+        # create masks for lines in current burst
         mask0 = lines==ln0
         mask1 = lines==ln1
-        center_lon = np.mean(np.concatenate((lons[mask0], lons[mask1])))
-        center_lat = np.mean(np.concatenate((lats[mask0], lats[mask1])))
-        center_pts.append((center_lon, center_lat))
 
-    return center_pts
+        # reverse order of 2nd set of points so plots of boundaries
+        # are not connected by a diagonal line
+        burst_lons = np.concatenate((lons[mask0], lons[mask1][::-1]))
+        burst_lats = np.concatenate((lats[mask0], lats[mask1][::-1]))
+
+        center_lon = np.mean(burst_lons)
+        center_lat = np.mean(burst_lats)
+        center_pts[i] = (center_lon, center_lat)
+
+        boundary_pts[i] = [(lon, lat) for lon, lat in zip(burst_lons,
+                                                          burst_lats)]
+
+    return center_pts, boundary_pts
 
 def xml2bursts(annotation_path: str, tiff_path: str, open_method=open):
     '''
@@ -222,7 +237,7 @@ def xml2bursts(annotation_path: str, tiff_path: str, open_method=open):
         orbit_number_offset = 73 if  platform_id == 'S1A' else 202
         track_number = (orbit_number - orbit_number_offset) % 175 + 1
 
-        center_pts = get_burst_centers(tree)
+        center_pts, boundary_pts = get_burst_centers(tree)
 
     wavelength = isce3.core.speed_of_light / radar_freq
     starting_range = slant_range_time * isce3.core.speed_of_light / 2
@@ -265,8 +280,10 @@ def xml2bursts(annotation_path: str, tiff_path: str, open_method=open):
         n_valid_lines = [x > 0 for x in first_valid_samples].count(True)
         last_line = first_valid_line + n_valid_lines - 1
 
-        first_valid_sample = max(first_valid_samples[first_valid_line], first_valid_samples[last_line])
-        last_sample = min(last_valid_samples[first_valid_line], last_valid_samples[last_line])
+        first_valid_sample = max(first_valid_samples[first_valid_line],
+                                 first_valid_samples[last_line])
+        last_sample = min(last_valid_samples[first_valid_line],
+                          last_valid_samples[last_line])
         n_valid_samples = last_sample - first_valid_sample
 
         burst_id = f't{track_number}_{subswath_id.lower()}_{id_burst}'
@@ -277,8 +294,8 @@ def xml2bursts(annotation_path: str, tiff_path: str, open_method=open):
                                       range_sampling_rate, range_pxl_spacing,
                                       (n_lines, n_samples), az_fm_rate, doppler,
                                       rng_processing_bandwidth, pol, burst_id,
-                                      platform_id, center_pts[i], tiff_path, i,
-                                      first_valid_sample, last_sample,
+                                      platform_id, center_pts[i], boundary_pts[i],
+                                      tiff_path, i, first_valid_sample,last_sample,
                                       first_valid_line, last_line)
 
     return bursts
