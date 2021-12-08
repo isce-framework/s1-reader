@@ -18,25 +18,24 @@ class Sentinel1BurstSlc:
     Raw values extracted from SAFE XML.
     '''
     sensing_start: datetime.datetime# *
-    radar_frequency: float
+    radar_center_frequency: float
     wavelength: float
     azimuth_steer_rate: float
     azimuth_time_interval: float
     slant_range_time: float
     starting_range: float
     range_sampling_rate: float
-    range_pxl_spacing: float
+    range_pixel_spacing: float
     shape: tuple()
     azimuth_fm_rate: isce3.core.Poly1d
     doppler: Doppler
-    range_processing_bandwidth: float
-    pol: str # {VV, VH}
-    id_str: str # t{track_number}_iw{1,2,3}_{burst_index}
+    range_bandwidth: float
+    polarization: str # {VV, VH, HH}
+    burst_id: str # t{track_number}_iw{1,2,3}_{burst_index}
     platform_id: str # S1{A,B}
     center: tuple # {center lon, center lat} in degrees
-    border: list
+    border: list # list of lon, lat coordinate tuples (in degrees) representing burst border
     # VRT params
-    # TODO maybe make these own dataclass?
     tiff_path: str
     i_burst: int
     first_valid_sample: int
@@ -68,7 +67,7 @@ class Sentinel1BurstSlc:
                                                  self.wavelength,
                                                  prf,
                                                  self.starting_range,
-                                                 self.range_pxl_spacing,
+                                                 self.range_pixel_spacing,
                                                  isce3.core.LookSide.Right,
                                                  length,
                                                  width,

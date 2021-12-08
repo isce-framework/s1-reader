@@ -9,8 +9,8 @@ if __name__ == "__main__":
     if i_subswath < 1  or i_subswath > 3:
         raise ValueError("i_subswath not <1 or >3")
     pol = sys.argv[3]
-    if pol not in ['vv', 'vh']:
-        raise ValueError("polarization not 'vv' or 'vh'")
+    if pol not in ['vv', 'vh', 'hh']:
+        raise ValueError("polarization not in {'vv', 'vh', 'hh'}")
     bursts = sentinel1_reader.zip2bursts(zip_path, i_subswath, pol)
     for i, burst in enumerate(bursts):
-        print(burst.id_str, burst.center)
+        print(burst.burst_id, burst.center)

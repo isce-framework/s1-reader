@@ -29,7 +29,7 @@ def as_datetime(t_str, fmt = "%Y-%m-%dT%H:%M:%S.%f"):
 
 def parse_polynomial_element(elem, poly_name):
     '''
-    Parse az fm rate element to reference time and poly1d.
+    Parse azimuth FM (Frequency Modulation) rate element to reference time and poly1d.
 
     Parameters
     ----------
@@ -115,8 +115,9 @@ def doppler_poly1d_to_lut2d(doppler_poly1d, starting_slant_range,
     slant_ranges = starting_slant_range + np.arange(n_samples) * slant_range_res
 
     # no az dependency, but LUT2d required, so ensure all az coords covered
-    # TODO fix magic number of 2 days minus sensing_start
-    az_times = 2*24*3600 + np.array([0, n_lines * az_time_interval])
+    # offset by -2 days in seconds (referenece epoch)
+    offset_ref_epoch = 2 * 24 *3600
+    az_times = offset_ref_epoch + np.array([0, n_lines * az_time_interval])
 
     # calculate frequency for all slant range
     freq_1d = np.array([doppler_poly1d.eval(t) for t in slant_ranges])
@@ -202,6 +203,9 @@ def xml2bursts(annotation_path: str, tiff_path: str, open_method=open):
     '''
     _, tail = os.path.split(annotation_path)
     platform_id, subswath_id, _, pol = [x.upper() for x in tail.split('-')[:4]]
+
+    # burst interval calculated from averaging the differences between
+    # burst sensing starts
     burst_interval = 2.758277
 
     # load metadata common rdr2geo and geo2rdr
