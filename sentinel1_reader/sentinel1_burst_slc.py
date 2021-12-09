@@ -30,7 +30,7 @@ class Sentinel1BurstSlc:
     azimuth_fm_rate: isce3.core.Poly1d
     doppler: Doppler
     range_bandwidth: float
-    polarization: str # {VV, VH, HH}
+    polarization: str # {VV, VH, HH, HV}
     burst_id: str # t{track_number}_iw{1,2,3}_{burst_index}
     platform_id: str # S1{A,B}
     center: tuple # {center lon, center lat} in degrees
