@@ -4,9 +4,10 @@ import xml.etree.ElementTree as ET
 import zipfile
 
 import numpy as np
-from shapely import Polygon
+import shapely
 
 import isce3
+from nisar.workflows.stage_dem import check_dateline
 from sentinel1_reader.sentinel1_burst_slc import Doppler, Sentinel1BurstSlc
 
 # TODO evaluate if it make sense to combine below into a class
@@ -127,7 +128,7 @@ def doppler_poly1d_to_lut2d(doppler_poly1d, starting_slant_range,
     return isce3.core.LUT2d(slant_ranges, az_times,
                             np.vstack((freq_1d, freq_1d)))
 
-def get_burst_centers(tree):
+def get_burst_centers_and_boundaries(tree):
     '''
     Parse grid points list and calculate burst center lat and lon
 
@@ -139,9 +140,9 @@ def get_burst_centers(tree):
     Returns:
     --------
     _ : list
-        List of burst centers in degree longitude, latitude tuples.
+        List of burst centroids ass shapely Points
     _ : list
-        List of burst boundaries as shapely.Polygons
+        List of burst boundaries as shapely Polygons
     '''
     # find element tree
     grid_pt_list = tree.find('geolocationGrid/geolocationGridPointList')
@@ -175,11 +176,9 @@ def get_burst_centers(tree):
         burst_lons = np.concatenate((lons[mask0], lons[mask1][::-1]))
         burst_lats = np.concatenate((lats[mask0], lats[mask1][::-1]))
 
-        center_lon = np.mean(burst_lons)
-        center_lat = np.mean(burst_lats)
-        center_pts[i] = (center_lon, center_lat)
-
-        boundary_pts[i] = Polygon(zip(burst_lons, burst_lats))
+        poly = shapely.geometry.Polygon(zip(burst_lons, burst_lats))
+        center_pts[i] = poly.centroid.xy
+        boundary_pts[i] = check_dateline(poly)
 
     return center_pts, boundary_pts
 
@@ -243,7 +242,7 @@ def xml2bursts(annotation_path: str, tiff_path: str, open_method=open):
         orbit_number_offset = 73 if  platform_id == 'S1A' else 202
         track_number = (orbit_number - orbit_number_offset) % 175 + 1
 
-        center_pts, boundary_pts = get_burst_centers(tree)
+        center_pts, boundary_pts = get_burst_centers_and_boundaries(tree)
 
     wavelength = isce3.core.speed_of_light / radar_freq
     starting_range = slant_range_time * isce3.core.speed_of_light / 2
