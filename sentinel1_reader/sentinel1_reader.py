@@ -204,12 +204,14 @@ def xml2bursts(annotation_path: str, tiff_path: str, open_method=open):
     _, tail = os.path.split(annotation_path)
     platform_id, subswath_id, _, pol = [x.upper() for x in tail.split('-')[:4]]
 
-    # burst interval calculated from averaging the differences between
-    # burst sensing starts
+    # For IW mode, one burst has a duration of ~2.75 seconds and a burst
+    # overlap of approximately ~0.4 seconds.
+    # https://sentinels.copernicus.eu/web/sentinel/user-guides/sentinel-1-sar/product-types-processing-levels/level-1
+    # Additional precision calculated from averaging the differences between
+    # burst sensing starts in prototyping test data
     burst_interval = 2.758277
 
-    # load metadata common rdr2geo and geo2rdr
-    # nearly all metadata loaded here is common to all bursts in annotation XML
+    # Nearly all metadata loaded here is common to all bursts in annotation XML
     with open_method(annotation_path, 'r') as f:
         tree = ET.parse(f)
 
