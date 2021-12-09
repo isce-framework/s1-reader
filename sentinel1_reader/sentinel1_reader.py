@@ -4,6 +4,7 @@ import xml.etree.ElementTree as ET
 import zipfile
 
 import numpy as np
+from shapely import Polygon
 
 import isce3
 from sentinel1_reader.sentinel1_burst_slc import Doppler, Sentinel1BurstSlc
@@ -140,7 +141,7 @@ def get_burst_centers(tree):
     _ : list
         List of burst centers in degree longitude, latitude tuples.
     _ : list
-        List of burst boundaries as list of degree longitude, latitude tuples.
+        List of burst boundaries as shapely.Polygons
     '''
     # find element tree
     grid_pt_list = tree.find('geolocationGrid/geolocationGridPointList')
@@ -178,8 +179,7 @@ def get_burst_centers(tree):
         center_lat = np.mean(burst_lats)
         center_pts[i] = (center_lon, center_lat)
 
-        boundary_pts[i] = [(lon, lat) for lon, lat in zip(burst_lons,
-                                                          burst_lats)]
+        boundary_pts[i] = Polygon(zip(burst_lons, burst_lats))
 
     return center_pts, boundary_pts
 
