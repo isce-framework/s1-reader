@@ -177,9 +177,9 @@ def get_burst_centers_and_boundaries(tree):
 
     Returns:
     --------
-    _ : list
+    center_pts : list
         List of burst centroids ass shapely Points
-    _ : list
+    boundary_pts : list
         List of burst boundaries as shapely Polygons
     '''
     # find element tree
@@ -215,8 +215,9 @@ def get_burst_centers_and_boundaries(tree):
         burst_lats = np.concatenate((lats[mask0], lats[mask1][::-1]))
 
         poly = shapely.geometry.Polygon(zip(burst_lons, burst_lats))
-        center_pts[i] = poly.centroid.xy
-        boundary_pts[i] = check_dateline(poly)
+        poly = check_dateline(poly)
+        center_pts[i] = [p.centroid.xy for p in poly]
+        boundary_pts[i] = poly
 
     return center_pts, boundary_pts
 
