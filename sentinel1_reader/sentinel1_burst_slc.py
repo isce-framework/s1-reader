@@ -35,6 +35,7 @@ class Sentinel1BurstSlc:
     platform_id: str # S1{A,B}
     center: tuple # {center lon, center lat} in degrees
     border: list # list of lon, lat coordinate tuples (in degrees) representing burst border
+    orbit: isce3.core.Orbit
     # VRT params
     tiff_path: str
     i_burst: int
@@ -122,68 +123,3 @@ class Sentinel1BurstSlc:
         '''
         d_seconds = 0.5 * (self.shape[0] - 1) * self.azimuth_time_interval
         return self.sensing_start + datetime.timedelta(seconds=d_seconds)
-
-    def get_isce3_orbit(self, orbit_dir: str):
-        '''
-        Init and return ISCE3 orbit.
-
-        Parameters:
-        -----------
-        orbit_dir : string
-            Path to directory containing orbit files.
-
-        Returns:
-        --------
-        _ : datetime
-            Sensing mid as datetime object.
-        '''
-        if not os.path.isdir(orbit_dir):
-            raise NotADirectoryError
-
-        # determine start and end time from metadata
-        pulse_length = (self.shape[0] - 1) * self.azimuth_time_interval
-        t_pulse_end = self.sensing_start + datetime.timedelta(seconds=pulse_length)
-
-        # find files with self.platform_id
-        item_valid = lambda item, sat_id: os.path.isfile(item) and sat_id in item
-        orbit_files = [item for item in os.listdir(orbit_dir)
-                       if item_valid(f'{orbit_dir}/{item}', self.platform_id)]
-        if not orbit_files:
-            err_str = f"No orbit files found for {self.platform_id} in f{orbit_dir}"
-            raise RuntimeError(err_str)
-
-        fmt = "%Y%m%dT%H%M%S"
-        # parse start and end time of files
-        for orbit_file in orbit_files:
-            _, tail = os.path.split(orbit_file)
-            t_orbit_start, t_orbit_end = tail.split('_')[-2:]
-            t_orbit_start = datetime.datetime.strptime(t_orbit_start[1:], fmt)
-            t_orbit_end = datetime.datetime.strptime(t_orbit_end[:-4], fmt)
-            if t_orbit_start < self.sensing_start and t_orbit_end > t_pulse_end:
-                break
-
-        # find 'Data_Block/List_of_OSVs'
-        tree = ET.parse(f'{orbit_dir}/{orbit_file}')
-        osv_list = tree.find('Data_Block/List_of_OSVs')
-        # TODO turn into generator?
-        # loop thru elements
-        # while OSV/UTC < burst_end
-        #   UTC, pos, vel to list of isce3.core.stateVectors
-        fmt = "UTC=%Y-%m-%dT%H:%M:%S.%f"
-        orbit_sv = []
-        # add start & end padding to ensure sufficient number of orbit points
-        pad = datetime.timedelta(seconds=60)
-        for osv in osv_list:
-            t_orbit = datetime.datetime.strptime(osv[1].text, fmt)
-            pos = [float(osv[i].text) for i in range(4,7)]
-            vel = [float(osv[i].text) for i in range(7,10)]
-            if t_orbit > self.sensing_start - pad:
-                orbit_sv.append(isce3.core.StateVector(isce3.core.DateTime(t_orbit),
-                                                       pos, vel))
-            if t_orbit > t_pulse_end + pad:
-                break
-
-        # use list of stateVectors to init and return isce3.core.Orbit
-        time_delta = datetime.timedelta(days=2)
-        ref_epoch = isce3.core.DateTime(self.sensing_start - time_delta)
-        return isce3.core.Orbit(orbit_sv, ref_epoch)

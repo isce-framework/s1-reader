@@ -128,6 +128,44 @@ def doppler_poly1d_to_lut2d(doppler_poly1d, starting_slant_range,
     return isce3.core.LUT2d(slant_ranges, az_times,
                             np.vstack((freq_1d, freq_1d)))
 
+def get_burst_orbit(sensing_start, sensing_stop, osv_list: ET.Element):
+    '''
+    Init and return ISCE3 orbit.
+
+    Parameters:
+    -----------
+    sensing_start : datetime.datetime
+        Sensing start of burst; taken from azimuth time
+    sensing_stop : datetime.datetime
+        Sensing stop of burst
+    osv_list : xml.etree.ElementTree.Element
+        ElementTree containing orbit state vectors
+
+    Returns:
+    --------
+    _ : datetime
+        Sensing mid as datetime object.
+    '''
+    fmt = "UTC=%Y-%m-%dT%H:%M:%S.%f"
+    orbit_sv = []
+    # add start & end padding to ensure sufficient number of orbit points
+    pad = datetime.timedelta(seconds=60)
+    for osv in osv_list:
+        t_orbit = datetime.datetime.strptime(osv[1].text, fmt)
+        pos = [float(osv[i].text) for i in range(4,7)]
+        vel = [float(osv[i].text) for i in range(7,10)]
+        if t_orbit > sensing_start - pad:
+            orbit_sv.append(isce3.core.StateVector(isce3.core.DateTime(t_orbit),
+                                                   pos, vel))
+        if t_orbit > sensing_stop + pad:
+            break
+
+    # use list of stateVectors to init and return isce3.core.Orbit
+    time_delta = datetime.timedelta(days=2)
+    ref_epoch = isce3.core.DateTime(sensing_start - time_delta)
+
+    return isce3.core.Orbit(orbit_sv, ref_epoch)
+
 def get_burst_centers_and_boundaries(tree):
     '''
     Parse grid points list and calculate burst center lat and lon
@@ -182,14 +220,18 @@ def get_burst_centers_and_boundaries(tree):
 
     return center_pts, boundary_pts
 
-def xml2bursts(annotation_path: str, tiff_path: str, open_method=open):
+def xml2bursts(annotation_path: str, osv_list: ET.Element, tiff_path: str,
+               open_method=open):
     '''
     Parse bursts in Sentinel 1 annotation XML.
 
     Parameters:
     -----------
     annotation_path : str
-        Path to Sentinel 1 annotation XML file.
+        Path to Sentinel 1 annotation XML file of specific subswath and
+        polarization.
+    osv_list : xml.etree.ElementTree.Element
+        ElementTree containing orbit state vectors
     tiff_path : str
         Path to tiff file holding Sentinel 1 SLCs.
     open_method : function
@@ -276,6 +318,12 @@ def xml2bursts(annotation_path: str, tiff_path: str, open_method=open):
         lut1d = isce3.core.avg_lut2d_to_lut1d(lut2d)
         doppler = Doppler(poly1d, lut2d)
 
+        # get orbit from state vector list/element tree
+        sensing_duration = datetime.timedelta(
+            seconds=n_samples * azimuth_time_interval)
+        orbit = get_burst_orbit(sensing_start, sensing_start + sensing_duration,
+                                osv_list)
+
         # determine burst offset and dimensions
         # TODO move to own method
         first_valid_samples = [int(val) for val in burst_list_element.find('firstValidSample').text.split()]
@@ -300,12 +348,13 @@ def xml2bursts(annotation_path: str, tiff_path: str, open_method=open):
                                       (n_lines, n_samples), az_fm_rate, doppler,
                                       rng_processing_bandwidth, pol, burst_id,
                                       platform_id, center_pts[i], boundary_pts[i],
-                                      tiff_path, i, first_valid_sample,last_sample,
-                                      first_valid_line, last_line)
+                                      orbit, tiff_path, i, first_valid_sample,
+                                      last_sample, first_valid_line, last_line)
 
     return bursts
 
-def zip2bursts(zip_path: str, n_subswath: int, pol: str):
+def zip2bursts(zip_path: str, osv_list: ET.Element,
+               n_subswath: int, pol: str):
     '''
     Find bursts in a Sentinel 1 zip file
 
@@ -313,10 +362,12 @@ def zip2bursts(zip_path: str, n_subswath: int, pol: str):
     -----------
     zip_path : str
         Path the zip file.
+    osv_list : xml.etree.ElementTree.Element
+        ElementTree containing orbit state vectors
     n_subswath : int
         Integer of subswath of desired burst. {1, 2, 3}
     pol : str
-        Polarization of desired burst. {HH, HV}
+        Polarization of desired burst. {HH, VV, HV, VH}
 
     Returns:
     --------
@@ -332,5 +383,5 @@ def zip2bursts(zip_path: str, n_subswath: int, pol: str):
         f_tiff = [f for f in z_file.namelist() if 'measurement' in f and id_str in f and 'tiff' in f][0]
         f_tiff = f'/vsizip/{zip_path}/{f_tiff}'
 
-        bursts = xml2bursts(f_annotation, f_tiff, z_file.open)
+        bursts = xml2bursts(f_annotation, osv_list, f_tiff, z_file.open)
         return bursts
