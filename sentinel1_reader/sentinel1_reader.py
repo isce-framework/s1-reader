@@ -166,6 +166,36 @@ def get_burst_orbit(sensing_start, sensing_stop, osv_list: ET.Element):
 
     return isce3.core.Orbit(orbit_sv, ref_epoch)
 
+def calculate_centroid(lons, lats):
+    '''
+    Calculate burst centroid from boundary longitude/latitude points.
+
+    Parameters:
+    -----------
+    lons : list
+        Burst longitudes (degrees)
+    lats : list
+        Burst latitudes (degrees)
+
+    Returns:
+    --------
+    _ : shapely.geometry.Point
+        Burst center in degrees longitude and latitude
+    '''
+    proj = isce3.core.Geocent()
+
+    # convert boundary points to geocentric
+    xyz = [proj.forward([np.deg2rad(lon), np.deg2rad(lat), 0])
+           for lon, lat in zip(lons, lats)]
+
+    # get mean of corners as centroid
+    xyz_centroid = np.mean(np.array(xyz), axis=0)
+
+    # convert back to LLH
+    llh_centroid = [np.rad2deg(x) for x in proj.inverse(xyz_centroid)]
+
+    return shapely.geometry.Point(llh_centroid[:2])
+
 def get_burst_centers_and_boundaries(tree):
     '''
     Parse grid points list and calculate burst center lat and lon
@@ -214,10 +244,10 @@ def get_burst_centers_and_boundaries(tree):
         burst_lons = np.concatenate((lons[mask0], lons[mask1][::-1]))
         burst_lats = np.concatenate((lats[mask0], lats[mask1][::-1]))
 
+        center_pts[i] = calculate_centroid(burst_lons, burst_lats)
+
         poly = shapely.geometry.Polygon(zip(burst_lons, burst_lats))
-        poly = check_dateline(poly)
-        center_pts[i] = [p.centroid.xy for p in poly]
-        boundary_pts[i] = poly
+        boundary_pts[i] = check_dateline(poly)
 
     return center_pts, boundary_pts
 
@@ -340,7 +370,7 @@ def xml2bursts(annotation_path: str, osv_list: ET.Element, tiff_path: str,
                           last_valid_samples[last_line])
         n_valid_samples = last_sample - first_valid_sample
 
-        burst_id = f't{track_number}_{subswath_id.lower()}_{id_burst}'
+        burst_id = f't{track_number}_{subswath_id.lower()}_b{id_burst}'
 
         bursts[i] = Sentinel1BurstSlc(sensing_start, radar_freq, wavelength,
                                       azimuth_steer_rate, azimuth_time_interval,
