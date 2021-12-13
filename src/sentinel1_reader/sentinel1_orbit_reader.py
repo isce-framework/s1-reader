@@ -37,7 +37,7 @@ def get_swath_orbit_file(zip_path: str, orbit_dir: str):
     file_name_tokens = os.path.basename(zip_path).split('_')
     platform_id = file_name_tokens[0]
     if platform_id not in ['S1A', 'S1B']:
-        err_str = f'{platform_id} not S1A nor S1B')
+        err_str = f'{platform_id} not S1A nor S1B'
         ValueError(err_str)
     t_swath_start_stop = [datetime.datetime.strptime(t, fmt)
                           for t in file_name_tokens[5:7]]

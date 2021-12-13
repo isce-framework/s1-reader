@@ -18,14 +18,15 @@ def as_datetime(t_str, fmt = "%Y-%m-%dT%H:%M:%S.%f"):
     Parameters:
     ----------
     t_str : string
-        Time string to be parsed.
+        Time string to be parsed. (e.g., "2021-12-10T12:00:0.0")
     fmt : string
         Format of string provided. Defaults to az time format found in annotation XML.
+        (e.g., "%Y-%m-%dT%H:%M:%S.%f").
 
     Returns:
     ------
     _ : datetime.datetime
-        datetime.dateime object parsed from given time string.
+        datetime.datetime object parsed from given time string.
     '''
     return datetime.datetime.strptime(t_str, fmt)
 
@@ -101,7 +102,7 @@ def doppler_poly1d_to_lut2d(doppler_poly1d, starting_slant_range,
     starting_slant_range : float
         Starting slant range of the burst.
     slant_range_res : float
-        Slant range resolution of the burst.
+        Slant-range pixel spacing of the burst.
     shape : tuple
         Tuples holding number of lines and samples of the burst.
     az_time_interval : float
@@ -152,13 +153,15 @@ def get_burst_orbit(sensing_start, sensing_stop, osv_list: ET.Element):
     pad = datetime.timedelta(seconds=60)
     for osv in osv_list:
         t_orbit = datetime.datetime.strptime(osv[1].text, fmt)
-        pos = [float(osv[i].text) for i in range(4,7)]
-        vel = [float(osv[i].text) for i in range(7,10)]
-        if t_orbit > sensing_start - pad:
-            orbit_sv.append(isce3.core.StateVector(isce3.core.DateTime(t_orbit),
-                                                   pos, vel))
+
         if t_orbit > sensing_stop + pad:
             break
+
+        if t_orbit > sensing_start - pad:
+            pos = [float(osv[i].text) for i in range(4,7)]
+            vel = [float(osv[i].text) for i in range(7,10)]
+            orbit_sv.append(isce3.core.StateVector(isce3.core.DateTime(t_orbit),
+                                                   pos, vel))
 
     # use list of stateVectors to init and return isce3.core.Orbit
     time_delta = datetime.timedelta(days=2)
