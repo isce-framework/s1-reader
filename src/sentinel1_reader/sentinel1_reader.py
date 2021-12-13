@@ -251,7 +251,7 @@ def get_burst_centers_and_boundaries(tree):
 
     return center_pts, boundary_pts
 
-def xml2bursts(annotation_path: str, osv_list: ET.Element, tiff_path: str,
+def xml2bursts(annotation_path: str, orbit_path: str, tiff_path: str,
                open_method=open):
     '''
     Parse bursts in Sentinel 1 annotation XML.
@@ -261,8 +261,8 @@ def xml2bursts(annotation_path: str, osv_list: ET.Element, tiff_path: str,
     annotation_path : str
         Path to Sentinel 1 annotation XML file of specific subswath and
         polarization.
-    osv_list : xml.etree.ElementTree.Element
-        ElementTree containing orbit state vectors
+    orbit_path : str
+        Path the orbit file.
     tiff_path : str
         Path to tiff file holding Sentinel 1 SLCs.
     open_method : function
@@ -321,6 +321,10 @@ def xml2bursts(annotation_path: str, osv_list: ET.Element, tiff_path: str,
     starting_range = slant_range_time * isce3.core.speed_of_light / 2
     range_pxl_spacing = isce3.core.speed_of_light / (2 * range_sampling_rate)
 
+    # find orbit state vectors in 'Data_Block/List_of_OSVs'
+    orbit_tree = ET.parse(orbit_path)
+    osv_list = orbit_tree.find('Data_Block/List_of_OSVs')
+
     # load individual burst
     burst_list_elements = tree.find('swathTiming/burstList')
     n_bursts = int(burst_list_elements.attrib['count'])
@@ -328,7 +332,6 @@ def xml2bursts(annotation_path: str, osv_list: ET.Element, tiff_path: str,
     sensing_starts = [[]] * n_bursts
     sensing_times = [[]] * n_bursts
     for i, burst_list_element in enumerate(burst_list_elements):
-        # TODO make below @classmethod in sentinel1_burst_slc?
         # get burst timing
         sensing_start = as_datetime(burst_list_element.find('azimuthTime').text)
         sensing_starts[i] = sensing_start
@@ -384,8 +387,7 @@ def xml2bursts(annotation_path: str, osv_list: ET.Element, tiff_path: str,
 
     return bursts
 
-def zip2bursts(zip_path: str, osv_list: ET.Element,
-               n_subswath: int, pol: str):
+def zip2bursts(zip_path: str, orbit_path: str, n_subswath: int, pol: str):
     '''
     Find bursts in a Sentinel 1 zip file
 
@@ -393,8 +395,8 @@ def zip2bursts(zip_path: str, osv_list: ET.Element,
     -----------
     zip_path : str
         Path the zip file.
-    osv_list : xml.etree.ElementTree.Element
-        ElementTree containing orbit state vectors
+    orbit_path : str
+        Path the orbit file.
     n_subswath : int
         Integer of subswath of desired burst. {1, 2, 3}
     pol : str
@@ -414,5 +416,5 @@ def zip2bursts(zip_path: str, osv_list: ET.Element,
         f_tiff = [f for f in z_file.namelist() if 'measurement' in f and id_str in f and 'tiff' in f][0]
         f_tiff = f'/vsizip/{zip_path}/{f_tiff}'
 
-        bursts = xml2bursts(f_annotation, osv_list, f_tiff, z_file.open)
+        bursts = xml2bursts(f_annotation, orbit_path, f_tiff, z_file.open)
         return bursts

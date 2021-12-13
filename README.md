@@ -32,8 +32,8 @@ pol = "HH"
 
 # read orbits
 orbit_dir = '/home/user/data/sentinel1_orbits'
-osv_list = sentinel1_orbit_reader.get_swath_osv_list(zip_path, orbit_dir)
+orbit_path = sentinel1_orbit_reader.get_swath_orbit_file(zip_path, orbit_dir)
 
 # returns the list of the bursts
-bursts = sentinel1_reader.zip2bursts(zip_path, osv_list, i_subswath, pol)
+bursts = sentinel1_reader.zip2bursts(zip_path, orbit_path, i_subswath, pol)
 ```

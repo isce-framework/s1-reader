@@ -4,7 +4,7 @@ import xml.etree.ElementTree as ET
 
 import numpy as np
 
-def get_swath_osv_list(zip_path: str, orbit_dir: str):
+def get_swath_orbit_file(zip_path: str, orbit_dir: str):
     '''
     Get orbit state vector list for a given swath.
 
@@ -17,8 +17,8 @@ def get_swath_osv_list(zip_path: str, orbit_dir: str):
 
     Returns:
     --------
-    osv_list : xml.etree.ElementTree.Element
-        ElementTree containing orbit state vectors
+    orbit_path : str
+        Path the orbit file.
     '''
     if not os.path.isfile(zip_path):
         raise FileNotFoundError(f"{zip_path} does not exist")
@@ -60,8 +60,6 @@ def get_swath_osv_list(zip_path: str, orbit_dir: str):
                 all([t_orbit_end - t > dt0 for t in t_swath_start_stop]):
             break
 
-    # find 'Data_Block/List_of_OSVs'
-    tree = ET.parse(f'{orbit_dir}/{orbit_file}')
-    osv_list = tree.find('Data_Block/List_of_OSVs')
+    orbit_path = f'{orbit_dir}/{orbit_file}'
 
-    return osv_list
+    return orbit_path

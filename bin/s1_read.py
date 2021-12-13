@@ -21,9 +21,9 @@ if __name__ == "__main__":
     orbit_dir = sys.argv[4]
     if not os.path.isdir(orbit_dir):
         raise NotADirectoryError(f"{orbit_dir} not found")
-    osv_list = sentinel1_orbit_reader.get_swath_osv_list(zip_path, orbit_dir)
+    orbit_path = sentinel1_orbit_reader.get_swath_orbit_file(zip_path, orbit_dir)
 
-    bursts = sentinel1_reader.zip2bursts(zip_path, osv_list, i_subswath, pol)
+    bursts = sentinel1_reader.zip2bursts(zip_path, orbit_path, i_subswath, pol)
 
     for i, burst in enumerate(bursts):
         print(burst.burst_id, burst.center)
