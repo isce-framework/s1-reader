@@ -251,8 +251,8 @@ def get_burst_centers_and_boundaries(tree):
 
     return center_pts, boundary_pts
 
-def xml2bursts(annotation_path: str, orbit_path: str, tiff_path: str,
-               open_method=open):
+def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
+                   open_method=open):
     '''
     Parse bursts in Sentinel 1 annotation XML.
 
@@ -387,7 +387,7 @@ def xml2bursts(annotation_path: str, orbit_path: str, tiff_path: str,
 
     return bursts
 
-def zip2bursts(zip_path: str, orbit_path: str, n_subswath: int, pol: str):
+def burst_from_zip(zip_path: str, orbit_path: str, n_subswath: int, pol: str):
     '''
     Find bursts in a Sentinel 1 zip file
 
@@ -416,5 +416,5 @@ def zip2bursts(zip_path: str, orbit_path: str, n_subswath: int, pol: str):
         f_tiff = [f for f in z_file.namelist() if 'measurement' in f and id_str in f and 'tiff' in f][0]
         f_tiff = f'/vsizip/{zip_path}/{f_tiff}'
 
-        bursts = xml2bursts(f_annotation, orbit_path, f_tiff, z_file.open)
+        bursts = burst_from_xml(f_annotation, orbit_path, f_tiff, z_file.open)
         return bursts

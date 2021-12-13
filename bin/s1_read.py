@@ -23,7 +23,7 @@ if __name__ == "__main__":
         raise NotADirectoryError(f"{orbit_dir} not found")
     orbit_path = sentinel1_orbit_reader.get_swath_orbit_file(zip_path, orbit_dir)
 
-    bursts = sentinel1_reader.zip2bursts(zip_path, orbit_path, i_subswath, pol)
+    bursts = sentinel1_reader.burst_from_zip(zip_path, orbit_path, i_subswath, pol)
 
     for i, burst in enumerate(bursts):
         print(burst.burst_id, burst.center)
