@@ -85,8 +85,8 @@ class Sentinel1BurstSlc:
         '''
         line_offset = self.i_burst * self.shape[0]
 
-        inwidth = self.last_valid_sample - self.first_valid_sample
-        inlength = self.last_valid_line - self.first_valid_line
+        inwidth = self.last_valid_sample - self.first_valid_sample + 1
+        inlength = self.last_valid_line - self.first_valid_line + 1
         outlength, outwidth = self.shape
         yoffset = line_offset + self.first_valid_line
         localyoffset = self.first_valid_line

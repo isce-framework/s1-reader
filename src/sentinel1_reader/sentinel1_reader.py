@@ -374,7 +374,6 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
                                  first_valid_samples[last_line])
         last_sample = min(last_valid_samples[first_valid_line],
                           last_valid_samples[last_line])
-        n_valid_samples = last_sample - first_valid_sample
 
         burst_id = f't{track_number}_{subswath_id.lower()}_b{id_burst}'
 
