@@ -11,9 +11,13 @@ def get_swath_orbit_file(zip_path: str, orbit_dir: str):
     Parameters:
     -----------
     zip_path : string
-        Path to Sentinel1 SAFE zip file
+        Path to Sentinel1 SAFE zip file. File names required to adhere to the
+        format described here:
+        https://sentinel.esa.int/web/sentinel/user-guides/sentinel-1-sar/naming-conventions
     orbit_dir : string
-        Path to directory containing orbit files.
+        Path to directory containing orbit files. Orbit files required to adhere
+        to naming convention found here:
+        https://s1qc.asf.alaska.edu/aux_poeorb/
 
     Returns:
     --------
@@ -32,6 +36,9 @@ def get_swath_orbit_file(zip_path: str, orbit_dir: str):
     # determine start and end times from file name
     file_name_tokens = os.path.basename(zip_path).split('_')
     platform_id = file_name_tokens[0]
+    if platform_id not in ['S1A', 'S1B']:
+        err_str = f'{platform_id} not S1A nor S1B')
+        ValueError(err_str)
     t_swath_start_stop = [datetime.datetime.strptime(t, fmt)
                           for t in file_name_tokens[5:7]]
 
