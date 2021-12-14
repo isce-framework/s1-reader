@@ -1,8 +1,5 @@
 import datetime
 import os
-import xml.etree.ElementTree as ET
-
-import numpy as np
 
 def get_swath_orbit_file(zip_path: str, orbit_dir: str):
     '''

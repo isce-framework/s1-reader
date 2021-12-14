@@ -78,7 +78,7 @@ def get_nearest_polynomial(t_mid, time_poly_pair):
     nearest_poly = time_poly_pair[0][1]
 
     # loop thru remaining time, polynomial pairs
-    for i, x in enumerate(time_poly_pair[1:]):
+    for x in time_poly_pair[1:]:
         temp_dt = get_abs_dt(t_mid, x[0])
 
         # stop looping if dt starts growing
@@ -352,7 +352,6 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
         lut2d = doppler_poly1d_to_lut2d(poly1d, starting_range,
                                         range_pxl_spacing, (n_lines, n_samples),
                                         azimuth_time_interval)
-        lut1d = isce3.core.avg_lut2d_to_lut1d(lut2d)
         doppler = Doppler(poly1d, lut2d)
 
         # get orbit from state vector list/element tree

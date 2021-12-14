@@ -1,7 +1,5 @@
 from dataclasses import dataclass
 import datetime
-import xml.etree.ElementTree as ET
-import os
 
 from osgeo import gdal
 
