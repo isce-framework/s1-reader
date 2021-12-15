@@ -1,13 +1,13 @@
 ### Features
 
-- Create ISCE3-compatible Sentinel1 burst class given:
++ Create ISCE3-compatible Sentinel1 burst class given:
 
-    1. S1 SAFE
-    2. subswath index
-    3. polarization
-    4. path to orbit directory
+  - S1 SAFE
+  - subswath index
+  - polarization
+  - path to orbit directory
 
-- Monotonically increasing bursts IDs.
++ Monotonically increasing bursts IDs.
 
 ### Install
 
@@ -15,15 +15,15 @@
 2. Clone repository.
 
 ```bash
-$ cd ~/src
-$ git clone https://github.com/LiangJYu/sentinel1-reader.git
+cd ~/src
+git clone https://github.com/LiangJYu/sentinel1-reader.git
 ```
 
 3. Install into virtual environment with pip. From clone directory:
 
 ```bash
-$ cd sentinel1-reader
-$ pip install .
+cd sentinel1-reader
+pip install .
 ```
 
 ### Usage
