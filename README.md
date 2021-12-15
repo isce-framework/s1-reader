@@ -1,28 +1,35 @@
 ### Features
-  - Create ISCE3-compatible Sentinel1 burst class given:
 
-    0. S1 SAFE
-    1. subswath index
-    2. polarization
-    3. path to orbit directory
-  - Monotonically increasing bursts IDs.
+- Create ISCE3-compatible Sentinel1 burst class given:
+
+    1. S1 SAFE
+    2. subswath index
+    3. polarization
+    4. path to orbit directory
+
+- Monotonically increasing bursts IDs.
 
 ### Install
 
-  1. Set up and activate virtual environment with ISCE3.
-  2. Clone repository.
+1. Set up and activate virtual environment with ISCE3.
+2. Clone repository.
+
 ```bash
 $ cd ~/src
 $ git clone https://github.com/LiangJYu/sentinel1-reader.git
 ```
-  3. Install into virtual environment with pip. From clone directory:
+
+3. Install into virtual environment with pip. From clone directory:
+
 ```bash
 $ cd sentinel1-reader
 $ pip install .
 ```
 
 ### Usage
+
 The following sample code demonstrates how to process a single burst from a S1 SAFE zip:
+
 ```python
 from sentinel1_reader import sentinel1_reader, sentinel1_orbit_reader
 
