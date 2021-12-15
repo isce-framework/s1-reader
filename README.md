@@ -15,7 +15,6 @@
 2. Clone repository.
 
 ```bash
-cd ~/src
 git clone https://github.com/LiangJYu/sentinel1-reader.git
 ```
 
