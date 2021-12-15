@@ -12,8 +12,7 @@ from sentinel1_reader.sentinel1_burst_slc import Doppler, Sentinel1BurstSlc
 
 # TODO evaluate if it make sense to combine below into a class
 def as_datetime(t_str, fmt = "%Y-%m-%dT%H:%M:%S.%f"):
-    '''
-    Parse given time string to datetime.datetime object.
+    '''Parse given time string to datetime.datetime object.
 
     Parameters:
     ----------
@@ -31,8 +30,7 @@ def as_datetime(t_str, fmt = "%Y-%m-%dT%H:%M:%S.%f"):
     return datetime.datetime.strptime(t_str, fmt)
 
 def parse_polynomial_element(elem, poly_name):
-    '''
-    Parse azimuth FM (Frequency Modulation) rate element to reference time and poly1d.
+    '''Parse azimuth FM (Frequency Modulation) rate element to reference time and poly1d tuples.
 
     Parameters
     ----------
@@ -55,8 +53,7 @@ def parse_polynomial_element(elem, poly_name):
     return (ref_time, poly1d)
 
 def get_nearest_polynomial(t_mid, time_poly_pair):
-    '''
-    Find polynomial closest to given sensing mid and return associated poly1d.
+    '''Find polynomial closest to given sensing mid and return associated poly1d.
 
     Parameters
     ----------
@@ -92,8 +89,7 @@ def get_nearest_polynomial(t_mid, time_poly_pair):
 
 def doppler_poly1d_to_lut2d(doppler_poly1d, starting_slant_range,
                             slant_range_res, shape, az_time_interval):
-    '''
-    Convert doppler poly1d to LUT2d.
+    '''Convert doppler poly1d to LUT2d.
 
     Parameters
     ----------
@@ -130,8 +126,7 @@ def doppler_poly1d_to_lut2d(doppler_poly1d, starting_slant_range,
                             np.vstack((freq_1d, freq_1d)))
 
 def get_burst_orbit(sensing_start, sensing_stop, osv_list: ET.Element):
-    '''
-    Init and return ISCE3 orbit.
+    '''Init and return ISCE3 orbit.
 
     Parameters:
     -----------
@@ -170,8 +165,7 @@ def get_burst_orbit(sensing_start, sensing_stop, osv_list: ET.Element):
     return isce3.core.Orbit(orbit_sv, ref_epoch)
 
 def calculate_centroid(lons, lats):
-    '''
-    Calculate burst centroid from boundary longitude/latitude points.
+    '''Calculate burst centroid from boundary longitude/latitude points.
 
     Parameters:
     -----------
@@ -200,8 +194,7 @@ def calculate_centroid(lons, lats):
     return shapely.geometry.Point(llh_centroid[:2])
 
 def get_burst_centers_and_boundaries(tree):
-    '''
-    Parse grid points list and calculate burst center lat and lon
+    '''Parse grid points list and calculate burst center lat and lon
 
     Parameters:
     -----------
@@ -256,8 +249,7 @@ def get_burst_centers_and_boundaries(tree):
 
 def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
                    open_method=open):
-    '''
-    Parse bursts in Sentinel 1 annotation XML.
+    '''Parse bursts in Sentinel 1 annotation XML.
 
     Parameters:
     -----------
@@ -389,8 +381,7 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
     return bursts
 
 def burst_from_zip(zip_path: str, orbit_path: str, n_subswath: int, pol: str):
-    '''
-    Find bursts in a Sentinel 1 zip file
+    '''Find bursts in a Sentinel 1 zip file
 
     Parameters:
     -----------

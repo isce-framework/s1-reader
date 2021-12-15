@@ -2,8 +2,7 @@ import datetime
 import os
 
 def get_swath_orbit_file(zip_path: str, orbit_dir: str):
-    '''
-    Get orbit state vector list for a given swath.
+    '''Get orbit state vector list for a given swath.
 
     Parameters:
     -----------

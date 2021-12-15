@@ -12,8 +12,7 @@ class Doppler:
 
 @dataclass(frozen=True)
 class Sentinel1BurstSlc:
-    '''
-    Raw values extracted from SAFE XML.
+    '''Raw values extracted from SAFE XML.
     '''
     sensing_start: datetime.datetime# *
     radar_center_frequency: float
@@ -43,8 +42,7 @@ class Sentinel1BurstSlc:
     last_valid_line: int
 
     def as_isce3_radargrid(self):
-        '''
-        Init and return isce3.product.RadarGridParameters.
+        '''Init and return isce3.product.RadarGridParameters.
 
         Returns:
         --------
@@ -73,8 +71,7 @@ class Sentinel1BurstSlc:
                                                  ref_epoch)
 
     def to_vrt_file(self, out_path):
-        '''
-        Write burst to VRT file.
+        '''Write burst to VRT file.
 
         Parameters:
         -----------
@@ -111,8 +108,7 @@ class Sentinel1BurstSlc:
             fid.write(tmpl)
 
     def get_sensing_mid(self):
-        '''
-        Returns sensing mid as datetime object.
+        '''Returns sensing mid as datetime object.
 
         Returns:
         --------
