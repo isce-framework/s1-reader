@@ -407,12 +407,15 @@ def burst_from_zip(zip_path: str, orbit_path: str, i_subswath: int, pol: str):
     pol = pol.lower()
     pols = ['vv', 'vh', 'hh', 'hv']
     if pol not in pols:
-        raise ValueError("polarization not in {pols}")
+        raise ValueError(f"polarization not in {pols}")
 
     id_str = f'iw{i_subswath}-slc-{pol}'
     with zipfile.ZipFile(zip_path, 'r') as z_file:
         # find annotation file
-        f_annotation = [f for f in z_file.namelist() if 'calibration' not in f and id_str in f and 'annotation' in f][0]
+        f_annotation = [f for f in z_file.namelist() if 'calibration' not in f and id_str in f and 'annotation' in f]
+        if not f_annotation:
+            raise ValueError(f"polarization {pol} not in SAFE: {zip_path}")
+        f_annotation = f_annotation[0]
 
         # find tiff file
         f_tiff = [f for f in z_file.namelist() if 'measurement' in f and id_str in f and 'tiff' in f][0]
