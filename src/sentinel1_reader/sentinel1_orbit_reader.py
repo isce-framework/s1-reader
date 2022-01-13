@@ -51,7 +51,7 @@ def get_swath_orbit_file_from_list(zip_path: str, orbit_file_list: list[str]) ->
         format described here:
         https://sentinel.esa.int/web/sentinel/user-guides/sentinel-1-sar/naming-conventions
     orbit_file_list: list[str]
-        List containing orbit path strings. Orbit files required to adhere to
+        List containing orbit files paths. Orbit files required to adhere to
         naming convention found here:
         https://s1qc.asf.alaska.edu/aux_poeorb/
 
