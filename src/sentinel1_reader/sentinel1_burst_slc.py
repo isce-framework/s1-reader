@@ -1,11 +1,9 @@
-from dataclasses import dataclass
-from datetime import datetime
 import datetime
-import numpy as np
-
-from osgeo import gdal
+from dataclasses import dataclass
 
 import isce3
+import numpy as np
+from osgeo import gdal
 
 
 # Other functionalities
@@ -29,6 +27,7 @@ def compute_az_carrier(burst, orbit, offset, position):
     carr: np.ndarray
        Azimuth carrier
     '''
+    from datetime import datetime
 
     # Get burst sensing mid relative to orbit reference epoch
     fmt = "%Y-%m-%dT%H:%M:%S.%f"
@@ -44,7 +43,7 @@ def compute_az_carrier(burst, orbit, offset, position):
 
     n_lines, _ = burst.shape
     eta = (y - (n_lines // 2) + offset) * burst.azimuth_time_interval
-    rng = burst.starting_range + x * burst.range_pxl_spacing
+    rng = burst.starting_range + x * burst.range_pixel_spacing
 
     f_etac = np.array(
         burst.doppler.poly1d.eval(rng.flatten().tolist())).reshape(rng.shape)
