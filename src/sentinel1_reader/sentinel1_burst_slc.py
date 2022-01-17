@@ -126,9 +126,9 @@ def polyfit(xin, yin, zin, azimuth_order, range_order,
     if snr is not None:
         A = A / snr[:, None]
         z = z / snr
-    return_val = True
 
-    val, res, rank, eigs = np.linalg.lstsq(A, z, rcond=cond)
+    return_val = True
+    val, res, _, eigs = np.linalg.lstsq(A, z, rcond=cond)
     if len(res) > 0:
         print('Chi squared: %f' % (np.sqrt(res / (1.0 * len(z)))))
     else:
