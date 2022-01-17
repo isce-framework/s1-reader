@@ -78,10 +78,10 @@ def get_swath_orbit_file_from_list(zip_path: str, orbit_file_list: list[str]) ->
         t_orbit_start, t_orbit_end = os.path.basename(orbit_file).split('_')[-2:]
 
         # strip 'V' at start of start time string
-        t_orbit_start = datetime.strptime(t_orbit_start[1:], FMT)
+        t_orbit_start = datetime.datetime.strptime(t_orbit_start[1:], FMT)
 
         # string '.EOF' from end of end time string
-        t_orbit_end = datetime.strptime(t_orbit_end[:-4], FMT)
+        t_orbit_end = datetime.datetime.strptime(t_orbit_end[:-4], FMT)
 
         # check if:
         # 1. swath start and stop time > orbit file start time
