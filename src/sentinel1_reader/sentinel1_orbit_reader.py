@@ -1,10 +1,10 @@
-from datetime import datetime
+import datetime
 import os
 
 # date format used in file names
 FMT = "%Y%m%dT%H%M%S"
 
-def get_file_name_tokens(zip_path: str) -> [str, list[datetime]]:
+def get_file_name_tokens(zip_path: str) -> [str, list[datetime.datetime]]:
     '''Extract swath platform ID and start/stop times from SAFE zip file path.
 
     Parameters:
@@ -19,7 +19,7 @@ def get_file_name_tokens(zip_path: str) -> [str, list[datetime]]:
     platform_id: ('S1A', 'S1B')
     orbit_path : str
         Path the orbit file.
-    t_swath_start_stop: list[datetime]
+    t_swath_start_stop: list[datetime.datetime]
         Swath start/stop times
     '''
     file_name_tokens = os.path.basename(zip_path).split('_')
@@ -30,8 +30,8 @@ def get_file_name_tokens(zip_path: str) -> [str, list[datetime]]:
         err_str = f'{platform_id} not S1A nor S1B'
         ValueError(err_str)
 
-    # extract start/stop time as a list[datetime]: [t_start, t_stop]
-    t_swath_start_stop = [datetime.strptime(t, FMT)
+    # extract start/stop time as a list[datetime.datetime]: [t_start, t_stop]
+    t_swath_start_stop = [datetime.datetime.strptime(t, FMT)
                           for t in file_name_tokens[5:7]]
 
     return platform_id, t_swath_start_stop
@@ -78,10 +78,10 @@ def get_swath_orbit_file_from_list(zip_path: str, orbit_file_list: list[str]) ->
         t_orbit_start, t_orbit_end = os.path.basename(orbit_file).split('_')[-2:]
 
         # strip 'V' at start of start time string
-        t_orbit_start = datetime.strptime(t_orbit_start[1:], FMT)
+        t_orbit_start = datetime.datetime.strptime(t_orbit_start[1:], FMT)
 
         # string '.EOF' from end of end time string
-        t_orbit_end = datetime.strptime(t_orbit_end[:-4], FMT)
+        t_orbit_end = datetime.datetime.strptime(t_orbit_end[:-4], FMT)
 
         # check if:
         # 1. swath start and stop time > orbit file start time
