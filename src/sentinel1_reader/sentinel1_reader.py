@@ -1,4 +1,4 @@
-import datetime as datetime
+import datetime
 import os
 import xml.etree.ElementTree as ET
 import zipfile

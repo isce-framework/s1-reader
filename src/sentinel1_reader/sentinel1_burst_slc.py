@@ -1,4 +1,4 @@
-import datetime as datetime
+import datetime
 from dataclasses import dataclass
 
 import isce3
@@ -30,8 +30,7 @@ def compute_az_carrier(burst, orbit, offset, position):
 
     # Get burst sensing mid relative to orbit reference epoch
     fmt = "%Y-%m-%dT%H:%M:%S.%f"
-    orbit_ref_epoch = datetime.datetime.strptime(orbit.reference_epoch.__str__()[:-3],
-                                        fmt)
+    orbit_ref_epoch = datetime.datetime.strptime(orbit.reference_epoch.__str__()[:-3], fmt)
 
     t_mid = burst.get_sensing_mid() - orbit_ref_epoch
     _, v = orbit.interpolate(t_mid.total_seconds())
@@ -257,12 +256,12 @@ class Sentinel1BurstSlc:
             fid.write(tmpl)
 
     def get_sensing_mid(self):
-        '''Returns sensing mid as datetime object.
+        '''Returns sensing mid as datetime.datetime object.
 
         Returns:
         --------
-        _ : datetime
-            Sensing mid as datetime object.
+        _ : datetime.datetime
+            Sensing mid as datetime.datetime object.
         '''
         d_seconds = 0.5 * (self.shape[0] - 1) * self.azimuth_time_interval
         return self.sensing_start + datetime.timedelta(seconds=d_seconds)
