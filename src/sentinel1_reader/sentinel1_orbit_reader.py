@@ -1,4 +1,4 @@
-from datetime import datetime
+import datetime as datetime
 import os
 
 # date format used in file names
@@ -31,7 +31,7 @@ def get_file_name_tokens(zip_path: str) -> [str, list[datetime]]:
         ValueError(err_str)
 
     # extract start/stop time as a list[datetime]: [t_start, t_stop]
-    t_swath_start_stop = [datetime.strptime(t, FMT)
+    t_swath_start_stop = [datetime.datetime.strptime(t, FMT)
                           for t in file_name_tokens[5:7]]
 
     return platform_id, t_swath_start_stop

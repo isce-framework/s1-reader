@@ -1,4 +1,4 @@
-import datetime
+import datetime as datetime
 from dataclasses import dataclass
 
 import isce3
@@ -27,11 +27,10 @@ def compute_az_carrier(burst, orbit, offset, position):
     carr: np.ndarray
        Azimuth carrier
     '''
-    from datetime import datetime
 
     # Get burst sensing mid relative to orbit reference epoch
     fmt = "%Y-%m-%dT%H:%M:%S.%f"
-    orbit_ref_epoch = datetime.strptime(orbit.reference_epoch.__str__()[:-3],
+    orbit_ref_epoch = datetime.datetime.strptime(orbit.reference_epoch.__str__()[:-3],
                                         fmt)
 
     t_mid = burst.get_sensing_mid() - orbit_ref_epoch
