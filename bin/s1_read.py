@@ -4,6 +4,7 @@ import sys
 from sentinel1_reader import sentinel1_reader, sentinel1_orbit_reader
 
 if __name__ == "__main__":
+    '''testing script that prints burst info and write SLC to file'''
     # TODO replace with argparse
     zip_path = sys.argv[1]
     if not os.path.isfile(zip_path):
@@ -25,8 +26,13 @@ if __name__ == "__main__":
 
     bursts = sentinel1_reader.burst_from_zip(zip_path, orbit_path, i_subswath, pol)
 
+    # print out IDs and lat/lon centers of all bursts
     for i, burst in enumerate(bursts):
         print(burst.burst_id, burst.center)
+
+    # write to ENVI (default)
     burst.slc_to_file('burst.slc')
+    # write to geotiff
     burst.slc_to_file('burst.tif', 'GTiff')
+    # write to VRT
     burst.slc_to_file('burst.vrt', 'VRT')
