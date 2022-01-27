@@ -20,7 +20,7 @@ git clone https://github.com/opera-adt/sentinel1-reader.git
 2. Install dependencies:
 
 ```bash
-conda install -c conda-forge --file sentinel1-reader/docs/requirements.txt
+conda install -c conda-forge --file sentinel1-reader/requirements.txt
 ```
 
 3. Install `sentinel1-reader` via pip:
