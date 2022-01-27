@@ -220,7 +220,7 @@ class Sentinel1BurstSlc:
                                                  width,
                                                  ref_epoch)
 
-    def slc_to_gtiff(self, out_path):
+    def slc_to_file(self, out_path: str, fmt: str = 'ENVI'):
         '''Write burst to GTiff file.
 
         Parameters:
@@ -231,17 +231,23 @@ class Sentinel1BurstSlc:
         # get output directory of out_path
         dst_dir, _ = os.path.split(out_path)
 
-        # create temporary VRT
-        temp_vrt = tempfile.NamedTemporaryFile(dir=dst_dir, suffix='.tif')
-        self.slc_to_vrt_file(temp_vrt.name)
+        # create VRT; make temporary if output not VRT
+        if fmt != 'VRT':
+            temp_vrt = tempfile.NamedTemporaryFile(dir=dst_dir)
+            vrt_fname = temp_vrt.name
+        else:
+            vrt_fname = out_path
+        self.slc_to_vrt_file(vrt_fname)
+
+        if fmt == 'VRT':
+            return
 
         # open temporary VRT and translate to GTiff
-        src_ds = gdal.Open(temp_vrt.name)
-        dst_ds = gdal.Translate(out_path, src_ds, format='GTiff')
+        src_ds = gdal.Open(vrt_fname)
+        gdal.Translate(out_path, src_ds, format=fmt)
 
         # clean up
         src_ds = None
-        dst_ds = None
 
 
     def slc_to_vrt_file(self, out_path):
