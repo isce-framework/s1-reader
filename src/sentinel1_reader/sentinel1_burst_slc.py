@@ -1,5 +1,7 @@
 import datetime
 from dataclasses import dataclass
+import os
+import tempfile
 
 import isce3
 import numpy as np
@@ -182,7 +184,7 @@ class Sentinel1BurstSlc:
     border: list # list of lon, lat coordinate tuples (in degrees) representing burst border
     orbit: isce3.core.Orbit
     # VRT params
-    tiff_path: str
+    tiff_path: str  # path to tiff in SAFE zip
     i_burst: int
     first_valid_sample: int
     last_valid_sample: int
@@ -218,7 +220,31 @@ class Sentinel1BurstSlc:
                                                  width,
                                                  ref_epoch)
 
-    def to_vrt_file(self, out_path):
+    def slc_to_gtiff(self, out_path):
+        '''Write burst to GTiff file.
+
+        Parameters:
+        -----------
+        out_path : string
+            Path of output GTiff file.
+        '''
+        # get output directory of out_path
+        dst_dir, _ = os.path.split(out_path)
+
+        # create temporary VRT
+        temp_vrt = tempfile.NamedTemporaryFile(dir=dst_dir, suffix='.tif')
+        self.slc_to_vrt_file(temp_vrt.name)
+
+        # open temporary VRT and translate to GTiff
+        src_ds = gdal.Open(temp_vrt.name)
+        dst_ds = gdal.Translate(out_path, src_ds, format='GTiff')
+
+        # clean up
+        src_ds = None
+        dst_ds = None
+
+
+    def slc_to_vrt_file(self, out_path):
         '''Write burst to VRT file.
 
         Parameters:
