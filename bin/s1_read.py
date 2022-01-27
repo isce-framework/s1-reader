@@ -27,3 +27,6 @@ if __name__ == "__main__":
 
     for i, burst in enumerate(bursts):
         print(burst.burst_id, burst.center)
+    burst.slc_to_file('burst.slc')
+    burst.slc_to_file('burst.tif', 'GTiff')
+    burst.slc_to_file('burst.vrt', 'VRT')
