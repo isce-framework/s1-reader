@@ -42,8 +42,8 @@ i_subswath = 2
 pol = "VV"
 
 # read orbits
-orbit_dir = "/home/user/data/sentinel1_orbits"
-orbit_path = sentinel1_orbit_reader.get_swath_orbit_file_from_dir(zip_path, orbit_dir)
+orbit_dir = '/home/user/data/sentinel1_orbits'
+orbit_path = sentinel1_orbit_reader.get_orbit_file_from_dir(zip_path, orbit_dir)
 
 # returns the list of the bursts
 bursts = sentinel1_reader.burst_from_zip(zip_path, orbit_path, i_subswath, pol)
