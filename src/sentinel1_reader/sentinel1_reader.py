@@ -380,6 +380,28 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
 
     return bursts
 
+def _is_annotation_xml(path: str, id_str: str) -> bool:
+    ''' Check if path is annotation XMl and not calibration or rfi related
+
+    path : str
+        Path from SAFE zip to be checked
+    id_str : str
+        Subswath and polarization to be found. e.g. iw1_slc_vv
+
+    Returns:
+    --------
+    _ : bool
+        Whether or not given path is desired annotation XML
+    '''
+    # break path into tokens by '/'
+    tokens = path.split('/')
+
+    # check if 2nd to last path token, directory where file resides, is "annotation"
+    # check if last path token, file name, contains ID string
+    if tokens[-2] == 'annotation' and id_str in tokens[-1]:
+        return True
+    return False
+
 def burst_from_zip(zip_path: str, orbit_path: str, i_subswath: int, pol: str):
     '''Find bursts in a Sentinel 1 zip file
 
@@ -412,7 +434,7 @@ def burst_from_zip(zip_path: str, orbit_path: str, i_subswath: int, pol: str):
     id_str = f'iw{i_subswath}-slc-{pol}'
     with zipfile.ZipFile(zip_path, 'r') as z_file:
         # find annotation file
-        f_annotation = [f for f in z_file.namelist() if 'calibration' not in f and id_str in f and 'annotation' in f]
+        f_annotation = [f for f in z_file.namelist() if _is_annotation_xml(f, id_str)]
         if not f_annotation:
             raise ValueError(f"polarization {pol} not in SAFE: {zip_path}")
         f_annotation = f_annotation[0]
