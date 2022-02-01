@@ -267,7 +267,7 @@ class Sentinel1BurstSlc:
         return self.sensing_start + datetime.timedelta(seconds=d_seconds)
 
     def get_az_carrier_poly(self, offset=0.0, xstep=500, ystep=50,
-                            az_order=5, rg_order=3):
+                            az_order=5, rg_order=3, index_as_coord=False):
         """
         Estimate burst azimuth carrier polymonials
         Parameters
@@ -282,6 +282,8 @@ class Sentinel1BurstSlc:
             Azimuth polynomial order
         rg_order: int
             Slant range polynomial order
+        index_as_coord: bool
+            If true, polyfit with az/range indices. Else, polyfit with az/range.
 
         Returns
         -------
@@ -290,17 +292,26 @@ class Sentinel1BurstSlc:
            'x' and azimuth 'y'
         """
 
+        rdr_grid = self.as_isce3_radargrid()
+
         lines, samples = self.shape
         x = np.arange(0, samples, xstep, dtype=int)
         y = np.arange(0, lines, ystep, dtype=int)
-        xx, yy = np.meshgrid(x, y)
+        x_mesh, y_mesh = np.meshgrid(x, y)
 
         # Estimate azimuth carrier
         az_carrier = compute_az_carrier(self, self.orbit,
                                         offset=offset,
-                                        position=(yy, xx))
+                                        position=(y_mesh, x_mesh))
+
+        # Change index mesh to range/az mesh?
+        if not index_as_coord:
+            rg = self.starting_range + (x + 1) * self.range_pixel_spacing
+            az = rdr_grid.sensing_start + (y + 1) * self.azimuth_time_interval
+            x_mesh, y_mesh = np.meshgrid(rg, az)
+
         # Estimate azimuth carrier polynomials
-        az_carrier_poly = polyfit(xx.flatten() + 1, yy.flatten() + 1,
+        az_carrier_poly = polyfit(x_mesh.flatten(), y_mesh.flatten(),
                                   az_carrier.flatten(), az_order,
                                   rg_order)
         return az_carrier_poly
