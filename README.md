@@ -11,18 +11,23 @@
 
 ### Install
 
-1. Set up and activate virtual environment with ISCE3.
-2. Clone repository.
+1. Download source code:
 
 ```bash
-git clone https://github.com/LiangJYu/sentinel1-reader.git
+git clone https://github.com/opera-adt/sentinel1-reader.git
 ```
 
-3. Install into virtual environment with pip. From clone directory:
+2. Install dependencies:
 
 ```bash
-cd sentinel1-reader
-pip install .
+conda install -c conda-forge --file sentinel1-reader/docs/requirements.txt
+```
+
+3. Install `sentinel1-reader` via pip:
+
+```bash
+# run "pip install -e" to install in development mode
+python -m pip install ./sentinel1-reader
 ```
 
 ### Usage
