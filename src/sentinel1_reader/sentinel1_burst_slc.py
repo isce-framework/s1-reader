@@ -336,14 +336,20 @@ class Sentinel1BurstSlc:
                                         offset=offset,
                                         position=(y_mesh, x_mesh))
 
-        # Change index mesh to range/az mesh?
-        if not index_as_coord:
-            rg = self.starting_range + (x + 1) * self.range_pixel_spacing
-            az = rdr_grid.sensing_start + (y + 1) * self.azimuth_time_interval
-            x_mesh, y_mesh = np.meshgrid(rg, az)
-
-        # Estimate azimuth carrier polynomials
-        az_carrier_poly = polyfit(x_mesh.flatten(), y_mesh.flatten(),
+        # Fit azimuth carrier polynomial with with x/y or range/azimuth
+        if index_as_coord:
+            az_carrier_poly = polyfit(x_mesh.flatten()+1, y_mesh.flatten()+1,
                                   az_carrier.flatten(), az_order,
                                   rg_order)
+        else:
+            # Convert x/y to range/azimuth
+            rg = self.starting_range + (x + 1) * self.range_pixel_spacing
+            az = rdr_grid.sensing_start + (y + 1) * self.azimuth_time_interval
+            rg_mesh, az_mesh = np.meshgrid(rg, az)
+
+            # Estimate azimuth carrier polynomials
+            az_carrier_poly = polyfit(rg_mesh.flatten(), az_mesh.flatten(),
+                                  az_carrier.flatten(), az_order,
+                                  rg_order)
+
         return az_carrier_poly
