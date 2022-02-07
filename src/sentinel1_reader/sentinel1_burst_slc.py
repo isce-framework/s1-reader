@@ -1,6 +1,6 @@
-import datetime
-from dataclasses import dataclass
 import os
+from dataclasses import dataclass
+import datetime
 import tempfile
 
 import isce3
@@ -178,7 +178,7 @@ class Sentinel1BurstSlc:
     doppler: Doppler
     range_bandwidth: float
     polarization: str # {VV, VH, HH, HV}
-    burst_id: str # t{track_number}_iw{1,2,3}_{burst_index}
+    burst_id: str # t{track_number}_iw{1,2,3}_b{burst_index}
     platform_id: str # S1{A,B}
     center: tuple # {center lon, center lat} in degrees
     border: list # list of lon, lat coordinate tuples (in degrees) representing burst border

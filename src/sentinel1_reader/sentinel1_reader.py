@@ -402,7 +402,7 @@ def _is_annotation_xml(path: str, id_str: str) -> bool:
         return True
     return False
 
-def burst_from_zip(zip_path: str, orbit_path: str, i_subswath: int, pol: str):
+def burst_from_zip(zip_path: str, orbit_path: str, swath_num: int, pol: str = 'vv'):
     '''Find bursts in a Sentinel 1 zip file
 
     Parameters:
@@ -411,10 +411,10 @@ def burst_from_zip(zip_path: str, orbit_path: str, i_subswath: int, pol: str):
         Path the zip file.
     orbit_path : str
         Path the orbit file.
-    i_subswath : int
+    swath_num : int
         Integer of subswath of desired burst. {1, 2, 3}
     pol : str
-        Polarization of desired burst. {HH, VV, HV, VH}
+        Polarization of desired burst. {hh, vv, hv, vh}
 
     Returns:
     --------
@@ -422,8 +422,8 @@ def burst_from_zip(zip_path: str, orbit_path: str, i_subswath: int, pol: str):
         List of Sentinel1BurstSlc objects found in annotation XML.
     '''
 
-    if i_subswath < 1  or i_subswath > 3:
-        raise ValueError("i_subswath not <1 or >3")
+    if swath_num < 1 or swath_num > 3:
+        raise ValueError("swath_num not <1 or >3")
 
     # lower case polarity to be consistent with file naming convention
     pol = pol.lower()
@@ -431,7 +431,7 @@ def burst_from_zip(zip_path: str, orbit_path: str, i_subswath: int, pol: str):
     if pol not in pols:
         raise ValueError(f"polarization not in {pols}")
 
-    id_str = f'iw{i_subswath}-slc-{pol}'
+    id_str = f'iw{swath_num}-slc-{pol}'
     with zipfile.ZipFile(zip_path, 'r') as z_file:
         # find annotation file
         f_annotation = [f for f in z_file.namelist() if _is_annotation_xml(f, id_str)]
