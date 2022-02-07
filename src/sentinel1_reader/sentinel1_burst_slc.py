@@ -336,7 +336,7 @@ class Sentinel1BurstSlc:
                                         offset=offset,
                                         position=(y_mesh, x_mesh))
 
-        # Fit azimuth carrier polynomial with with x/y or range/azimuth
+        # Fit azimuth carrier polynomial with x/y or range/azimuth
         if index_as_coord:
             az_carrier_poly = polyfit(x_mesh.flatten()+1, y_mesh.flatten()+1,
                                       az_carrier.flatten(), az_order,
