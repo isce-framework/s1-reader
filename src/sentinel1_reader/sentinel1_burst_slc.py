@@ -339,8 +339,8 @@ class Sentinel1BurstSlc:
         # Fit azimuth carrier polynomial with with x/y or range/azimuth
         if index_as_coord:
             az_carrier_poly = polyfit(x_mesh.flatten()+1, y_mesh.flatten()+1,
-                                  az_carrier.flatten(), az_order,
-                                  rg_order)
+                                      az_carrier.flatten(), az_order,
+                                      rg_order)
         else:
             # Convert x/y to range/azimuth
             rg = self.starting_range + (x + 1) * self.range_pixel_spacing
