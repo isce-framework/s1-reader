@@ -39,10 +39,10 @@ from sentinel1_reader import sentinel1_reader, sentinel1_orbit_reader
 
 zip_path = "S1A_IW_SLC__1SDV_20190909T134419_20190909T134446_028945_03483B_B9E1.zip"
 i_subswath = 2
-pol = "HH"
+pol = "VV"
 
 # read orbits
-orbit_dir = '/home/user/data/sentinel1_orbits'
+orbit_dir = "/home/user/data/sentinel1_orbits"
 orbit_path = sentinel1_orbit_reader.get_swath_orbit_file_from_dir(zip_path, orbit_dir)
 
 # returns the list of the bursts
