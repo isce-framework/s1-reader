@@ -1,4 +1,5 @@
+python>=3.9
 numpy
 gdal
-isce3
+#isce3  #comment out temporarily as conda installed version does not work
 shapely
