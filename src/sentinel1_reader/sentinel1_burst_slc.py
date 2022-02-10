@@ -190,6 +190,10 @@ class Sentinel1BurstSlc:
     last_valid_sample: int
     first_valid_line: int
     last_valid_line: int
+    # window parameters
+    range_window_type: str
+    range_window_coefficient: float
+
 
     def as_isce3_radargrid(self):
         '''Init and return isce3.product.RadarGridParameters.
