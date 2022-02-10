@@ -305,6 +305,8 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
 
         rng_processing_element = tree.find('imageAnnotation/processingInformation/swathProcParamsList/swathProcParams/rangeProcessing')
         rng_processing_bandwidth = float(rng_processing_element.find('processingBandwidth').text)
+        range_window_type = str(rng_processing_element.find('windowType').text)
+        range_window_coeff = float(rng_processing_element.find('windowCoefficient').text)
 
         orbit_number = int(tree.find('adsHeader/absoluteOrbitNumber').text)
         orbit_number_offset = 73 if  platform_id == 'S1A' else 202
@@ -326,6 +328,7 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
     bursts = [[]] * n_bursts
     sensing_starts = [[]] * n_bursts
     sensing_times = [[]] * n_bursts
+
     for i, burst_list_element in enumerate(burst_list_elements):
         # get burst timing
         sensing_start = as_datetime(burst_list_element.find('azimuthTime').text)
@@ -366,6 +369,7 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
         last_sample = min(last_valid_samples[first_valid_line],
                           last_valid_samples[last_line])
 
+
         burst_id = f't{track_number}_{subswath_id.lower()}_b{id_burst}'
 
         bursts[i] = Sentinel1BurstSlc(sensing_start, radar_freq, wavelength,
@@ -376,7 +380,8 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
                                       rng_processing_bandwidth, pol, burst_id,
                                       platform_id, center_pts[i], boundary_pts[i],
                                       orbit, tiff_path, i, first_valid_sample,
-                                      last_sample, first_valid_line, last_line)
+                                      last_sample, first_valid_line, last_line,
+                                      range_window_type, range_window_coeff)
 
     return bursts
 
