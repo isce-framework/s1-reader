@@ -18,6 +18,7 @@ jobs:
       - name: Run pytest
         shell: bash -l {0}
         run: |
+          conda activate test
           pip install .
           conda install pytest
           pytest
