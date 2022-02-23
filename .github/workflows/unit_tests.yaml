@@ -13,6 +13,7 @@ jobs:
         with:
           activate-environment: test
           auto-update-conda: true
+          environment-file: requirements.yaml
           python-version: 3.9
           auto-activate-base: false
       - name: Run pytest
