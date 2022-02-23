@@ -1,17 +1,20 @@
-name: GitHub Actions Demo
+name: Unit tests
 on: [push]
+
 jobs:
-  Explore-GitHub-Actions:
+  unit_tests:
+    name: Unit tests
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
     steps:
-      - run: echo "🎉 The job was automatically triggered by a ${{ github.event_name }} event."
-      - run: echo "🐧 This job is now running on a ${{ runner.os }} server hosted by GitHub!"
-      - run: echo "🔎 The name of your branch is ${{ github.ref }} and your repository is ${{ github.repository }}."
-      - name: Check out repository code
-        uses: actions/checkout@v2
-      - run: echo "💡 The ${{ github.repository }} repository has been cloned to the runner."
-      - run: echo "��️ The workflow is now ready to test your code on the runner."
-      - name: List files in the repository
-        run: |
-          ls ${{ github.workspace }}
-      - run: echo "🍏 This job's status is ${{ job.status }}."
+      - uses: actions/checkout@v2
+      - uses: conda-incubator/setup-miniconda@v2
+        with:
+          activate-environment: test
+          auto-update-conda: true
+          python-version: 3.9
+          auto-activate-base: false
+      - name: Run pytest
+        shell: bash -l {0}
+        run: pytest
