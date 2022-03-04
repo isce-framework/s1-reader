@@ -1,7 +1,7 @@
 import os
 import sys
 
-from sentinel1_reader import sentinel1_reader, sentinel1_orbit_reader
+from s1reader import reader, orbit
 
 if __name__ == "__main__":
     '''testing script that prints burst info and write SLC to file'''
@@ -22,9 +22,9 @@ if __name__ == "__main__":
     orbit_dir = sys.argv[4]
     if not os.path.isdir(orbit_dir):
         raise NotADirectoryError(f"{orbit_dir} not found")
-    orbit_path = sentinel1_orbit_reader.get_orbit_file_from_dir(zip_path, orbit_dir)
+    orbit_path = orbit.get_orbit_file_from_dir(zip_path, orbit_dir)
 
-    bursts = sentinel1_reader.burst_from_zip(zip_path, orbit_path, i_subswath, pol)
+    bursts = reader.burst_from_zip(zip_path, orbit_path, i_subswath, pol)
 
     # print out IDs and lat/lon centers of all bursts
     for i, burst in enumerate(bursts):

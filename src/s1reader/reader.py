@@ -8,7 +8,7 @@ import shapely
 
 import isce3
 from nisar.workflows.stage_dem import check_dateline
-from sentinel1_reader.sentinel1_burst_slc import Doppler, Sentinel1BurstSlc
+from s1reader.burst_slc import Doppler, Sentinel1BurstSlc
 
 # TODO evaluate if it make sense to combine below into a class
 def as_datetime(t_str, fmt = "%Y-%m-%dT%H:%M:%S.%f"):
