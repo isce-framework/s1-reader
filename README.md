@@ -35,7 +35,7 @@ python -m pip install ./s1-reader
 The following sample code demonstrates how to process a single burst from a S1 SAFE zip:
 
 ```python
-from s1reader import reader, orbit
+import s1reader
 
 zip_path = "S1A_IW_SLC__1SDV_20190909T134419_20190909T134446_028945_03483B_B9E1.zip"
 swath_num = 2
@@ -43,8 +43,8 @@ pol = "VV"
 
 # read orbits
 orbit_dir = '/home/user/data/sentinel1_orbits'
-orbit_path = orbit.get_orbit_file_from_dir(zip_path, orbit_dir)
+orbit_path = s1reader.get_orbit_file_from_dir(zip_path, orbit_dir)
 
 # returns the list of the bursts
-bursts = reader.burst_from_zip(zip_path, orbit_path, swath_num, pol)
+bursts = s1reader.burst_from_zip(zip_path, orbit_path, swath_num, pol)
 ```
