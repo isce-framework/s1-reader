@@ -357,3 +357,25 @@ class Sentinel1BurstSlc:
                                   rg_order)
 
         return az_carrier_poly
+
+    def as_dict(self):
+        """
+        Return SLC class attributes as dict
+
+        Returns
+        -------
+        self_as_dict: dict
+           Dict representation as a dict
+        """
+        self_as_dict = {}
+        for key, val in self.__dict__.items():
+            if key == 'sensing_start':
+                val = str(val)
+            elif key == 'center':
+                val = val.coords[0]
+            elif isinstance(val, np.float64):
+                val = float(val)
+            elif key in ['doppler', 'azimuth_fm_rate', 'border', 'orbit']:
+                continue
+            self_as_dict[key] = val
+        return self_as_dict
