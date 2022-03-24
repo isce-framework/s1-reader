@@ -24,7 +24,7 @@ if __name__ == "__main__":
         raise NotADirectoryError(f"{orbit_dir} not found")
     orbit_path = s1reader.get_orbit_file_from_dir(path, orbit_dir)
 
-    bursts = s1reader.load_burst(path, orbit_path, i_subswath, pol)
+    bursts = s1reader.load_bursts(path, orbit_path, i_subswath, pol)
 
     # print out IDs and lat/lon centers of all bursts
     for i, burst in enumerate(bursts):
