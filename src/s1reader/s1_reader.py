@@ -385,7 +385,7 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
 
     return bursts
 
-def _is_annotation_xml(path: str, id_str: str) -> bool:
+def _is_zip_annotation_xml(path: str, id_str: str) -> bool:
     ''' Check if path is annotation XMl and not calibration or rfi related
 
     path : str
@@ -407,13 +407,13 @@ def _is_annotation_xml(path: str, id_str: str) -> bool:
         return True
     return False
 
-def burst_from_zip(zip_path: str, orbit_path: str, swath_num: int, pol: str = 'vv'):
-    '''Find bursts in a Sentinel 1 zip file
+def load_burst(path: str, orbit_path: str, swath_num: int, pol: str = 'vv'):
+    '''Find bursts in a Sentinel 1 zip file or a SAFE structured directory.
 
     Parameters:
     -----------
-    zip_path : str
-        Path the zip file.
+    path : str
+        Path to Sentinel 1 zip file or SAFE directory
     orbit_path : str
         Path the orbit file.
     swath_num : int
@@ -437,16 +437,80 @@ def burst_from_zip(zip_path: str, orbit_path: str, swath_num: int, pol: str = 'v
         raise ValueError(f"polarization not in {pols}")
 
     id_str = f'iw{swath_num}-slc-{pol}'
+
+    if not os.path.exists(path):
+        raise FileNotFoundError(f'{path} not found')
+    elif os.path.isdir(path):
+        return _burst_from_safe_dir(path, id_str, orbit_path)
+    elif os.path.isfile(path):
+        return _burst_from_zip(path, id_str, orbit_path)
+    else:
+        raise ValueError(f'{path} is unsupported')
+
+def _burst_from_zip(zip_path: str, id_str: str, orbit_path: str):
+    '''Find bursts in a Sentinel 1 zip file.
+
+    Parameters:
+    -----------
+    path : str
+        Path to zip file.
+    id_str: str
+        Identifcation of desired burst. Format: iw[swath_num]-slc-[pol]
+    orbit_path : str
+        Path the orbit file.
+
+    Returns:
+    --------
+    bursts : list
+        List of Sentinel1BurstSlc objects found in annotation XML.
+    '''
     with zipfile.ZipFile(zip_path, 'r') as z_file:
+        z_file_list = z_file.namelist()
+
         # find annotation file
-        f_annotation = [f for f in z_file.namelist() if _is_annotation_xml(f, id_str)]
+        f_annotation = [f for f in z_file_list if _is_zip_annotation_xml(f, id_str)]
         if not f_annotation:
-            raise ValueError(f"polarization {pol} not in SAFE: {zip_path}")
+            raise ValueError(f"burst {id_str} not in SAFE: {zip_path}")
         f_annotation = f_annotation[0]
 
         # find tiff file
-        f_tiff = [f for f in z_file.namelist() if 'measurement' in f and id_str in f and 'tiff' in f][0]
-        f_tiff = f'/vsizip/{zip_path}/{f_tiff}'
+        f_tiff = [f for f in z_file_list
+                  if 'measurement' in f and id_str in f and 'tiff' in f]
+        f_tiff = f'/vsizip/{zip_path}/{f_tiff[0]}' if f_tiff else ''
 
         bursts = burst_from_xml(f_annotation, orbit_path, f_tiff, z_file.open)
         return bursts
+
+def _burst_from_safe_dir(safe_dir_path: str, id_str: str, orbit_path: str):
+    '''Find bursts in a Sentinel 1 SAFE structured directory.
+
+    Parameters:
+    -----------
+    path : str
+        Path to SAFE directory.
+    id_str: str
+        Identifcation of desired burst. Format: iw[swath_num]-slc-[pol]
+    orbit_path : str
+        Path the orbit file.
+
+    Returns:
+    --------
+    bursts : list
+        List of Sentinel1BurstSlc objects found in annotation XML.
+    '''
+
+    # find annotation file
+    annotation_list = os.listdir(f'{safe_dir_path}/annotation')
+    f_annotation = [f for f in annotation_list if id_str in f]
+    if not f_annotation:
+        raise ValueError(f"burst {id_str} not in SAFE: {safe_dir_path}")
+    f_annotation = f'{safe_dir_path}/annotation/{f_annotation[0]}'
+
+    # find tiff file
+    measurement_list = os.listdir(f'{safe_dir_path}/measurement')
+    f_tiff = [f for f in measurement_list
+              if 'measurement' in f and id_str in f and 'tiff' in f]
+    f_tiff = f'{safe_dir_path}/measurement/{f_tiff[0]}' if f_tiff else ''
+
+    bursts = burst_from_xml(f_annotation, orbit_path, f_tiff)
+    return bursts

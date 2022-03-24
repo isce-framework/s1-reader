@@ -6,9 +6,9 @@ import s1reader
 if __name__ == "__main__":
     '''testing script that prints burst info and write SLC to file'''
     # TODO replace with argparse
-    zip_path = sys.argv[1]
-    if not os.path.isfile(zip_path):
-        raise FileNotFoundError(f"{zip_path} does not exist")
+    path = sys.argv[1]
+    if not os.path.exists(path):
+        raise FileNotFoundError(f"{path} does not exist")
 
     i_subswath = int(sys.argv[2])
     if i_subswath < 1  or i_subswath > 3:
@@ -22,17 +22,19 @@ if __name__ == "__main__":
     orbit_dir = sys.argv[4]
     if not os.path.isdir(orbit_dir):
         raise NotADirectoryError(f"{orbit_dir} not found")
-    orbit_path = s1reader.get_orbit_file_from_dir(zip_path, orbit_dir)
+    orbit_path = s1reader.get_orbit_file_from_dir(path, orbit_dir)
 
-    bursts = s1reader.burst_from_zip(zip_path, orbit_path, i_subswath, pol)
+    bursts = s1reader.load_burst(path, orbit_path, i_subswath, pol)
 
     # print out IDs and lat/lon centers of all bursts
     for i, burst in enumerate(bursts):
         print(burst.burst_id, burst.center)
 
     # write to ENVI (default)
+    '''
     burst.slc_to_file('burst.slc')
     # write to geotiff
     burst.slc_to_file('burst.tif', 'GTiff')
     # write to VRT
     burst.slc_to_file('burst.vrt', 'VRT')
+    '''
