@@ -1,5 +1,6 @@
 import datetime
 import os
+import warnings
 import xml.etree.ElementTree as ET
 import zipfile
 
@@ -506,11 +507,16 @@ def _burst_from_safe_dir(safe_dir_path: str, id_str: str, orbit_path: str):
         raise ValueError(f"burst {id_str} not in SAFE: {safe_dir_path}")
     f_annotation = f'{safe_dir_path}/annotation/{f_annotation[0]}'
 
-    # find tiff file
-    measurement_list = os.listdir(f'{safe_dir_path}/measurement')
-    f_tiff = [f for f in measurement_list
-              if 'measurement' in f and id_str in f and 'tiff' in f]
-    f_tiff = f'{safe_dir_path}/measurement/{f_tiff[0]}' if f_tiff else ''
+    # find tiff file if measurement directory found
+    if os.path.isdir(f'{safe_dir_path}/measurement'):
+        measurement_list = os.listdir(f'{safe_dir_path}/measurement')
+        f_tiff = [f for f in measurement_list
+                  if 'measurement' in f and id_str in f and 'tiff' in f]
+        f_tiff = f'{safe_dir_path}/measurement/{f_tiff[0]}' if f_tiff else ''
+    else:
+        warning_str = f'measurement directory not found in {safe_dir_path}'
+        warnings.warn(warning_str)
+        f_tiff = ''
 
     bursts = burst_from_xml(f_annotation, orbit_path, f_tiff)
     return bursts
