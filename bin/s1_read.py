@@ -31,10 +31,8 @@ if __name__ == "__main__":
         print(burst.burst_id, burst.center)
 
     # write to ENVI (default)
-    '''
     burst.slc_to_file('burst.slc')
     # write to geotiff
     burst.slc_to_file('burst.tif', 'GTiff')
     # write to VRT
     burst.slc_to_file('burst.vrt', 'VRT')
-    '''
