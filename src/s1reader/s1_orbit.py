@@ -60,7 +60,7 @@ def get_orbit_file_from_list(zip_path: str, orbit_file_list: list[str]) -> str:
     orbit_path : str
         Path the orbit file.
     '''
-    if not os.path.isfile(zip_path):
+    if not os.path.exists(zip_path):
         raise FileNotFoundError(f"{zip_path} does not exist")
 
     if not orbit_file_list:
@@ -92,13 +92,13 @@ def get_orbit_file_from_list(zip_path: str, orbit_file_list: list[str]) -> str:
 
     return ''
 
-def get_orbit_file_from_dir(zip_path: str, orbit_dir: str) -> str:
+def get_orbit_file_from_dir(path: str, orbit_dir: str) -> str:
     '''Get orbit state vector list for a given swath.
 
     Parameters:
     -----------
-    zip_path : string
-        Path to Sentinel1 SAFE zip file. File names required to adhere to the
+    path : string
+        Path to Sentinel1 SAFE zip file. Base names required to adhere to the
         format described here:
         https://sentinel.esa.int/web/sentinel/user-guides/sentinel-1-sar/naming-conventions
     orbit_dir : string
@@ -111,13 +111,13 @@ def get_orbit_file_from_dir(zip_path: str, orbit_dir: str) -> str:
     orbit_path : str
         Path the orbit file.
     '''
-    if not os.path.isfile(zip_path):
-        raise FileNotFoundError(f"{zip_path} does not exist")
+    if not os.path.exists(path):
+        raise FileNotFoundError(f"{path} does not exist")
 
     if not os.path.isdir(orbit_dir):
         raise NotADirectoryError(f"{orbit_dir} not found")
 
     orbit_path = get_orbit_file_from_list(
-        zip_path, [f'{orbit_dir}/{item}' for item in os.listdir(orbit_dir)])
+        path, [f'{orbit_dir}/{item}' for item in os.listdir(orbit_dir)])
 
     return orbit_path
