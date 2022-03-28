@@ -2,6 +2,7 @@ import os
 from dataclasses import dataclass
 import datetime
 import tempfile
+import warnings
 
 import isce3
 import numpy as np
@@ -184,7 +185,7 @@ class Sentinel1BurstSlc:
     border: list # list of lon, lat coordinate tuples (in degrees) representing burst border
     orbit: isce3.core.Orbit
     # VRT params
-    tiff_path: str  # path to tiff in SAFE zip
+    tiff_path: str  # path to measurement tiff in SAFE/zip
     i_burst: int
     first_valid_sample: int
     last_valid_sample: int
@@ -232,6 +233,11 @@ class Sentinel1BurstSlc:
         out_path : string
             Path of output GTiff file.
         '''
+        if not self.tiff_path:
+            warn_str = f'Unable write SLC to file. Burst does not contain image data; only metadata.'
+            warnings.warn(warn_str)
+            return
+
         # get output directory of out_path
         dst_dir, _ = os.path.split(out_path)
 
@@ -262,6 +268,11 @@ class Sentinel1BurstSlc:
         out_path : string
             Path of output VRT file.
         '''
+        if not self.tiff_path:
+            warn_str = f'Unable write SLC to file. Burst does not contain image data; only metadata.'
+            warnings.warn(warn_str)
+            return
+
         line_offset = self.i_burst * self.shape[0]
 
         inwidth = self.last_valid_sample - self.first_valid_sample + 1
