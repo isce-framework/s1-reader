@@ -411,19 +411,19 @@ class Sentinel1BurstSlc:
                 temp['lut2d']['y_spacing'] = val.lut2d.y_spacing
                 temp['lut2d']['length'] = val.lut2d.length
                 temp['lut2d']['width'] = val.lut2d.width
-                temp['lut2d']['data'] = val.lut2d.data
+                temp['lut2d']['data'] = val.lut2d.data.flatten().tolist()
 
                 val = temp
             elif key in ['orbit']:
                 temp = {}
-                temp['ref_epoch'] = val.reference_epoch
+                temp['ref_epoch'] = str(val.reference_epoch)
                 temp['time'] = {}
                 temp['time']['first'] = val.time.first
                 temp['time']['spacing'] = val.time.spacing
                 temp['time']['last'] = val.time.last
                 temp['time']['size'] = val.time.size
-                temp['position'] = val.position
-                temp['velocity'] = val.velocity
+                temp['position'] = val.position.flatten().tolist()
+                temp['velocity'] = val.velocity.flatten().tolist()
                 val = temp
             self_as_dict[key] = val
         return self_as_dict
