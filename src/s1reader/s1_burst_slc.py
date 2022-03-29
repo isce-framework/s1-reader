@@ -386,7 +386,44 @@ class Sentinel1BurstSlc:
                 val = val.coords[0]
             elif isinstance(val, np.float64):
                 val = float(val)
-            elif key in ['doppler', 'azimuth_fm_rate', 'border', 'orbit']:
-                continue
+            elif key == 'azimuth_fm_rate':
+                temp = {}
+                temp['order'] = val.order
+                temp['mean'] = val.mean
+                temp['std'] = val.std
+                temp['coeffs'] = val.coeffs
+                val = temp
+            elif key == 'border':
+                val = self.border[0].wkt
+            elif key == 'doppler':
+                temp = {}
+
+                temp['poly1d'] = {}
+                temp['poly1d']['order'] = val.poly1d.order
+                temp['poly1d']['mean'] = val.poly1d.mean
+                temp['poly1d']['std'] = val.poly1d.std
+                temp['poly1d']['coeffs'] = val.poly1d.coeffs
+
+                temp['lut2d'] = {}
+                temp['lut2d']['x_start'] = val.lut2d.x_start
+                temp['lut2d']['x_spacing'] = val.lut2d.x_spacing
+                temp['lut2d']['y_start'] = val.lut2d.y_start
+                temp['lut2d']['y_spacing'] = val.lut2d.y_spacing
+                temp['lut2d']['length'] = val.lut2d.length
+                temp['lut2d']['width'] = val.lut2d.width
+                temp['lut2d']['data'] = val.lut2d.data
+
+                val = temp
+            elif key in ['orbit']:
+                temp = {}
+                temp['ref_epoch'] = val.reference_epoch
+                temp['time'] = {}
+                temp['time']['first'] = val.time.first
+                temp['time']['spacing'] = val.time.spacing
+                temp['time']['last'] = val.time.last
+                temp['time']['size'] = val.time.size
+                temp['position'] = val.position
+                temp['velocity'] = val.velocity
+                val = temp
             self_as_dict[key] = val
         return self_as_dict
