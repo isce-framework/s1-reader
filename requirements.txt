@@ -1,5 +1,5 @@
 python>=3.9
 numpy
 gdal
-#isce3  #comment out temporarily as conda installed version does not work
+#isce3    # [temporary] install isce3 from stratch instead, to stay in sync with isce3 development.
 shapely
