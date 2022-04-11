@@ -1,4 +1,5 @@
+python>=3.9
 numpy
 gdal
-isce3
+#isce3    # since the conda-installed isce3 is not the most updated version, installing isce3 from stratch is recommended, to stay in sync with isce3 development.
 shapely
