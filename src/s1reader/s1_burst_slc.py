@@ -422,8 +422,12 @@ class Sentinel1BurstSlc:
                 temp['time']['spacing'] = val.time.spacing
                 temp['time']['last'] = val.time.last
                 temp['time']['size'] = val.time.size
-                temp['position'] = val.position.flatten().tolist()
-                temp['velocity'] = val.velocity.flatten().tolist()
+                temp['position_x'] = val.position[:,0].tolist()
+                temp['position_y'] = val.position[:,1].tolist()
+                temp['position_z'] = val.position[:,2].tolist()
+                temp['velocity_x'] = val.velocity[:,0].tolist()
+                temp['velocity_y'] = val.velocity[:,1].tolist()
+                temp['velocity_z'] = val.velocity[:,2].tolist()
                 val = temp
             self_as_dict[key] = val
         return self_as_dict
