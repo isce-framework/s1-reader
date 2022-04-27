@@ -313,6 +313,17 @@ class Sentinel1BurstSlc:
         d_seconds = 0.5 * (self.shape[0] - 1) * self.azimuth_time_interval
         return self.sensing_start + datetime.timedelta(seconds=d_seconds)
 
+    def get_sensing_end(self):
+        '''Returns sensing end as datetime.datetime object.
+
+        Returns:
+        --------
+        _ : datetime.datetime
+            Sensing end as datetime.datetime object.
+        '''
+        d_seconds = (self.shape[0] - 1) * self.azimuth_time_interval
+        return self.sensing_start + datetime.timedelta(seconds=d_seconds)
+
     def get_az_carrier_poly(self, offset=0.0, xstep=500, ystep=50,
                             az_order=5, rg_order=3, index_as_coord=False):
         """
