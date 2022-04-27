@@ -184,6 +184,7 @@ class Sentinel1BurstSlc:
     center: tuple # {center lon, center lat} in degrees
     border: list # list of lon, lat coordinate tuples (in degrees) representing burst border
     orbit: isce3.core.Orbit
+    orbit_direction: str
     # VRT params
     tiff_path: str  # path to measurement tiff in SAFE/zip
     i_burst: int
