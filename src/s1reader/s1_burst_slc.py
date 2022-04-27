@@ -35,7 +35,7 @@ def compute_az_carrier(burst, orbit, offset, position):
     fmt = "%Y-%m-%dT%H:%M:%S.%f"
     orbit_ref_epoch = datetime.datetime.strptime(orbit.reference_epoch.__str__()[:-3], fmt)
 
-    t_mid = burst.get_sensing_mid() - orbit_ref_epoch
+    t_mid = burst.sensing_mid - orbit_ref_epoch
     _, v = orbit.interpolate(t_mid.total_seconds())
     vs = np.linalg.norm(v)
     ks = 2 * vs * burst.azimuth_steer_rate / burst.wavelength
@@ -184,6 +184,7 @@ class Sentinel1BurstSlc:
     center: tuple # {center lon, center lat} in degrees
     border: list # list of lon, lat coordinate tuples (in degrees) representing burst border
     orbit: isce3.core.Orbit
+    orbit_direction: str
     # VRT params
     tiff_path: str  # path to measurement tiff in SAFE/zip
     i_burst: int

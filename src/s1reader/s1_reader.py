@@ -287,6 +287,7 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
         azimuth_steer_rate = np.radians(float(product_info_element.find('azimuthSteeringRate').text))
         radar_freq = float(product_info_element.find('radarFrequency').text)
         range_sampling_rate = float(product_info_element.find('rangeSamplingRate').text)
+        orbit_direction = product_info_element.find('pass').text
 
         image_info_element = tree.find('imageAnnotation/imageInformation')
         azimuth_time_interval = float(image_info_element.find('azimuthTimeInterval').text)
@@ -379,8 +380,9 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
                                       range_sampling_rate, range_pxl_spacing,
                                       (n_lines, n_samples), az_fm_rate, doppler,
                                       rng_processing_bandwidth, pol, burst_id,
-                                      platform_id, center_pts[i], boundary_pts[i],
-                                      orbit, tiff_path, i, first_valid_sample,
+                                      platform_id, center_pts[i],
+                                      boundary_pts[i], orbit, orbit_direction,
+                                      tiff_path, i, first_valid_sample,
                                       last_sample, first_valid_line, last_line,
                                       range_window_type, range_window_coeff)
 
