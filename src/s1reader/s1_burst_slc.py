@@ -302,17 +302,6 @@ class Sentinel1BurstSlc:
         with open(out_path, 'w') as fid:
             fid.write(tmpl)
 
-    def get_sensing_mid(self):
-        '''Returns sensing mid as datetime.datetime object.
-
-        Returns:
-        --------
-        _ : datetime.datetime
-            Sensing mid as datetime.datetime object.
-        '''
-        d_seconds = 0.5 * (self.shape[0] - 1) * self.azimuth_time_interval
-        return self.sensing_start + datetime.timedelta(seconds=d_seconds)
-
     def get_az_carrier_poly(self, offset=0.0, xstep=500, ystep=50,
                             az_order=5, rg_order=3, index_as_coord=False):
         """
@@ -431,3 +420,35 @@ class Sentinel1BurstSlc:
                 val = temp
             self_as_dict[key] = val
         return self_as_dict
+
+    @property
+    def sensing_mid(self):
+        '''Returns sensing mid as datetime.datetime object.
+
+        Returns:
+        --------
+        _ : datetime.datetime
+            Sensing mid as datetime.datetime object.
+        '''
+        d_seconds = 0.5 * self.length * self.azimuth_time_interval
+        return self.sensing_start + datetime.timedelta(seconds=d_seconds)
+
+    @property
+    def sensing_stop(self):
+        '''Returns sensing end as datetime.datetime object.
+
+        Returns:
+        --------
+        _ : datetime.datetime
+            Sensing end as datetime.datetime object.
+        '''
+        d_seconds = (self.length - 1) * self.azimuth_time_interval
+        return self.sensing_start + datetime.timedelta(seconds=d_seconds)
+
+    @property
+    def length(self):
+        return self.shape[0]
+
+    @property
+    def width(self):
+        return self.shape[1]
