@@ -430,7 +430,7 @@ class Sentinel1BurstSlc:
         _ : datetime.datetime
             Sensing mid as datetime.datetime object.
         '''
-        d_seconds = 0.5 * (self.shape[0] - 1) * self.azimuth_time_interval
+        d_seconds = 0.5 * (self.length - 1) * self.azimuth_time_interval
         return self.sensing_start + datetime.timedelta(seconds=d_seconds)
 
     @property
@@ -442,7 +442,7 @@ class Sentinel1BurstSlc:
         _ : datetime.datetime
             Sensing end as datetime.datetime object.
         '''
-        d_seconds = (self.shape[0] - 1) * self.azimuth_time_interval
+        d_seconds = (self.length - 1) * self.azimuth_time_interval
         return self.sensing_start + datetime.timedelta(seconds=d_seconds)
 
     @property
