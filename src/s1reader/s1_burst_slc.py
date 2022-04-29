@@ -195,7 +195,8 @@ class Sentinel1BurstSlc:
     # window parameters
     range_window_type: str
     range_window_coefficient: float
-
+    rank: int # The number of PRI between transmitted pulse and return echo.
+    prf_raw_data: float  # Pulse repetition frequency (PRF) of the raw data [Hz]
 
     def as_isce3_radargrid(self):
         '''Init and return isce3.product.RadarGridParameters.
