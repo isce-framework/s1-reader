@@ -423,6 +423,23 @@ class Sentinel1BurstSlc:
             self_as_dict[key] = val
         return self_as_dict
 
+    def bistatic_delay(self, xstep=1, ystep=1):
+        pri = 1.0 / self.prf_raw_data
+        tau0 = self.rank * pri
+
+        mid_range = self.starting_range + 0.5 * self.width * self.range_pixel_spacing
+        tau_mid = mid_range * 2.0 / isce3.core.speed_of_light
+
+        x = np.arange(0, self.width, xstep, dtype=int)
+        y = np.arange(0, self.length, ystep, dtype=int)
+        x_mesh, y_mesh = np.meshgrid(x, y)
+        slant_range = self.starting_range + x_mesh * self.range_pixel_spacing
+        tau = slant_range * 2.0 / isce3.core.speed_of_light
+
+        bistatic_correction = tau_mid / 2 + tau / 2 - tau0
+
+        return bistatic_correction
+
     @property
     def sensing_mid(self):
         '''Returns sensing mid as datetime.datetime object.
