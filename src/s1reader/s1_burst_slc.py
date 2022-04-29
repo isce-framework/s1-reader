@@ -424,6 +424,25 @@ class Sentinel1BurstSlc:
         return self_as_dict
 
     def bistatic_delay(self, xstep=1, ystep=1):
+        '''Computes the bistatic delay correction as
+        described in Gisinger et al, 2021
+
+        Parameters
+        ----------
+        xstep : int
+           spacing along x direction (range direction) in units of pixels
+
+        ystep : int
+           spacing along y direction (azimuth direction) in units of pixels
+
+
+        Returns
+        --------
+           bistatic delay correction in seconds. This correction needs to be 
+           added to the SLC tagged azimuth time to get the corrected azimuth
+           times.
+        '''
+
         pri = 1.0 / self.prf_raw_data
         tau0 = self.rank * pri
 
@@ -436,6 +455,15 @@ class Sentinel1BurstSlc:
         slant_range = self.starting_range + x_mesh * self.range_pixel_spacing
         tau = slant_range * 2.0 / isce3.core.speed_of_light
 
+        # the first term (tau_mid/2) is the bulk bistatic delay which was
+        # removed from the orginial azimuth time by the ESA IPF. Based on
+        # Gisinger et al, 2021, ESA IPF has used the mid of the second subswath 
+        # to compute the bulk bistatic delay. However currently we have not 
+        # been able to verify this from ESA documents. In this implementation
+        # we have used the range to the middle of the burst of interest to 
+        # compute the bulk bistatic delay. The correction can be potentially
+        # biased by the amount of discrepancy between the ESA IPF bulk bistatic 
+        # correction and our assumed middle of the burst of interest.
         bistatic_correction = tau_mid / 2 + tau / 2 - tau0
 
         return bistatic_correction
