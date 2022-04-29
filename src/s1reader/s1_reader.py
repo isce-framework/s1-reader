@@ -293,6 +293,12 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
         azimuth_time_interval = float(image_info_element.find('azimuthTimeInterval').text)
         slant_range_time = float(image_info_element.find('slantRangeTime').text)
         ascending_node_time = as_datetime(image_info_element.find('ascendingNodeTime').text)
+       
+        downlink_info =  tree.find('generalAnnotation/downlinkInformationList/downlinkInformation')
+        prf_raw_data = float(downlink_info.find('prf').text)
+        downlink_values =  tree.find('generalAnnotation/downlinkInformationList/downlinkInformation/downlinkValues')
+        rank = int(downlink_values.find('rank').text)
+
 
         n_lines = int(tree.find('swathTiming/linesPerBurst').text)
         n_samples = int(tree.find('swathTiming/samplesPerBurst').text)
@@ -384,7 +390,7 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
                                       boundary_pts[i], orbit, orbit_direction,
                                       tiff_path, i, first_valid_sample,
                                       last_sample, first_valid_line, last_line,
-                                      range_window_type, range_window_coeff)
+                                      range_window_type, range_window_coeff, rank, prf_raw_data)
 
     return bursts
 
