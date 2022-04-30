@@ -439,7 +439,7 @@ class Sentinel1BurstSlc:
         Returns
         --------
            LUT2D object of bistatic delay correction in seconds as a function
-           of the range and zimuth indices. This correction needs to be added 
+           of the range and zimuth indices. This correction needs to be added
            to the SLC tagged azimuth time to get the corrected azimuth times.
         '''
 
@@ -454,18 +454,18 @@ class Sentinel1BurstSlc:
 
         x = np.arange(0, (nx+1)*xstep, xstep, dtype = int)
         y = np.arange(0, (ny+1)*ystep, ystep, dtype = int)
-        x_mesh, y_mesh = np.meshgrid(x, y)
+        x_mesh = np.meshgrid(x, y)[0]
         slant_range = self.starting_range + x_mesh * self.range_pixel_spacing
         tau = slant_range * 2.0 / isce3.core.speed_of_light
 
         # the first term (tau_mid/2) is the bulk bistatic delay which was
         # removed from the orginial azimuth time by the ESA IPF. Based on
-        # Gisinger et al, 2021, ESA IPF has used the mid of the second subswath 
-        # to compute the bulk bistatic delay. However currently we have not 
+        # Gisinger et al, 2021, ESA IPF has used the mid of the second subswath
+        # to compute the bulk bistatic delay. However currently we have not
         # been able to verify this from ESA documents. In this implementation
-        # we have used the range to the middle of the burst of interest to 
+        # we have used the range to the middle of the burst of interest to
         # compute the bulk bistatic delay. The correction can be potentially
-        # biased by the amount of discrepancy between the ESA IPF bulk bistatic 
+        # biased by the amount of discrepancy between the ESA IPF bulk bistatic
         # correction and our assumed middle of the burst of interest.
         bistatic_correction = tau_mid / 2 + tau / 2 - tau0
 
