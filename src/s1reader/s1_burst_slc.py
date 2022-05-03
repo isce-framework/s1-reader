@@ -456,7 +456,7 @@ class Sentinel1BurstSlc:
         _ : float
             Burst sensing duration as float in seconds.
         '''
-        return self.azimuth_time_interval * self.shape[0]
+        return self.azimuth_time_interval * self.length
 
     @property
     def length(self):
