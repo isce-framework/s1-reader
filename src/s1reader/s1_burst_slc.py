@@ -468,6 +468,6 @@ class Sentinel1BurstSlc:
 
     @property
     def swath_name(self):
-    '''Swath name in iw1, iw2, iw3.'''
+        '''Swath name in iw1, iw2, iw3.'''
         return self.burst_id.split('_')[1]
 
