@@ -52,7 +52,8 @@ orbit_dir = '/home/user/data/sentinel1_orbits'
 orbit_path = s1reader.get_orbit_file_from_dir(zip_path, orbit_dir)
 
 # returns the list of the bursts
-bursts = s1reader.burst_from_zip(zip_path, orbit_path, swath_num, pol)
+bursts = s1reader.load_bursts(zip_path, orbit_path, swath_num, pol)
+burst_ids = [x.burst_id for x in bursts]
 ```
 
 ### License

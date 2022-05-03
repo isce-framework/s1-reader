@@ -497,9 +497,26 @@ class Sentinel1BurstSlc:
         return self.sensing_start + datetime.timedelta(seconds=d_seconds)
 
     @property
+    def burst_duration(self):
+        '''Returns burst sensing duration as float in seconds.
+
+        Returns:
+        --------
+        _ : float
+            Burst sensing duration as float in seconds.
+        '''
+        return self.azimuth_time_interval * self.length
+
+    @property
     def length(self):
         return self.shape[0]
 
     @property
     def width(self):
         return self.shape[1]
+
+    @property
+    def swath_name(self):
+        '''Swath name in iw1, iw2, iw3.'''
+        return self.burst_id.split('_')[1]
+
