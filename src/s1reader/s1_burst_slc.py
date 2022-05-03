@@ -27,8 +27,13 @@ def compute_az_carrier_frequency(burst, orbit, offset, position):
 
     Returns
     -------
-    carr: np.ndarray
-       Azimuth carrier
+    eta: zero-Doppler azimuth time centered in the middle of the burst
+    eta_ref: refernce time
+    Kt: Doppler centroid rate in the focused TOPS SLC data [Hz/s]
+
+    Reference
+    ---------
+    https://sentinels.copernicus.eu/documents/247904/0/Sentinel-1-TOPS-SLC_Deramping/b041f20f-e820-46b7-a3ed-af36b8eb7fa0
     '''
 
     # Get burst sensing mid relative to orbit reference epoch
@@ -59,7 +64,25 @@ def compute_az_carrier_frequency(burst, orbit, offset, position):
     return kt, eta, eta_ref
 
 def compute_az_carrier(burst, orbit, offset, position):
-    
+    '''
+    Estimate azimuth carrier and store in numpy arrary
+
+    Parameters
+    ----------
+    burst: Sentinel1BurstSlc
+       Sentinel1 burst object
+    orbit: isce3.core.Orbit
+       Sentinel1 orbit ephemerides
+    offset: float
+       Offset between reference and secondary burst
+    position: tuple
+       Tuple of locations along y and x directions
+
+    Returns
+    -------
+    carr: np.ndarray
+       Azimuth carrier
+    '''
     kt, eta, eta_ref = compute_az_carrier_frequency(burst, orbit, offset, position)
     carr = np.pi * kt * ((eta - eta_ref) ** 2)
 
@@ -366,14 +389,32 @@ class Sentinel1BurstSlc:
 
         return az_carrier_poly
 
-    def total_doppler(self, offset=0.0, xstep=500, ystep=50,
-                index_as_coord=False):
+    def total_doppler(self, xstep=500, ystep=50):
+        """
+        Compute total Doppler which is the sum of two components: 
+        (1) the geometrical Doppler induced by the relative movement 
+        of the sensor and target
+        (2) the TOPS specicifc Doppler caused by the electric steering 
+        of the beam along the azimuth direction resulting in Doppler varying
+        with azimuth time. 
+        Parameters
+        ----------
+        xstep: int
+            Spacing along x direction [pixels]
+        ystep: int
+            Spacing along y direction [pixels]
 
+        Returns
+        -------
+        2D array: float
+           Total Doppler which is the sum of the geometrical Doppler and 
+           beam steering induced Doppler [Hz]
+        """
         x = np.arange(0, self.width, xstep, dtype=int)
         y = np.arange(0, self.length, ystep, dtype=int)
         x_mesh, y_mesh = np.meshgrid(x, y)
         kt, eta, eta_ref = compute_az_carrier_frequency(self, self.orbit,
-                                        offset=offset,
+                                        offset=0.0,
                                         position=(y_mesh, x_mesh))
 
         antenna_steering_Doppler = kt*(eta - eta_ref)
@@ -383,16 +424,32 @@ class Sentinel1BurstSlc:
 
         total_Doppler = antenna_steering_Doppler + geometrical_doppler
 
-        return total_Doppler
+        return x, y, total_Doppler
 
-    def range_delay_caused_by_doppler_shift(self, offset=0.0, xstep=500, ystep=50,
-                index_as_coord=False):
+    def range_delay_caused_by_doppler_shift(self, xstep=500, ystep=50):
+        """
+        Computes the range delay caused by the Doppler shift as described 
+        by Gisinger et al 2021
 
+        Parameters
+        ----------
+        xstep: int
+            Spacing along x direction [pixels]
+        ystep: int
+            Spacing along y direction [pixels]
 
-        doppler_shift = self.total_doppler(offset=offset, xstep=xstep, ystep=ystep)
+        Returns
+        -------
+        isce3.core.LUT2d:
+           LUT2D object of range delay correction [seconds] as a function
+           of the x and y indices.
+
+        """
+
+        x, y, doppler_shift = self.total_doppler(xstep=xstep, ystep=ystep)
         tau_corr = doppler_shift / self.range_chirp_rate
 
-        return tau_corr
+        return isce3.core.LUT2d(x, y, tau_corr)
 
     def as_dict(self):
         """
