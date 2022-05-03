@@ -297,6 +297,7 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
         downlink_element =  tree.find('generalAnnotation/downlinkInformationList/downlinkInformation')
         prf_raw_data = float(downlink_element.find('prf').text)
         rank = int(downlink_element.find('downlinkValues/rank').text)
+        range_chirp_ramp_rate = float(downlink_element.find('downlinkValues/txPulseRampRate').text)
 
         n_lines = int(tree.find('swathTiming/linesPerBurst').text)
         n_samples = int(tree.find('swathTiming/samplesPerBurst').text)
@@ -389,8 +390,8 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
                                       tiff_path, i, first_valid_sample,
                                       last_sample, first_valid_line, last_line,
                                       range_window_type, range_window_coeff,
-                                      rank, prf_raw_data)
-
+                                      rank, prf_raw_data, range_chirp_ramp_rate)
+        
     return bursts
 
 def _is_zip_annotation_xml(path: str, id_str: str) -> bool:

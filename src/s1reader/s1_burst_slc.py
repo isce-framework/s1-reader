@@ -10,7 +10,7 @@ from osgeo import gdal
 
 
 # Other functionalities
-def compute_az_carrier(burst, orbit, offset, position):
+def compute_az_carrier_frequency(burst, orbit, offset, position):
     '''
     Estimate azimuth carrier and store in numpy arrary
 
@@ -56,6 +56,11 @@ def compute_az_carrier(burst, orbit, offset, position):
         burst.starting_range)) - (f_etac / ka)
     kt = ks / (1.0 - ks / ka)
 
+    return kt, eta, eta_ref
+
+def compute_az_carrier(burst, orbit, offset, position):
+    
+    kt, eta, eta_ref = compute_az_carrier_frequency(burst, orbit, offset, position)
     carr = np.pi * kt * ((eta - eta_ref) ** 2)
 
     return carr
@@ -197,6 +202,7 @@ class Sentinel1BurstSlc:
     range_window_coefficient: float
     rank: int # The number of PRI between transmitted pulse and return echo.
     prf_raw_data: float  # Pulse repetition frequency (PRF) of the raw data [Hz]
+    range_chirp_rate: float # Range chirp rate [Hz]
 
     def as_isce3_radargrid(self):
         '''Init and return isce3.product.RadarGridParameters.
@@ -359,6 +365,34 @@ class Sentinel1BurstSlc:
                                   rg_order)
 
         return az_carrier_poly
+
+    def total_doppler(self, offset=0.0, xstep=500, ystep=50,
+                index_as_coord=False):
+
+        x = np.arange(0, self.width, xstep, dtype=int)
+        y = np.arange(0, self.length, ystep, dtype=int)
+        x_mesh, y_mesh = np.meshgrid(x, y)
+        kt, eta, eta_ref = compute_az_carrier_frequency(self, self.orbit,
+                                        offset=offset,
+                                        position=(y_mesh, x_mesh))
+
+        antenna_steering_Doppler = kt*(eta - eta_ref)
+
+        slant_range = self.starting_range + x * self.range_pixel_spacing
+        geometrical_doppler = self.doppler.poly1d.eval(slant_range)
+
+        total_Doppler = antenna_steering_Doppler + geometrical_doppler
+
+        return total_Doppler
+
+    def range_delay_caused_by_doppler_shift(self, offset=0.0, xstep=500, ystep=50,
+                index_as_coord=False):
+
+
+        doppler_shift = self.total_doppler(offset=offset, xstep=xstep, ystep=ystep)
+        tau_corr = doppler_shift / self.range_chirp_rate
+
+        return tau_corr
 
     def as_dict(self):
         """
