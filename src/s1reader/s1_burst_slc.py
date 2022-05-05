@@ -53,8 +53,8 @@ def compute_az_carrier_frequency(burst, orbit, offset, position):
 
     f_etac = np.array(
         burst.doppler.poly1d.eval(rng.flatten().tolist())).reshape(rng.shape)
-    ka = np.array(burst.azimuth_fm_rate.eval(rng.flatten().tolist())).reshape(
-        rng.shape)
+    ka = np.array(
+        burst.azimuth_fm_rate.eval(rng.flatten().tolist())).reshape(rng.shape)
 
     eta_ref = (burst.doppler.poly1d.eval(
         burst.starting_range) / burst.azimuth_fm_rate.eval(
@@ -200,6 +200,7 @@ class Sentinel1BurstSlc:
     azimuth_time_interval: float
     slant_range_time: float
     starting_range: float
+    iw2_mid_range: float
     range_sampling_rate: float
     range_pixel_spacing: float
     shape: tuple()
@@ -520,6 +521,61 @@ class Sentinel1BurstSlc:
             self_as_dict[key] = val
         return self_as_dict
 
+    def bistatic_delay(self, xstep=1, ystep=1):
+        '''Computes the bistatic delay correction in azimuth direction
+        due to the movement of the platform between pulse transmission and echo reception
+        as described in equation (21) in Gisinger et al. (2021, TGRS).
+
+        References
+        -------
+        Gisinger, C., Schubert, A., Breit, H., Garthwaite, M., Balss, U., Willberg, M., et al.
+          (2021). In-Depth Verification of Sentinel-1 and TerraSAR-X Geolocation Accuracy Using
+          the Australian Corner Reflector Array. IEEE Trans. Geosci. Remote Sens., 59(2), 1154-
+          1181. doi:10.1109/TGRS.2019.2961248
+        ETAD-DLR-DD-0008, Algorithm Technical Baseline Document. Available: https://sentinels.
+          copernicus.eu/documents/247904/4629150/Sentinel-1-ETAD-Algorithm-Technical-Baseline-
+          Document.pdf
+
+        Parameters
+        -------
+        xstep : int
+           spacing along x direction (range direction) in units of pixels
+
+        ystep : int
+           spacing along y direction (azimuth direction) in units of pixels
+
+        Returns
+        -------
+           LUT2D object of bistatic delay correction in seconds as a function
+           of the range and zimuth indices. This correction needs to be added
+           to the SLC tagged azimuth time to get the corrected azimuth times.
+        '''
+
+        pri = 1.0 / self.prf_raw_data
+        tau0 = self.rank * pri
+        tau_mid = self.iw2_mid_range * 2.0 / isce3.core.speed_of_light
+
+        nx = np.ceil(self.width / xstep).astype(int)
+        ny = np.ceil(self.length / ystep).astype(int)
+        x = np.arange(0, nx*xstep, xstep, dtype=int)
+        y = np.arange(0, ny*ystep, ystep, dtype=int)
+
+        slant_range = self.starting_range + x * self.range_pixel_spacing
+        tau = slant_range * 2.0 / isce3.core.speed_of_light
+
+        # the first term (tau_mid/2) is the bulk bistatic delay which was
+        # removed from the orginial azimuth time by the ESA IPF. Based on
+        # Gisinger et al. (2021) and ETAD ATBD, ESA IPF has used the mid of
+        # the second subswath to compute the bulk bistatic delay. However
+        # currently we have not been able to verify this from ESA documents.
+        # This implementation follows the Gisinger et al. (2021) for now, we
+        # can revise when we hear back from ESA folks.
+        bistatic_correction_vec = tau_mid / 2 + tau / 2 - tau0
+        bistatic_correction = np.tile(bistatic_correction_vec.reshape(1,-1), (ny,1))
+
+        return isce3.core.LUT2d(x, y, bistatic_correction)
+
+
     @property
     def sensing_mid(self):
         '''Returns sensing mid as datetime.datetime object.
@@ -545,9 +601,26 @@ class Sentinel1BurstSlc:
         return self.sensing_start + datetime.timedelta(seconds=d_seconds)
 
     @property
+    def burst_duration(self):
+        '''Returns burst sensing duration as float in seconds.
+
+        Returns:
+        --------
+        _ : float
+            Burst sensing duration as float in seconds.
+        '''
+        return self.azimuth_time_interval * self.length
+
+    @property
     def length(self):
         return self.shape[0]
 
     @property
     def width(self):
         return self.shape[1]
+
+    @property
+    def swath_name(self):
+        '''Swath name in iw1, iw2, iw3.'''
+        return self.burst_id.split('_')[1]
+
