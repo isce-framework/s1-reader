@@ -249,18 +249,20 @@ def get_burst_centers_and_boundaries(tree):
     return center_pts, boundary_pts
 
 def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
-                   open_method=open):
-    '''Parse bursts in Sentinel 1 annotation XML.
+                   iw2_annotation_path: str, open_method=open):
+    '''Parse bursts in Sentinel-1 annotation XML.
 
     Parameters:
     -----------
     annotation_path : str
-        Path to Sentinel 1 annotation XML file of specific subswath and
+        Path to Sentinel-1 annotation XML file of specific subswath and
         polarization.
     orbit_path : str
         Path the orbit file.
     tiff_path : str
-        Path to tiff file holding Sentinel 1 SLCs.
+        Path to tiff file holding Sentinel-1 SLCs.
+    iw2_annotation_path : str
+        Path to Sentinel-1 annotation XML file of IW2 subswath.
     open_method : function
         Function used to open annotation file.
 
@@ -324,6 +326,14 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
     starting_range = slant_range_time * isce3.core.speed_of_light / 2
     range_pxl_spacing = isce3.core.speed_of_light / (2 * range_sampling_rate)
 
+    # calculate the range at mid swath (mid of SM swath, mid of IW2 or mid of EW3)
+    with open_method(iw2_annotation_path, 'r') as iw2_f:
+        iw2_tree = ET.parse(iw2_f)
+        iw2_slant_range_time = float(iw2_tree.find('imageAnnotation/imageInformation/slantRangeTime').text)
+        iw2_n_samples = int(iw2_tree.find('swathTiming/samplesPerBurst').text)
+        iw2_starting_range = iw2_slant_range_time * isce3.core.speed_of_light / 2
+        iw2_mid_range = iw2_starting_range + 0.5 * iw2_n_samples * range_pxl_spacing
+
     # find orbit state vectors in 'Data_Block/List_of_OSVs'
     orbit_tree = ET.parse(orbit_path)
     osv_list = orbit_tree.find('Data_Block/List_of_OSVs')
@@ -380,7 +390,7 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
 
         bursts[i] = Sentinel1BurstSlc(sensing_start, radar_freq, wavelength,
                                       azimuth_steer_rate, azimuth_time_interval,
-                                      slant_range_time, starting_range,
+                                      slant_range_time, starting_range, iw2_mid_range,
                                       range_sampling_rate, range_pxl_spacing,
                                       (n_lines, n_samples), az_fm_rate, doppler,
                                       rng_processing_bandwidth, pol, burst_id,
@@ -416,12 +426,12 @@ def _is_zip_annotation_xml(path: str, id_str: str) -> bool:
     return False
 
 def load_bursts(path: str, orbit_path: str, swath_num: int, pol: str = 'vv'):
-    '''Find bursts in a Sentinel 1 zip file or a SAFE structured directory.
+    '''Find bursts in a Sentinel-1 zip file or a SAFE structured directory.
 
     Parameters:
     -----------
     path : str
-        Path to Sentinel 1 zip file or SAFE directory
+        Path to Sentinel-1 zip file or SAFE directory
     orbit_path : str
         Path the orbit file.
     swath_num : int
@@ -456,7 +466,7 @@ def load_bursts(path: str, orbit_path: str, swath_num: int, pol: str = 'vv'):
         raise ValueError(f'{path} is unsupported')
 
 def _burst_from_zip(zip_path: str, id_str: str, orbit_path: str):
-    '''Find bursts in a Sentinel 1 zip file.
+    '''Find bursts in a Sentinel-1 zip file.
 
     Parameters:
     -----------
@@ -475,22 +485,29 @@ def _burst_from_zip(zip_path: str, id_str: str, orbit_path: str):
     with zipfile.ZipFile(zip_path, 'r') as z_file:
         z_file_list = z_file.namelist()
 
-        # find annotation file
+        # find annotation file - subswath of interest
         f_annotation = [f for f in z_file_list if _is_zip_annotation_xml(f, id_str)]
         if not f_annotation:
             raise ValueError(f"burst {id_str} not in SAFE: {zip_path}")
         f_annotation = f_annotation[0]
+
+        # find annotation file - IW2
+        iw2_id_str = f'iw2-{id_str[4:]}'
+        iw2_f_annotation = [f for f in z_file_list if _is_zip_annotation_xml(f, iw2_id_str)]
+        if not iw2_f_annotation:
+            raise ValueError(f"burst {iw2_id_str} not in SAFE: {zip_path}")
+        iw2_f_annotation = iw2_f_annotation[0]
 
         # find tiff file
         f_tiff = [f for f in z_file_list
                   if 'measurement' in f and id_str in f and 'tiff' in f]
         f_tiff = f'/vsizip/{zip_path}/{f_tiff[0]}' if f_tiff else ''
 
-        bursts = burst_from_xml(f_annotation, orbit_path, f_tiff, z_file.open)
+        bursts = burst_from_xml(f_annotation, orbit_path, f_tiff, iw2_f_annotation, z_file.open)
         return bursts
 
 def _burst_from_safe_dir(safe_dir_path: str, id_str: str, orbit_path: str):
-    '''Find bursts in a Sentinel 1 SAFE structured directory.
+    '''Find bursts in a Sentinel-1 SAFE structured directory.
 
     Parameters:
     -----------
@@ -507,12 +524,19 @@ def _burst_from_safe_dir(safe_dir_path: str, id_str: str, orbit_path: str):
         List of Sentinel1BurstSlc objects found in annotation XML.
     '''
 
-    # find annotation file
+    # find annotation file - subswath of interest
     annotation_list = os.listdir(f'{safe_dir_path}/annotation')
     f_annotation = [f for f in annotation_list if id_str in f]
     if not f_annotation:
         raise ValueError(f"burst {id_str} not in SAFE: {safe_dir_path}")
     f_annotation = f'{safe_dir_path}/annotation/{f_annotation[0]}'
+
+    # find annotation file - IW2
+    iw2_id_str = f'iw2-{id_str[4:]}'
+    iw2_f_annotation = [f for f in annotation_list if iw2_id_str in f]
+    if not iw2_f_annotation:
+        raise ValueError(f"burst {iw2_id_str} not in SAFE: {safe_dir_path}")
+    iw2_f_annotation = f'{safe_dir_path}/annotation/{iw2_f_annotation[0]}'
 
     # find tiff file if measurement directory found
     if os.path.isdir(f'{safe_dir_path}/measurement'):
@@ -525,5 +549,5 @@ def _burst_from_safe_dir(safe_dir_path: str, id_str: str, orbit_path: str):
         warnings.warn(warning_str)
         f_tiff = ''
 
-    bursts = burst_from_xml(f_annotation, orbit_path, f_tiff)
+    bursts = burst_from_xml(f_annotation, orbit_path, f_tiff, iw2_f_annotation)
     return bursts
