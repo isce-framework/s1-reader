@@ -432,7 +432,7 @@ class Sentinel1BurstSlc:
         References
         -------
         Gisinger, C., Schubert, A., Breit, H., Garthwaite, M., Balss, U., Willberg, M., et al.
-          (2021). In-Depth Verification of Sentinel-1 and TerraSAR-X Geolocation Accuracy Using 
+          (2021). In-Depth Verification of Sentinel-1 and TerraSAR-X Geolocation Accuracy Using
           the Australian Corner Reflector Array. IEEE Trans. Geosci. Remote Sens., 59(2), 1154-
           1181. doi:10.1109/TGRS.2019.2961248
         ETAD-DLR-DD-0008, Algorithm Technical Baseline Document. Available: https://sentinels.
@@ -456,26 +456,25 @@ class Sentinel1BurstSlc:
 
         pri = 1.0 / self.prf_raw_data
         tau0 = self.rank * pri
-
         tau_mid = self.iw2_mid_range * 2.0 / isce3.core.speed_of_light
 
-        nx = int(self.width / xstep)
-        ny = int(self.length / ystep)
+        nx = np.ceil(self.width / xstep).astype(int)
+        ny = np.ceil(self.length / ystep).astype(int)
+        x = np.arange(0, nx*xstep, xstep, dtype=int)
+        y = np.arange(0, ny*ystep, ystep, dtype=int)
 
-        x = np.arange(0, (nx+1)*xstep, xstep, dtype = int)
-        y = np.arange(0, (ny+1)*ystep, ystep, dtype = int)
-        x_mesh = np.meshgrid(x, y)[0]
-        slant_range = self.starting_range + x_mesh * self.range_pixel_spacing
+        slant_range = self.starting_range + x * self.range_pixel_spacing
         tau = slant_range * 2.0 / isce3.core.speed_of_light
 
         # the first term (tau_mid/2) is the bulk bistatic delay which was
         # removed from the orginial azimuth time by the ESA IPF. Based on
         # Gisinger et al. (2021) and ETAD ATBD, ESA IPF has used the mid of
-        # the second subswath to compute the bulk bistatic delay. However 
-        # currently we have not been able to verify this from ESA documents. 
+        # the second subswath to compute the bulk bistatic delay. However
+        # currently we have not been able to verify this from ESA documents.
         # This implementation follows the Gisinger et al. (2021) for now, we
         # can revise when we hear back from ESA folks.
-        bistatic_correction = tau_mid / 2 + tau / 2 - tau0
+        bistatic_correction_vec = tau_mid / 2 + tau / 2 - tau0
+        bistatic_correction = np.tile(bistatic_correction_vec.reshape(1,-1), (ny,1))
 
         return isce3.core.LUT2d(x, y, bistatic_correction)
 
