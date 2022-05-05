@@ -48,8 +48,8 @@ def compute_az_carrier(burst, orbit, offset, position):
 
     f_etac = np.array(
         burst.doppler.poly1d.eval(rng.flatten().tolist())).reshape(rng.shape)
-    ka = np.array(burst.azimuth_fm_rate.eval(rng.flatten().tolist())).reshape(
-        rng.shape)
+    ka = np.array(
+        burst.azimuth_fm_rate.eval(rng.flatten().tolist())).reshape(rng.shape)
 
     eta_ref = (burst.doppler.poly1d.eval(
         burst.starting_range) / burst.azimuth_fm_rate.eval(
@@ -172,6 +172,7 @@ class Sentinel1BurstSlc:
     azimuth_time_interval: float
     slant_range_time: float
     starting_range: float
+    iw2_mid_range: float
     range_sampling_rate: float
     range_pixel_spacing: float
     shape: tuple()
@@ -424,17 +425,27 @@ class Sentinel1BurstSlc:
         return self_as_dict
 
     def bistatic_delay(self, xstep=1, ystep=1):
-        '''Computes the bistatic delay correction as
-        described in Gisinger et al, 2021
+        '''Computes the bistatic delay correction in azimuth direction
+        due to the movement of the platform between pulse transmission and echo reception
+        as described in equation (21) in Gisinger et al. (2021, TGRS).
+
+        References
+        -------
+        Gisinger, C., Schubert, A., Breit, H., Garthwaite, M., Balss, U., Willberg, M., et al.
+          (2021). In-Depth Verification of Sentinel-1 and TerraSAR-X Geolocation Accuracy Using 
+          the Australian Corner Reflector Array. IEEE Trans. Geosci. Remote Sens., 59(2), 1154-
+          1181. doi:10.1109/TGRS.2019.2961248
+        ETAD-DLR-DD-0008, Algorithm Technical Baseline Document. Available: https://sentinels.
+          copernicus.eu/documents/247904/4629150/Sentinel-1-ETAD-Algorithm-Technical-Baseline-
+          Document.pdf
 
         Parameters
-        ----------
+        -------
         xstep : int
            spacing along x direction (range direction) in units of pixels
 
         ystep : int
            spacing along y direction (azimuth direction) in units of pixels
-
 
         Returns
         -------
@@ -446,8 +457,7 @@ class Sentinel1BurstSlc:
         pri = 1.0 / self.prf_raw_data
         tau0 = self.rank * pri
 
-        mid_range = self.starting_range + 0.5 * self.width * self.range_pixel_spacing
-        tau_mid = mid_range * 2.0 / isce3.core.speed_of_light
+        tau_mid = self.iw2_mid_range * 2.0 / isce3.core.speed_of_light
 
         nx = int(self.width / xstep)
         ny = int(self.length / ystep)
@@ -460,13 +470,11 @@ class Sentinel1BurstSlc:
 
         # the first term (tau_mid/2) is the bulk bistatic delay which was
         # removed from the orginial azimuth time by the ESA IPF. Based on
-        # Gisinger et al, 2021, ESA IPF has used the mid of the second subswath
-        # to compute the bulk bistatic delay. However currently we have not
-        # been able to verify this from ESA documents. In this implementation
-        # we have used the range to the middle of the burst of interest to
-        # compute the bulk bistatic delay. The correction can be potentially
-        # biased by the amount of discrepancy between the ESA IPF bulk bistatic
-        # correction and our assumed middle of the burst of interest.
+        # Gisinger et al. (2021) and ETAD ATBD, ESA IPF has used the mid of
+        # the second subswath to compute the bulk bistatic delay. However 
+        # currently we have not been able to verify this from ESA documents. 
+        # This implementation follows the Gisinger et al. (2021) for now, we
+        # can revise when we hear back from ESA folks.
         bistatic_correction = tau_mid / 2 + tau / 2 - tau0
 
         return isce3.core.LUT2d(x, y, bistatic_correction)
