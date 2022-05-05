@@ -389,7 +389,7 @@ class Sentinel1BurstSlc:
 
         return az_carrier_poly
 
-    def total_doppler(self, xstep=500, ystep=50):
+    def geometrical_and_steering_doppler(self, xstep=500, ystep=50):
         """
         Compute total Doppler which is the sum of two components: 
         (1) the geometrical Doppler induced by the relative movement 
@@ -406,10 +406,15 @@ class Sentinel1BurstSlc:
 
         Returns
         -------
+        1D array: int
+           The index of samples in range direction
+        1D array: int
+           The index of samples in azimuth direction
         2D array: float
            Total Doppler which is the sum of the geometrical Doppler and 
            beam steering induced Doppler [Hz]
         """
+
         x = np.arange(0, self.width, xstep, dtype=int)
         y = np.arange(0, self.length, ystep, dtype=int)
         x_mesh, y_mesh = np.meshgrid(x, y)
@@ -422,11 +427,11 @@ class Sentinel1BurstSlc:
         slant_range = self.starting_range + x * self.range_pixel_spacing
         geometrical_doppler = self.doppler.poly1d.eval(slant_range)
 
-        total_Doppler = antenna_steering_Doppler + geometrical_doppler
+        total_doppler = antenna_steering_Doppler + geometrical_doppler
 
-        return x, y, total_Doppler
+        return x, y, total_doppler
 
-    def range_delay_caused_by_doppler_shift(self, xstep=500, ystep=50):
+    def doppler_induced_range_shift(self, xstep=500, ystep=50):
         """
         Computes the range delay caused by the Doppler shift as described 
         by Gisinger et al 2021
@@ -446,7 +451,8 @@ class Sentinel1BurstSlc:
 
         """
 
-        x, y, doppler_shift = self.total_doppler(xstep=xstep, ystep=ystep)
+        x, y, doppler_shift = self.geometrical_and_steering_doppler(
+                                                    xstep=xstep, ystep=ystep)
         tau_corr = doppler_shift / self.range_chirp_rate
 
         return isce3.core.LUT2d(x, y, tau_corr)
