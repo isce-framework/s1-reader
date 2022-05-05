@@ -437,7 +437,7 @@ class Sentinel1BurstSlc:
 
 
         Returns
-        --------
+        -------
            LUT2D object of bistatic delay correction in seconds as a function
            of the range and zimuth indices. This correction needs to be added
            to the SLC tagged azimuth time to get the corrected azimuth times.
