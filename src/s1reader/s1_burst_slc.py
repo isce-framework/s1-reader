@@ -390,74 +390,6 @@ class Sentinel1BurstSlc:
 
         return az_carrier_poly
 
-    def geometrical_and_steering_doppler(self, xstep=500, ystep=50):
-        """
-        Compute total Doppler which is the sum of two components: 
-        (1) the geometrical Doppler induced by the relative movement 
-        of the sensor and target
-        (2) the TOPS specicifc Doppler caused by the electric steering 
-        of the beam along the azimuth direction resulting in Doppler varying
-        with azimuth time. 
-        Parameters
-        ----------
-        xstep: int
-            Spacing along x direction [pixels]
-        ystep: int
-            Spacing along y direction [pixels]
-
-        Returns
-        -------
-        1D array: int
-           The index of samples in range direction
-        1D array: int
-           The index of samples in azimuth direction
-        2D array: float
-           Total Doppler which is the sum of the geometrical Doppler and 
-           beam steering induced Doppler [Hz]
-        """
-
-        x = np.arange(0, self.width, xstep, dtype=int)
-        y = np.arange(0, self.length, ystep, dtype=int)
-        x_mesh, y_mesh = np.meshgrid(x, y)
-        kt, eta, eta_ref = compute_az_carrier_frequency(self, self.orbit,
-                                        offset=0.0,
-                                        position=(y_mesh, x_mesh))
-
-        antenna_steering_Doppler = kt*(eta - eta_ref)
-
-        slant_range = self.starting_range + x * self.range_pixel_spacing
-        geometrical_doppler = self.doppler.poly1d.eval(slant_range)
-
-        total_doppler = antenna_steering_Doppler + geometrical_doppler
-
-        return x, y, total_doppler
-
-    def doppler_induced_range_shift(self, xstep=500, ystep=50):
-        """
-        Computes the range delay caused by the Doppler shift as described 
-        by Gisinger et al 2021
-
-        Parameters
-        ----------
-        xstep: int
-            Spacing along x direction [pixels]
-        ystep: int
-            Spacing along y direction [pixels]
-
-        Returns
-        -------
-        isce3.core.LUT2d:
-           LUT2D object of range delay correction [seconds] as a function
-           of the x and y indices.
-
-        """
-
-        x, y, doppler_shift = self.geometrical_and_steering_doppler(
-                                                    xstep=xstep, ystep=ystep)
-        tau_corr = doppler_shift / self.range_chirp_rate
-
-        return isce3.core.LUT2d(x, y, tau_corr)
-
     def as_dict(self):
         """
         Return SLC class attributes as dict
@@ -575,6 +507,73 @@ class Sentinel1BurstSlc:
 
         return isce3.core.LUT2d(x, y, bistatic_correction)
 
+    def geometrical_and_steering_doppler(self, xstep=500, ystep=50):
+        """
+        Compute total Doppler which is the sum of two components:
+        (1) the geometrical Doppler induced by the relative movement
+        of the sensor and target
+        (2) the TOPS specicifc Doppler caused by the electric steering
+        of the beam along the azimuth direction resulting in Doppler varying
+        with azimuth time.
+        Parameters
+        ----------
+        xstep: int
+            Spacing along x direction [pixels]
+        ystep: int
+            Spacing along y direction [pixels]
+
+        Returns
+        -------
+        1D array: int
+           The index of samples in range direction
+        1D array: int
+           The index of samples in azimuth direction
+        2D array: float
+           Total Doppler which is the sum of the geometrical Doppler and
+           beam steering induced Doppler [Hz]
+        """
+
+        x = np.arange(0, self.width, xstep, dtype=int)
+        y = np.arange(0, self.length, ystep, dtype=int)
+        x_mesh, y_mesh = np.meshgrid(x, y)
+        kt, eta, eta_ref = compute_az_carrier_frequency(self, self.orbit,
+                                        offset=0.0,
+                                        position=(y_mesh, x_mesh))
+
+        antenna_steering_Doppler = kt*(eta - eta_ref)
+
+        slant_range = self.starting_range + x * self.range_pixel_spacing
+        geometrical_doppler = self.doppler.poly1d.eval(slant_range)
+
+        total_doppler = antenna_steering_Doppler + geometrical_doppler
+
+        return x, y, total_doppler
+
+    def doppler_induced_range_shift(self, xstep=500, ystep=50):
+        """
+        Computes the range delay caused by the Doppler shift as described
+        by Gisinger et al 2021
+
+        Parameters
+        ----------
+        xstep: int
+            Spacing along x direction [pixels]
+        ystep: int
+            Spacing along y direction [pixels]
+
+        Returns
+        -------
+        isce3.core.LUT2d:
+           LUT2D object of range delay correction [seconds] as a function
+           of the x and y indices.
+
+        """
+
+        x, y, doppler_shift = self.geometrical_and_steering_doppler(
+                                                    xstep=xstep, ystep=ystep)
+        tau_corr = doppler_shift / self.range_chirp_rate
+
+        return isce3.core.LUT2d(x, y, tau_corr)
 
     @property
     def sensing_mid(self):
