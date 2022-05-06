@@ -401,7 +401,6 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
                                       last_sample, first_valid_line, last_line,
                                       range_window_type, range_window_coeff,
                                       rank, prf_raw_data, range_chirp_ramp_rate)
-        
     return bursts
 
 def _is_zip_annotation_xml(path: str, id_str: str) -> bool:
