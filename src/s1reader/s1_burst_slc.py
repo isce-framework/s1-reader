@@ -104,6 +104,20 @@ def polyfit(xin, yin, zin, azimuth_order, range_order,
     poly = isce3.core.Poly2d(coeffs, xmin, ymin, xnorm, ynorm)
     return poly
 
+@dataclass
+class AzimuthCarrierComponents:
+    kt: np.ndarray
+    eta: float
+    eta_ref: float
+
+    @property
+    antenna_steering_doppler(self):
+        return self.kt * (self.eta - self.eta_ref)
+
+    @property
+    carrier(self):
+        return np.pi * self.kt * ((self.eta - self.eta_ref) ** 2)
+
 @dataclass(frozen=True)
 class Doppler:
     poly1d: isce3.core.Poly1d
@@ -288,14 +302,14 @@ class Sentinel1BurstSlc:
         x_mesh, y_mesh = np.meshgrid(x, y)
 
         # Estimate azimuth carrier
-        _, _, _, az_carrier = self.az_carrier_components(
+        az_carr_comp = self.az_carrier_components(
                                         offset=offset,
                                         position=(y_mesh, x_mesh))
 
         # Fit azimuth carrier polynomial with x/y or range/azimuth
         if index_as_coord:
             az_carrier_poly = polyfit(x_mesh.flatten()+1, y_mesh.flatten()+1,
-                                      az_carrier.flatten(), az_order,
+                                      az_carr_comp.carrier.flatten(), az_order,
                                       rg_order)
         else:
             # Convert x/y to range/azimuth
@@ -305,7 +319,7 @@ class Sentinel1BurstSlc:
 
             # Estimate azimuth carrier polynomials
             az_carrier_poly = polyfit(rg_mesh.flatten(), az_mesh.flatten(),
-                                  az_carrier.flatten(), az_order,
+                                  az_carr_comp.carrier.flatten(), az_order,
                                   rg_order)
 
         return az_carrier_poly
@@ -456,16 +470,14 @@ class Sentinel1BurstSlc:
         x = np.arange(0, self.width, xstep, dtype=int)
         y = np.arange(0, self.length, ystep, dtype=int)
         x_mesh, y_mesh = np.meshgrid(x, y)
-        kt, eta, eta_ref, _ = self.az_carrier_components(
+        az_carr_comp = self.az_carrier_components(
                                         offset=0.0,
                                         position=(y_mesh, x_mesh))
-
-        antenna_steering_Doppler = kt*(eta - eta_ref)
 
         slant_range = self.starting_range + x * self.range_pixel_spacing
         geometrical_doppler = self.doppler.poly1d.eval(slant_range)
 
-        total_doppler = antenna_steering_Doppler + geometrical_doppler
+        total_doppler = az_carr_comp.antenna_steering_doppler + geometrical_doppler
 
         return x, y, total_doppler
 
@@ -547,9 +559,8 @@ class Sentinel1BurstSlc:
             self.starting_range)) - (f_etac / ka)
         kt = ks / (1.0 - ks / ka)
 
-        carr = np.pi * kt * ((eta - eta_ref) ** 2)
 
-        return kt, eta, eta_ref, carr
+        return AzimuthCarrierComponents(kt, eta, eta_ref)
 
     @property
     def sensing_mid(self):
