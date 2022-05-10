@@ -10,85 +10,6 @@ from osgeo import gdal
 
 
 # Other functionalities
-def compute_az_carrier_frequency(burst, orbit, offset, position):
-    '''
-    Estimate azimuth carrier and store in numpy arrary
-
-    Parameters
-    ----------
-    burst: Sentinel1BurstSlc
-       Sentinel1 burst object
-    orbit: isce3.core.Orbit
-       Sentinel1 orbit ephemerides
-    offset: float
-       Offset between reference and secondary burst
-    position: tuple
-       Tuple of locations along y and x directions
-
-    Returns
-    -------
-    eta: zero-Doppler azimuth time centered in the middle of the burst
-    eta_ref: refernce time
-    Kt: Doppler centroid rate in the focused TOPS SLC data [Hz/s]
-
-    Reference
-    ---------
-    https://sentinels.copernicus.eu/documents/247904/0/Sentinel-1-TOPS-SLC_Deramping/b041f20f-e820-46b7-a3ed-af36b8eb7fa0
-    '''
-
-    # Get burst sensing mid relative to orbit reference epoch
-    fmt = "%Y-%m-%dT%H:%M:%S.%f"
-    orbit_ref_epoch = datetime.datetime.strptime(orbit.reference_epoch.__str__()[:-3], fmt)
-
-    t_mid = burst.sensing_mid - orbit_ref_epoch
-    _, v = orbit.interpolate(t_mid.total_seconds())
-    vs = np.linalg.norm(v)
-    ks = 2 * vs * burst.azimuth_steer_rate / burst.wavelength
-
-    y, x = position
-
-    n_lines, _ = burst.shape
-    eta = (y - (n_lines // 2) + offset) * burst.azimuth_time_interval
-    rng = burst.starting_range + x * burst.range_pixel_spacing
-
-    f_etac = np.array(
-        burst.doppler.poly1d.eval(rng.flatten().tolist())).reshape(rng.shape)
-    ka = np.array(
-        burst.azimuth_fm_rate.eval(rng.flatten().tolist())).reshape(rng.shape)
-
-    eta_ref = (burst.doppler.poly1d.eval(
-        burst.starting_range) / burst.azimuth_fm_rate.eval(
-        burst.starting_range)) - (f_etac / ka)
-    kt = ks / (1.0 - ks / ka)
-
-    return kt, eta, eta_ref
-
-def compute_az_carrier(burst, orbit, offset, position):
-    '''
-    Estimate azimuth carrier and store in numpy arrary
-
-    Parameters
-    ----------
-    burst: Sentinel1BurstSlc
-       Sentinel1 burst object
-    orbit: isce3.core.Orbit
-       Sentinel1 orbit ephemerides
-    offset: float
-       Offset between reference and secondary burst
-    position: tuple
-       Tuple of locations along y and x directions
-
-    Returns
-    -------
-    carr: np.ndarray
-       Azimuth carrier
-    '''
-    kt, eta, eta_ref = compute_az_carrier_frequency(burst, orbit, offset, position)
-    carr = np.pi * kt * ((eta - eta_ref) ** 2)
-
-    return carr
-
-
 def polyfit(xin, yin, zin, azimuth_order, range_order,
             sig=None, snr=None, cond=1.0e-12,
             max_order=True):
@@ -182,7 +103,6 @@ def polyfit(xin, yin, zin, azimuth_order, range_order,
         coeffs.append(row)
     poly = isce3.core.Poly2d(coeffs, xmin, ymin, xnorm, ynorm)
     return poly
-
 
 @dataclass(frozen=True)
 class Doppler:
@@ -368,7 +288,7 @@ class Sentinel1BurstSlc:
         x_mesh, y_mesh = np.meshgrid(x, y)
 
         # Estimate azimuth carrier
-        az_carrier = compute_az_carrier(self, self.orbit,
+        _, _, _, az_carrier = self.az_carrier_components(
                                         offset=offset,
                                         position=(y_mesh, x_mesh))
 
@@ -536,7 +456,7 @@ class Sentinel1BurstSlc:
         x = np.arange(0, self.width, xstep, dtype=int)
         y = np.arange(0, self.length, ystep, dtype=int)
         x_mesh, y_mesh = np.meshgrid(x, y)
-        kt, eta, eta_ref = compute_az_carrier_frequency(self, self.orbit,
+        kt, eta, eta_ref, _ = self.az_carrier_components(
                                         offset=0.0,
                                         position=(y_mesh, x_mesh))
 
@@ -574,6 +494,62 @@ class Sentinel1BurstSlc:
         tau_corr = doppler_shift / self.range_chirp_rate
 
         return isce3.core.LUT2d(x, y, tau_corr)
+
+    def az_carrier_components(self, offset, position):
+        '''
+        Estimate azimuth carrier and store in numpy arrary. Also return
+        contributing components.
+
+        Parameters
+        ----------
+        offset: float
+           Offset between reference and secondary burst
+        position: tuple
+           Tuple of locations along y and x directions
+
+        Returns
+        -------
+        eta: float
+            zero-Doppler azimuth time centered in the middle of the burst
+        eta_ref: float
+            refernce time
+        kt: np.ndarray
+            Doppler centroid rate in the focused TOPS SLC data [Hz/s]
+        carr: np.ndarray
+           Azimuth carrier
+
+        Reference
+        ---------
+        https://sentinels.copernicus.eu/documents/247904/0/Sentinel-1-TOPS-SLC_Deramping/b041f20f-e820-46b7-a3ed-af36b8eb7fa0
+        '''
+        # Get self.sensing mid relative to orbit reference epoch
+        fmt = "%Y-%m-%dT%H:%M:%S.%f"
+        orbit_ref_epoch = datetime.datetime.strptime(orbit.reference_epoch.__str__()[:-3], fmt)
+
+        t_mid = self.sensing_mid - orbit_ref_epoch
+        _, v = orbit.interpolate(t_mid.total_seconds())
+        vs = np.linalg.norm(v)
+        ks = 2 * vs * self.azimuth_steer_rate / self.wavelength
+
+        y, x = position
+
+        n_lines, _ = self.shape
+        eta = (y - (n_lines // 2) + offset) * self.azimuth_time_interval
+        rng = self.starting_range + x * self.range_pixel_spacing
+
+        f_etac = np.array(
+            self.doppler.poly1d.eval(rng.flatten().tolist())).reshape(rng.shape)
+        ka = np.array(
+            self.azimuth_fm_rate.eval(rng.flatten().tolist())).reshape(rng.shape)
+
+        eta_ref = (self.doppler.poly1d.eval(
+            self.starting_range) / self.azimuth_fm_rate.eval(
+            self.starting_range)) - (f_etac / ka)
+        kt = ks / (1.0 - ks / ka)
+
+        carr = np.pi * kt * ((eta - eta_ref) ** 2)
+
+        return kt, eta, eta_ref, carr
 
     @property
     def sensing_mid(self):
