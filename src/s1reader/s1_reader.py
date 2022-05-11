@@ -425,7 +425,8 @@ def _is_zip_annotation_xml(path: str, id_str: str) -> bool:
         return True
     return False
 
-def load_bursts(path: str, orbit_path: str, swath_num: int, pol: str = 'vv'):
+def load_bursts(path: str, orbit_path: str, swath_num: int, pol: str = 'vv',
+                burst_ids: list[str] = []):
     '''Find bursts in a Sentinel-1 zip file or a SAFE structured directory.
 
     Parameters:
@@ -438,13 +439,14 @@ def load_bursts(path: str, orbit_path: str, swath_num: int, pol: str = 'vv'):
         Integer of subswath of desired burst. {1, 2, 3}
     pol : str
         Polarization of desired burst. {hh, vv, hv, vh}
+    burst_ids : list[str]
+        List of burst IDs to be returned. Default of None returns all bursts.
 
     Returns:
     --------
     bursts : list
         List of Sentinel1BurstSlc objects found in annotation XML.
     '''
-
     if swath_num < 1 or swath_num > 3:
         raise ValueError("swath_num not <1 or >3")
 
@@ -459,11 +461,21 @@ def load_bursts(path: str, orbit_path: str, swath_num: int, pol: str = 'vv'):
     if not os.path.exists(path):
         raise FileNotFoundError(f'{path} not found')
     elif os.path.isdir(path):
-        return _burst_from_safe_dir(path, id_str, orbit_path)
+        bursts = _burst_from_safe_dir(path, id_str, orbit_path)
     elif os.path.isfile(path):
-        return _burst_from_zip(path, id_str, orbit_path)
+        bursts = _burst_from_zip(path, id_str, orbit_path)
     else:
         raise ValueError(f'{path} is unsupported')
+
+    # ensure burst IDs is a list
+    if not isinstance(burst_ids, list) and isinstance(burst_ids, str):
+        burst_ids = [burst_ids]
+
+    if burst_ids:
+        return [b for b in bursts if b.burst_id in burst_ids]
+    else:
+        return bursts
+
 
 def _burst_from_zip(zip_path: str, id_str: str, orbit_path: str):
     '''Find bursts in a Sentinel-1 zip file.
