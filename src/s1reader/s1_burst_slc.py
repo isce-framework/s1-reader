@@ -458,13 +458,13 @@ class Sentinel1BurstSlc:
 
         Returns
         -------
-        1D array: int
-           The index of samples in range direction
-        1D array: int
-           The index of samples in azimuth direction
-        2D array: float
+        x : int
+           The index of samples in range direction as an 1D array
+        y : int
+           The index of samples in azimuth direction as an 1D array
+        total_doppler : float
            Total Doppler which is the sum of the geometrical Doppler and
-           beam steering induced Doppler [Hz]
+           beam steering induced Doppler [Hz] as a 2D array
         """
 
         x = np.arange(0, self.width, xstep, dtype=int)
