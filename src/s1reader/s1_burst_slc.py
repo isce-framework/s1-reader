@@ -536,10 +536,10 @@ class Sentinel1BurstSlc:
         '''
         # Get self.sensing mid relative to orbit reference epoch
         fmt = "%Y-%m-%dT%H:%M:%S.%f"
-        orbit_ref_epoch = datetime.datetime.strptime(orbit.reference_epoch.__str__()[:-3], fmt)
+        orbit_ref_epoch = datetime.datetime.strptime(self.orbit.reference_epoch.__str__()[:-3], fmt)
 
         t_mid = self.sensing_mid - orbit_ref_epoch
-        _, v = orbit.interpolate(t_mid.total_seconds())
+        _, v = self.orbit.interpolate(t_mid.total_seconds())
         vs = np.linalg.norm(v)
         ks = 2 * vs * self.azimuth_steer_rate / self.wavelength
 
