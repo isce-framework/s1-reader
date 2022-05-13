@@ -111,11 +111,11 @@ class AzimuthCarrierComponents:
     eta_ref: float
 
     @property
-    antenna_steering_doppler(self):
+    def antenna_steering_doppler(self):
         return self.kt * (self.eta - self.eta_ref)
 
     @property
-    carrier(self):
+    def carrier(self):
         return np.pi * self.kt * ((self.eta - self.eta_ref) ** 2)
 
 @dataclass(frozen=True)
