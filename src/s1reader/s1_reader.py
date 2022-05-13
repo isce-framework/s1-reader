@@ -457,7 +457,7 @@ def load_bursts(path: str, orbit_path: str, swath_num: int, pol: str='vv',
         burst_ids = []
 
     # ensure burst IDs is a list
-    if not isinstance(burst_ids, list) and isinstance(burst_ids, str):
+    if not isinstance(burst_ids, list):
         burst_ids = [burst_ids]
 
     # lower case polarity to be consistent with file naming convention
