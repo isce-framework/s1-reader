@@ -2,7 +2,7 @@ import pathlib
 import pytest
 import types
 
-from sentinel1_reader import sentinel1_reader
+from s1reader import s1_reader
 
 @pytest.fixture(scope="session")
 def test_paths():
@@ -21,7 +21,7 @@ def bursts(test_paths):
     pol = 'vv'
 
     orbit_path = f'{test_paths.orbit_dir}/{test_paths.orbit_file}'
-    bursts = sentinel1_reader.burst_from_zip(test_paths.safe, orbit_path,
-                                             i_subswath, pol)
+    bursts = s1_reader.load_bursts(test_paths.safe, orbit_path, i_subswath,
+                                   pol)
 
     return bursts

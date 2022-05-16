@@ -1,6 +1,6 @@
 import pytest
 
-from sentinel1_reader.sentinel1_burst_slc import Sentinel1BurstSlc
+from s1reader.s1_burst_slc import Sentinel1BurstSlc
 
 def test_burst(bursts):
     for i, burst in enumerate(bursts):
