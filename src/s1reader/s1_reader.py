@@ -486,7 +486,7 @@ def load_bursts(path: str, orbit_path: str, swath_num: int, pol: str='vv',
             warnings.warn("None of provided bursts IDs found")
 
         set_burst_ids = set(burst_ids)
-        if burst_ids_found != set_burst_ids:
+        if burst_ids_found and burst_ids_found != set_burst_ids:
             diff = set_burst_ids.difference(burst_ids_found)
             warn_str = f'Not all burst IDs found. Not found: {diff}. '
             warn_str += f'Found: {burst_ids_found}'
