@@ -1,5 +1,8 @@
 import datetime
 import os
+import xml.etree.ElementTree as ET
+
+import isce3
 
 # date format used in file names
 FMT = "%Y%m%dT%H%M%S"
@@ -121,3 +124,42 @@ def get_orbit_file_from_dir(path: str, orbit_dir: str) -> str:
         path, [f'{orbit_dir}/{item}' for item in os.listdir(orbit_dir)])
 
     return orbit_path
+
+def burst_orbit_from_file(sensing_start, sensing_stop, osv_list: ET.Element):
+    '''Init and return ISCE3 orbit from element in orbit XML file.
+
+    Parameters:
+    -----------
+    sensing_start : datetime.datetime
+        Sensing start of burst; taken from azimuth time
+    sensing_stop : datetime.datetime
+        Sensing stop of burst
+    osv_list : xml.etree.ElementTree.Element
+        ElementTree containing orbit state vectors
+
+    Returns:
+    --------
+    _ : datetime
+        Sensing mid as datetime object.
+    '''
+    fmt = "UTC=%Y-%m-%dT%H:%M:%S.%f"
+    orbit_sv = []
+    # add start & end padding to ensure sufficient number of orbit points
+    pad = datetime.timedelta(seconds=60)
+    for osv in osv_list:
+        t_orbit = datetime.datetime.strptime(osv[1].text, fmt)
+
+        if t_orbit > sensing_stop + pad:
+            break
+
+        if t_orbit > sensing_start - pad:
+            pos = [float(osv[i].text) for i in range(4,7)]
+            vel = [float(osv[i].text) for i in range(7,10)]
+            orbit_sv.append(isce3.core.StateVector(isce3.core.DateTime(t_orbit),
+                                                   pos, vel))
+
+    # use list of stateVectors to init and return isce3.core.Orbit
+    time_delta = datetime.timedelta(days=2)
+    ref_epoch = isce3.core.DateTime(sensing_start - time_delta)
+
+    return isce3.core.Orbit(orbit_sv, ref_epoch)
