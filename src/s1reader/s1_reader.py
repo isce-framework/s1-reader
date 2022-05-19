@@ -469,6 +469,11 @@ def load_bursts(path: str, swath_num: int, pol: str='vv', orbit_path: str=None,
     if pol not in pols:
         raise ValueError(f"polarization not in {pols}")
 
+    if orbit_path is None:
+        warn_str = 'No external orbit given. '
+        warn_str += 'Orbit will be constructed from annotation XML.'
+        warnings.warn(warn_str)
+
     id_str = f'iw{swath_num}-slc-{pol}'
 
     if not os.path.exists(path):
