@@ -377,8 +377,8 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
         first_valid_samples = [int(val) for val in burst_list_element.find('firstValidSample').text.split()]
         last_valid_samples = [int(val) for val in burst_list_element.find('lastValidSample').text.split()]
 
-        first_valid_line = [x > 0 for x in first_valid_samples].index(True)
-        n_valid_lines = [x > 0 for x in first_valid_samples].count(True)
+        first_valid_line = [x > -1 for x in first_valid_samples].index(True)
+        n_valid_lines = [x > -1 for x in first_valid_samples].count(True)
         last_line = first_valid_line + n_valid_lines - 1
 
         first_valid_sample = max(first_valid_samples[first_valid_line],
