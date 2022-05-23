@@ -368,7 +368,7 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
 
         # get orbit from state vector list/element tree
         sensing_duration = datetime.timedelta(
-            seconds=n_samples * azimuth_time_interval)
+            seconds=n_lines * azimuth_time_interval)
         orbit = get_burst_orbit(sensing_start, sensing_start + sensing_duration,
                                 osv_list)
 
