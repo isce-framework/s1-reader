@@ -80,7 +80,7 @@ def burst_map(slc, orbit_dir, x_spacing,
             tgt.ImportFromEPSG(int(epsg))
             trans = osr.CoordinateTransformation(llh, tgt)
             for lx, ly in zip(x, y):
-                dummy_x, dummy_y, dummy_z = trans.TransformPoint(ly, lx, 0)
+                dummy_y, dummy_x, dummy_z = trans.TransformPoint(ly, lx, 0)
                 tgt_x.append(dummy_x)
                 tgt_y.append(dummy_y)
             
