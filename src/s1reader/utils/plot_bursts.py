@@ -40,7 +40,26 @@ def command_line_parser():
 def burst_map(slc, orbit_dir, x_spacing,
               y_spacing, epsg,
               output_filename):
-
+    """
+    Create a CSV of SLC metadata and plot bursts
+    Parameters:
+    slc: str
+      Path to SLC file
+    orbit_dir: str
+      Path to directory containing orbit files
+    x_spacing: float
+      Spacing of the geogrid in the x direction
+    y_spacing: float
+      Spacing to the geogrid in the y direction
+    epsg: int
+      EPSG code for the output coodrdinates
+    output_filename: str
+      Filename used for the output CSV, shp, html, and kml files
+    
+    Returns:
+    output_filename.csv, output_filename.shp, output_filename.html, output_filename.kml
+    """
+    
     # Initialize dictionary that will contain all the info for geocoding
     burst_map = {'burst_id':[], 'length': [], 'width': [],
                  'spacing_x': [], 'spacing_y':[], 'min_x': [],
@@ -85,7 +104,7 @@ def burst_map(slc, orbit_dir, x_spacing,
                 tgt_x.append(dummy_x)
                 tgt_y.append(dummy_y)
             
-            if int(epsg)==4326:
+            if epsg == 4326:
               x_min = x_spacing * (min(tgt_x) / x_spacing)
               y_min = y_spacing * (min(tgt_y) / y_spacing)
               x_max = x_spacing * (max(tgt_x) / x_spacing)
@@ -110,18 +129,18 @@ def burst_map(slc, orbit_dir, x_spacing,
     df = data
     df['border'] = df['border'].apply(wkt.loads)
     gdf = gpd.GeoDataFrame(df, crs='epsg:4326')
-    gdf2 = gdf.rename(columns={'border': 'geometry'}).set_geometry('geometry')
+    gdf.rename(columns={'border': 'geometry', inplace=True}).set_geometry('geometry')
     
     # Save the GeoDataFrame as a shapefile (some people may prefer the format)
-    gdf2.to_file('gdf2.shp')
+    gdf.to_file(f'{output_filename}.shp')
     
     # Save the GeoDataFrame as a kml
     fiona.supported_drivers['KML'] = 'rw'
-    gdf2.to_file('burst_map.kml', driver='KML')
+    gdf.to_file(f'{output_filename}.kml', driver='KML')
     
     
     # Plot bursts on an interactive map
-    m = gdf2.explore(
+    m = gdf.explore(
         column="burst_id", # make choropleth based on "Burst ID" column
         tooltip="burst_id", # show "Burst ID" value in tooltip (on hover)
         popup=True, # show all values in popup (on click)
@@ -130,7 +149,7 @@ def burst_map(slc, orbit_dir, x_spacing,
         style_kwds=dict(color="black") # use black outline
        )
 
-    m.save('BurstMap.html')
+    m.save(f'{output_filename}.html')
     
 
 if __name__ == '__main__':
