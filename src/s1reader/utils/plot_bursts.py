@@ -9,6 +9,7 @@ import geopandas as gpd
 import matplotlib.pyplot as plt
 import folium
 from shapely import wkt
+import fiona
 
 def command_line_parser():
     '''
@@ -113,6 +114,11 @@ def burst_map(slc, orbit_dir, x_spacing,
     
     # Save the GeoDataFrame as a shapefile (some people may prefer the format)
     gdf2.to_file('gdf2.shp')
+    
+    # Save the GeoDataFrame as a kml
+    fiona.supported_drivers['KML'] = 'rw'
+    gdf2.to_file('burst_map.kml', driver='KML')
+    
     
     # Plot bursts on an interactive map
     m = gdf2.explore(
