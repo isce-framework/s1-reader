@@ -15,11 +15,11 @@ def command_line_parser():
     Command line parser
     '''
     parser = argparse.ArgumentParser(description="""
-                                     Create a burst map for the stack""",
+                                     Create a burst map for a single slc""",
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('-r', '--reference', type=str, action='store',
-                        dest='reference',
-                        help="Reference SAFE file for the stack")
+    parser.add_argument('-s', '--slc', type=str, action='store',
+                        dest='slc',
+                        help="slc to map")
     parser.add_argument('-d', '--orbit-dir', type=str, dest='orbit_dir',
                         help="Directory containing orbit files")
     parser.add_argument('-x', '--x-spacing', type=float, default=5,
@@ -36,7 +36,7 @@ def command_line_parser():
     return parser.parse_args()
 
 
-def burst_map(reference, orbit_dir, x_spacing,
+def burst_map(slc, orbit_dir, x_spacing,
               y_spacing, epsg,
               output_filename):
 
@@ -49,10 +49,10 @@ def burst_map(reference, orbit_dir, x_spacing,
     i_subswath = [1, 2, 3]
     pol = 'vv'
     orbit_list = glob.glob(f'{orbit_dir}/*EOF')
-    orbit_path = get_orbit_file_from_list(reference, orbit_list)
+    orbit_path = get_orbit_file_from_list(slc, orbit_list)
 
     for subswath in i_subswath:
-        ref_bursts = load_bursts(reference, orbit_path, subswath, pol)
+        ref_bursts = load_bursts(slc, orbit_path, subswath, pol)
         for burst in ref_bursts:
             burst_map['burst_id'].append(burst.burst_id)
             burst_map['length'].append(burst.shape[0])
@@ -83,10 +83,17 @@ def burst_map(reference, orbit_dir, x_spacing,
                 dummy_x, dummy_y, dummy_z = trans.TransformPoint(ly, lx, 0)
                 tgt_x.append(dummy_x)
                 tgt_y.append(dummy_y)
-            x_min = x_spacing * round(min(tgt_x) / x_spacing)
-            y_min = y_spacing * round(min(tgt_y) / y_spacing)
-            x_max = x_spacing * round(max(tgt_x) / x_spacing)
-            y_max = y_spacing * round(max(tgt_y) / y_spacing)
+            
+            if int(epsg)==4326:
+              x_min = x_spacing * (min(tgt_x) / x_spacing)
+              y_min = y_spacing * (min(tgt_y) / y_spacing)
+              x_max = x_spacing * (max(tgt_x) / x_spacing)
+              y_max = y_spacing * (max(tgt_y) / y_spacing)
+            else:
+              x_min = x_spacing * round(min(tgt_x) / x_spacing)
+              y_min = y_spacing * round(min(tgt_y) / y_spacing)
+              x_max = x_spacing * round(max(tgt_x) / x_spacing)
+              y_max = y_spacing * round(max(tgt_y) / y_spacing) 
 
             # Allocate coordinates inside the dictionary
             burst_map['min_x'].append(x_min)
@@ -122,6 +129,6 @@ def burst_map(reference, orbit_dir, x_spacing,
 
 if __name__ == '__main__':
     cmd = command_line_parser()
-    burst_map(cmd.reference, cmd.orbit_dir,
+    burst_map(cmd.slc, cmd.orbit_dir,
               cmd.x_spacing, cmd.y_spacing,
               cmd.epsg, cmd.output)
