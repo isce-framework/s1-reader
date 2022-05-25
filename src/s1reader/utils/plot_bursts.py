@@ -4,8 +4,8 @@ from importlib import import_module
 import os
 import sys
 
-named_libs = [('fiona', 'fiona'), ('folium', 'folium'), ('geopandas', 'gpd'),
-            ('pandas', 'pd')]
+named_libs = [('fiona', 'fiona'), ('geopandas', 'gpd'), ('pandas', 'pd')]
+
 for (name, short) in named_libs:
     try:
         lib = import_module(name)
@@ -13,7 +13,7 @@ for (name, short) in named_libs:
         print(sys.exc_info())
     else:
         globals()[short] = lib
-        
+
 from osgeo import osr
 from shapely.geometry import Polygon
 from shapely import wkt
@@ -124,7 +124,7 @@ def burst_map(slc, orbit_dir, x_spacing,
               x_min = x_spacing * round(min(tgt_x) / x_spacing)
               y_min = y_spacing * round(min(tgt_y) / y_spacing)
               x_max = x_spacing * round(max(tgt_x) / x_spacing)
-              y_max = y_spacing * round(max(tgt_y) / y_spacing) 
+              y_max = y_spacing * round(max(tgt_y) / y_spacing)
 
             # Allocate coordinates inside the dictionary
             burst_map['min_x'].append(x_min)
