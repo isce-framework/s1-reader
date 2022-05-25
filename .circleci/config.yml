@@ -2,17 +2,14 @@ version: 2.1
 
 jobs:
   build:
-    machine:
-      image: ubuntu-2004:current
-    resource_class: medium
+    docker:
+      - image: continuumio/miniconda3
     steps:
-      - run:
-          name: "Install build system dependencies"
-          command: |
-            sudo apt-get update
-            sudo apt-get install python3 python3-setuptools python3-pip wget
-            python3 -m pip install --user build
       - checkout
+      - run:
+          name: "Install dependencies"
+          command: |
+            conda install -y --file .circleci/specfile.txt
       - run:
           name: "Build s1-reader python package"
           command: |
