@@ -1,8 +1,9 @@
-import os
 import argparse
 import glob
 from importlib import import_module
+import os
 import sys
+
 named_libs = [('fiona', 'fiona'), ('folium', 'folium'), ('geopandas', 'gpd'),
             ('pandas', 'pd')]
 for (name, short) in named_libs:
@@ -12,10 +13,11 @@ for (name, short) in named_libs:
         print(sys.exc_info())
     else:
         globals()[short] = lib
-import matplotlib.pyplot as plt
-from osgeo import gdal, osr
+        
+from osgeo import osr
 from shapely.geometry import Polygon
 from shapely import wkt
+
 from s1reader.s1_orbit import get_orbit_file_from_list
 from s1reader.s1_reader import load_bursts
 
