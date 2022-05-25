@@ -1,15 +1,24 @@
+import os
 import argparse
 import glob
-from s1reader.s1_orbit import get_orbit_file_from_list
-from s1reader.s1_reader import load_bursts
+from importlib import import_module
+import sys
+named_libs = [('fiona', 'fiona'), ('folium', 'folium'), ('geopandas', 'gpd'),
+            ('pandas', 'pd')]
+for (name, short) in named_libs:
+    try:
+        lib = import_module(name)
+    except:
+        print(sys.exc_info())
+    else:
+        globals()[short] = lib
+import matplotlib.pyplot as plt
 from osgeo import gdal, osr
 from shapely.geometry import Polygon
-import pandas as pd
-import geopandas as gpd
-import matplotlib.pyplot as plt
-import folium
 from shapely import wkt
-import fiona
+from s1reader.s1_orbit import get_orbit_file_from_list
+from s1reader.s1_reader import load_bursts
+
 
 def command_line_parser():
     '''
@@ -33,7 +42,7 @@ def command_line_parser():
                         help='EPSG for output coordinates')
     parser.add_argument('-o', '--output', type=str, default='burst_map.gpkg',
                         dest='output',
-                        help='Output filename for burst map')
+                        help='Base filename for all output burst map products')
     return parser.parse_args()
 
 
@@ -123,18 +132,22 @@ def burst_map(slc, orbit_dir, x_spacing,
 
     # Save generated burst map as csv
     data = pd.DataFrame.from_dict(burst_map)
-    data.to_csv(output_filename)
+    data.to_csv(f'{output_filename}.csv')
 
     # Create GeoDataFrame to plot bursts on a map
     df = data
     df['border'] = df['border'].apply(wkt.loads)
     gdf = gpd.GeoDataFrame(df, crs='epsg:4326')
-    gdf.rename(columns={'border': 'geometry', inplace=True}).set_geometry('geometry')
+    gdf = gdf.rename(columns={'border': 'geometry'}).set_geometry('geometry')
     
     # Save the GeoDataFrame as a shapefile (some people may prefer the format)
     gdf.to_file(f'{output_filename}.shp')
     
     # Save the GeoDataFrame as a kml
+    kml_path = f'{output_filename}.kml'
+    if os.path.isfile(kml_path):
+      os.remove(kml_path)
+    
     fiona.supported_drivers['KML'] = 'rw'
     gdf.to_file(f'{output_filename}.kml', driver='KML')
     
