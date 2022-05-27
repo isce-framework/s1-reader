@@ -1,5 +1,4 @@
 import datetime
-import pytest
 
 import isce3
 import numpy as np

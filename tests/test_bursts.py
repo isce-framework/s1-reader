@@ -1,9 +1,5 @@
-import pytest
-
 import isce3
 import numpy as np
-
-from s1reader.s1_burst_slc import Sentinel1BurstSlc
 
 
 def test_burst(bursts):
