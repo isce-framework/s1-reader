@@ -369,7 +369,7 @@ class Sentinel1BurstSlc:
                 temp['lut2d']['data'] = val.lut2d.data.flatten().tolist()
 
                 val = temp
-            elif key in ['orbit']:
+            elif key == 'orbit':
                 temp = {}
                 temp['ref_epoch'] = str(val.reference_epoch)
                 temp['time'] = {}
