@@ -1,5 +1,8 @@
 import datetime
+import glob
 import os
+import warnings
+
 
 # date format used in file names
 FMT = "%Y%m%dT%H%M%S"
@@ -71,7 +74,7 @@ def get_orbit_file_from_list(zip_path: str, orbit_file_list: list[str]) -> str:
 
     for orbit_file in orbit_file_list:
         # check if file validity
-        if not  item_valid(orbit_file, platform_id):
+        if not item_valid(orbit_file, platform_id):
             continue
 
         # get file name and extract state vector start/end time strings
@@ -89,6 +92,10 @@ def get_orbit_file_from_list(zip_path: str, orbit_file_list: list[str]) -> str:
         if all([t > t_orbit_start for t in t_swath_start_stop]) and \
                 all([t < t_orbit_end for t in t_swath_start_stop]):
             return orbit_file
+
+    msg = f'No orbit file found for {os.path.basename(zip_path)}!'
+    msg += f'\nOrbit directory: {os.path.dirname(orbit_file_list[0])}'
+    warnings.warn(msg)
 
     return ''
 
@@ -117,7 +124,10 @@ def get_orbit_file_from_dir(path: str, orbit_dir: str) -> str:
     if not os.path.isdir(orbit_dir):
         raise NotADirectoryError(f"{orbit_dir} not found")
 
-    orbit_path = get_orbit_file_from_list(
-        path, [f'{orbit_dir}/{item}' for item in os.listdir(orbit_dir)])
+    orbit_file_list = glob.glob(os.path.join(orbit_dir, 'S1*.EOF'))
+    if not orbit_file_list:
+        raise FileNotFoundError(f'No S1*.EOF file found in directory: {orbit_dir}')
+
+    orbit_path = get_orbit_file_from_list(path, orbit_file_list)
 
     return orbit_path
