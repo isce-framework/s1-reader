@@ -1,5 +1,8 @@
 import pytest
 
+import isce3
+import numpy as np
+
 from s1reader.s1_burst_slc import Sentinel1BurstSlc
 
 
@@ -61,6 +64,12 @@ def test_burst(bursts):
         assert burst.doppler.poly1d.mean == 800884.7203639568
         assert burst.doppler.poly1d.std == 149896229.0
         assert burst.doppler.poly1d.coeffs == doppler_poly1d_coeffs[i]
+
+        # compare doppler poly1d and lut2d
+        r0 = burst.starting_range + 0.5 * burst.width * burst.range_pixel_spacing
+        t0 = isce3.core.DateTime(burst.sensing_mid) - burst.orbit.reference_epoch
+        assert np.isclose(burst.doppler.lut2d.eval(t0.total_seconds(), r0),
+                          burst.doppler.poly1d.eval(r0))
 
         assert burst.azimuth_fm_rate.order == 2
         assert burst.azimuth_fm_rate.mean == 901673.89084624
