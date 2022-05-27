@@ -125,7 +125,7 @@ def get_orbit_file_from_dir(path: str, orbit_dir: str) -> str:
         raise NotADirectoryError(f"{orbit_dir} not found")
 
     orbit_file_list = glob.glob(os.path.join(orbit_dir, 'S1*.EOF'))
-    if len(orbit_file_list) == 0:
+    if not orbit_file_list:
         raise FileNotFoundError(f'No S1*.EOF file found in directory: {orbit_dir}')
 
     orbit_path = get_orbit_file_from_list(path, orbit_file_list)
