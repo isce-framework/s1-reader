@@ -11,6 +11,9 @@ import isce3
 from nisar.workflows.stage_dem import check_dateline
 from s1reader.s1_burst_slc import Doppler, Sentinel1BurstSlc
 
+
+esa_track_burst_id_file = "/u/aurora-r0/fattahi/s1_reader/code/s1-reader/src/s1reader/sentinel1_track_burst_id.txt" 
+
 # TODO evaluate if it make sense to combine below into a class
 def as_datetime(t_str, fmt = "%Y-%m-%dT%H:%M:%S.%f"):
     '''Parse given time string to datetime.datetime object.
@@ -271,6 +274,18 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
     bursts : list
         List of Sentinel1BurstSlc objects found in annotation XML.
     '''
+
+    # a 2D array where the first column is the Sentinel-1 track number 
+    # and second column is the corresponding cumulative ID number for the last burst 
+    # of the track in the first column
+    tracks_burst_id_arr = np.loadtxt(esa_track_burst_id_file, usecols=[0,2], dtype= int)
+    tracks_burst_id = {}
+    for ii in range(tracks_burst_id_arr.shape[0]):
+        tracks_burst_id[tracks_burst_id_arr[ii,0]] = tracks_burst_id_arr[ii,1]
+    # there is no track 0. But adding zero for convenience when we keep looking at the max ID
+    # of the previous track
+    tracks_burst_id[0] = 0
+
     _, tail = os.path.split(annotation_path)
     platform_id, subswath_id, _, pol = [x.upper() for x in tail.split('-')[:4]]
 
@@ -354,6 +369,15 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
         dt = sensing_times[i] - ascending_node_time
         id_burst = int((dt.seconds + dt.microseconds / 1e6) // burst_interval)
 
+        # To be consistent with ESA let's start the counter of the ID 
+        # from 1 instead of from 0, i,e, the ID of the first burst of the 
+        # first track is 1
+        id_burst += 1
+
+        # the IDs are currently local to one track. Let's adjust based on 
+        # the last ID of the previous track
+        id_burst += tracks_burst_id[track_number-1]
+
         # choose nearest azimuth FM rate
         d_seconds = 0.5 * (n_lines - 1) * azimuth_time_interval
         sensing_mid = sensing_start + datetime.timedelta(seconds=d_seconds)
@@ -387,7 +411,7 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
                           last_valid_samples[last_line])
 
 
-        burst_id = f't{track_number}_{subswath_id.lower()}_b{id_burst}'
+        burst_id = f't{track_number}_{id_burst}_{subswath_id.lower()}'
 
         bursts[i] = Sentinel1BurstSlc(sensing_start, radar_freq, wavelength,
                                       azimuth_steer_rate, azimuth_time_interval,
