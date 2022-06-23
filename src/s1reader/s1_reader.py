@@ -275,16 +275,13 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
         List of Sentinel1BurstSlc objects found in annotation XML.
     '''
 
-    # a 2D array where the first column is the Sentinel-1 track number 
-    # and second column is the corresponding cumulative ID number for the last burst 
-    # of the track in the first column
-    tracks_burst_id_arr = np.loadtxt(esa_track_burst_id_file, usecols=[0,2], dtype= int)
-    tracks_burst_id = {}
-    for ii in range(tracks_burst_id_arr.shape[0]):
-        tracks_burst_id[tracks_burst_id_arr[ii,0]] = tracks_burst_id_arr[ii,1]
-    # there is no track 0. But adding zero for convenience when we keep looking at the max ID
-    # of the previous track
-    tracks_burst_id[0] = 0
+    # a 1D array where the indices are the Sentinel-1 track number 
+    # and the data at each row are the corresponding cumulative ID 
+    # number for the last burst of the given track (i.e., line number)
+    # get last burst ID number of each track and prepend 0
+    tracks_burst_id = np.insert(np.loadtxt(esa_track_burst_id_file,
+                                       usecols=[2], dtype=int),
+                                        0, 0)
 
     _, tail = os.path.split(annotation_path)
     platform_id, subswath_id, _, pol = [x.upper() for x in tail.split('-')[:4]]
