@@ -12,7 +12,7 @@ from nisar.workflows.stage_dem import check_dateline
 from s1reader.s1_burst_slc import Doppler, Sentinel1BurstSlc
 
 
-esa_track_burst_id_file = "/u/aurora-r0/fattahi/s1_reader/code/s1-reader/src/s1reader/sentinel1_track_burst_id.txt" 
+esa_track_burst_id_file = f"{os.path.dirname(os.path.realpath(__file__))}/data/sentinel1_track_burst_id.txt" 
 
 # TODO evaluate if it make sense to combine below into a class
 def as_datetime(t_str, fmt = "%Y-%m-%dT%H:%M:%S.%f"):
