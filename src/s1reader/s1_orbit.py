@@ -3,6 +3,7 @@ import glob
 import os
 import warnings
 
+from eof.download import download_eofs
 
 # date format used in file names
 FMT = "%Y%m%dT%H%M%S"
@@ -131,3 +132,12 @@ def get_orbit_file_from_dir(path: str, orbit_dir: str) -> str:
     orbit_path = get_orbit_file_from_list(path, orbit_file_list)
 
     return orbit_path
+
+def download_orbit_file(safe_path: str, save_dir: str='.'):
+    if not os.path.isdir(save_dir):
+        raise NotADirectoryError(f"{save_dir} not found")
+
+    downloaded_files = download_eofs(sentinel_file=safe_path,
+                                     save_dir=save_dir)
+
+    return downloaded_files

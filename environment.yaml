@@ -7,3 +7,4 @@ dependencies:
   - gdal
   - isce3
   - shapely
+  - sentineleof
