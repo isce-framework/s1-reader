@@ -18,6 +18,14 @@ jobs:
           name: "Download S1 test data"
           command: |
             python3 tests/download_data.py
+      - run:
+          name: "Install s1-reader python package"
+          command: |
+            python3 -m pip install .
+      - run:
+          name: "Run s1-reader unit tests"
+          command: |
+            python3 -m pytest
 
 workflows:
   build-workflow:
