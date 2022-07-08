@@ -8,6 +8,7 @@ import isce3
 import numpy as np
 from osgeo import gdal
 
+from s1reader import s1_annotation
 
 # Other functionalities
 def polyfit(xin, yin, zin, azimuth_order, range_order,
@@ -127,6 +128,7 @@ class Doppler:
 class Sentinel1BurstSlc:
     '''Raw values extracted from SAFE XML.
     '''
+    ipf_version:float
     sensing_start: datetime.datetime
     radar_center_frequency: float
     wavelength: float
@@ -161,6 +163,12 @@ class Sentinel1BurstSlc:
     rank: int # The number of PRI between transmitted pulse and return echo.
     prf_raw_data: float  # Pulse repetition frequency (PRF) of the raw data [Hz]
     range_chirp_rate: float # Range chirp rate [Hz]
+
+    #Correction information
+    burst_calibration: s1_annotation.BurstCalibration #Radiometric correction
+    burst_noise: s1_annotation.BurstNoise #Thermal noise correction
+    burst_eap: s1_annotation.BurstEAP #EAP correction
+
 
     def as_isce3_radargrid(self):
         '''Init and return isce3.product.RadarGridParameters.
@@ -561,6 +569,7 @@ class Sentinel1BurstSlc:
 
 
         return AzimuthCarrierComponents(kt, eta, eta_ref)
+
 
     @property
     def sensing_mid(self):
