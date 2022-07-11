@@ -22,7 +22,7 @@ def check_internet_connection():
     try:
         requests.get(url, timeout=10)
     except (requests.ConnectionError, requests.Timeout) as exception:
-        raise sys.exit(exception)
+        raise ConnectionError(f'Unable to reach {url}: {exception}')
 
 
 def parse_safe_filename(safe_filename):
@@ -48,9 +48,9 @@ def parse_safe_filename(safe_filename):
     sensor_id = safe_name[2]
     sensor_mode = safe_name[4:10]
     start_datetime = datetime.datetime.strptime(safe_name[17:32],
-                                                '%Y%m%dT%H%M%S')
+                                                FMT)
     end_datetime = datetime.datetime.strptime(safe_name[33:48],
-                                              '%Y%m%dT%H%M%S')
+                                              FMT)
     abs_orb_num = int(safe_name[49:55])
 
     return [sensor_id, sensor_mode, start_datetime, end_datetime, abs_orb_num]
@@ -85,8 +85,9 @@ def get_orbit_dict(sensor_id, start_time, end_time, orbit_type):
         raise ValueError(err_msg)
 
     # Add a 30 min margin to start_time and end_time
-    pad_start_time = start_time - datetime.timedelta(hours=0.5)
-    pad_end_time = end_time + datetime.timedelta(hours=0.5)
+    pad_30_min = datetime.timedelta(hours=0.5)
+    pad_start_time = start_time - pad_30_min
+    pad_end_time = end_time + pad_30_min
     new_start_time = pad_start_time.strftime('%Y-%m-%dT%H:%M:%S')
     new_end_time = pad_end_time.strftime('%Y-%m-%dT%H:%M:%S')
     query_string = f"startswith(Name,'S1{sensor_id}') and substringof('{orbit_type}',Name) " \
@@ -198,7 +199,7 @@ def get_file_name_tokens(zip_path: str) -> [str, list[datetime.datetime]]:
     return platform_id, t_swath_start_stop
 
 
-# lambda to check if file exisits if desired sat_id in basename
+# lambda to check if file exists if desired sat_id in basename
 item_valid = lambda item, sat_id: os.path.isfile(item) and sat_id in os.path.basename(item)
 
 
