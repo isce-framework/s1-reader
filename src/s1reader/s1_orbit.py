@@ -5,19 +5,14 @@ import os
 import requests
 import warnings
 
+from xml.etree import ElementTree
+
 # date format used in file names
 FMT = "%Y%m%dT%H%M%S"
 
-# Required for orbit download
-scihub_url = 'https://scihub.copernicus.eu/gnss/odata/v1/Products'
-# Namespaces of the XML file returned by the S1 query. Will they change it?
-w3_url = '{http://www.w3.org/2005/Atom}'
-m_url = '{http://schemas.microsoft.com/ado/2007/08/dataservices/metadata}'
-d_url = '{http://schemas.microsoft.com/ado/2007/08/dataservices}'
 # Scihub guest credential
 scihub_user = 'gnssguest'
 scihub_password = 'gnssguest'
-
 
 def check_internet_connection():
     '''
@@ -78,6 +73,12 @@ def get_orbit_dict(sensor_id, start_time, end_time, orbit_type):
     orbit_dict: dict
         Python dictionary with [orbit_name, orbit_type, download_url]
     '''
+    # Required for orbit download
+    scihub_url = 'https://scihub.copernicus.eu/gnss/odata/v1/Products'
+    # Namespaces of the XML file returned by the S1 query. Will they change it?
+    m_url = '{http://schemas.microsoft.com/ado/2007/08/dataservices/metadata}'
+    d_url = '{http://schemas.microsoft.com/ado/2007/08/dataservices}'
+
     # Check if correct orbit_type
     if orbit_type not in ['AUX_POEORB', 'AUX_RESORB']:
         err_msg = f'{orbit_type} not a valid orbit type'
