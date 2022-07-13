@@ -31,7 +31,7 @@ def as_datetime(t_str, fmt = "%Y-%m-%dT%H:%M:%S.%f"):
     '''
     return datetime.datetime.strptime(t_str, fmt)
 
-def parse_polynomial_element(elem, poly_name):
+def parse_polynomial_element(elem, poly_name, ipf_version=3.10):
     '''Parse azimuth FM (Frequency Modulation) rate element to reference time and poly1d tuples.
 
     Parameters
@@ -50,7 +50,10 @@ def parse_polynomial_element(elem, poly_name):
 
     half_c = 0.5 * isce3.core.speed_of_light
     r0 = half_c * float(elem.find('t0').text)
-    coeffs = [float(x) for x in elem.find(poly_name).text.split()]
+    if ipf_version>=2.90: #TODO The threshold needs to be more accurate and be based on ESA documentation
+        coeffs = [float(x) for x in elem.find(poly_name).text.split()]
+    else:
+        coeffs=[float(x.text) for x in elem[1:]]
     poly1d = isce3.core.Poly1d(coeffs, r0, half_c)
     return (ref_time, poly1d)
 
@@ -365,7 +368,7 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
 
         az_rate_list_element = tree.find('generalAnnotation/azimuthFmRateList')
         poly_name = 'azimuthFmRatePolynomial'
-        az_fm_rate_list = [parse_polynomial_element(x, poly_name) for x in az_rate_list_element]
+        az_fm_rate_list = [parse_polynomial_element(x, poly_name, ipf_version) for x in az_rate_list_element]
 
         doppler_list_element = tree.find('dopplerCentroid/dcEstimateList')
         poly_name = 'dataDcPolynomial'
