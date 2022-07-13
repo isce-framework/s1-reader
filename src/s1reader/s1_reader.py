@@ -333,11 +333,11 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
     #load the Noise annotation
     with open_method(noise_annotation_path, 'r') as f_nads:
         tree_nads=ET.parse(f_nads)
-        noise_annotation=s1_annotation.NoiseAnnotation.from_et(tree_nads)
+        noise_annotation=s1_annotation.NoiseAnnotation.from_et(tree_nads,ipf_version=ipf_version)
 
     #find the corresponding AUX_CAL and load
     aux_cal=None #placeholder
-    
+
 
 
     # Nearly all metadata loaded here is common to all bursts in annotation XML
@@ -451,7 +451,8 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
 
         #Extract burst-wise information for Calibration, Noise, and EAP correction
         burst_calibration=s1_annotation.BurstCalibration.from_calibraiton_annotation(calibration_annotation,sensing_start)
-        burst_noise=s1_annotation.BurstNoise.from_noise_annotation(noise_annotation,sensing_start)
+        bursts_noise=s1_annotation.BurstNoise()
+        bursts_noise.from_noise_annotation(noise_annotation,sensing_start,i*n_lines,(i+1)*n_lines-1,ipf_version)
         burst_eap=None #placeholder
 
         bursts[i] = Sentinel1BurstSlc(ipf_version, sensing_start, radar_freq, wavelength,
@@ -466,7 +467,8 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
                                       last_sample, first_valid_line, last_line,
                                       range_window_type, range_window_coeff,
                                       rank, prf_raw_data, range_chirp_ramp_rate,
-                                      burst_calibration, burst_noise, burst_eap)
+                                      burst_calibration, bursts_noise, burst_eap)
+
     return bursts
 
 def _is_zip_annotation_xml(path: str, id_str: str) -> bool:
