@@ -6,8 +6,9 @@ To be used for the class "Sentinel1BurstSlc"
 from dataclasses import dataclass
 import datetime
 import xml.etree.ElementTree as ET
-import numpy as np
 
+import numpy as np
+from scipy.interpolate import InterpolatedUnivariateSpline
 
 @dataclass
 class AnnotationBase:
@@ -139,16 +140,30 @@ class NoiseAnnotation(AnnotationBase):
         '''Extracts list of noise information from etree'''
         if et_in is not None:
             cls.xml_et=et_in
-        cls.rg_list_azimuth_time=cls._parse_vectorlist('noiseRangeVectorList','azimuthTime','datetime')
-        cls.rg_list_line=cls._parse_vectorlist('noiseRangeVectorList','line','scalar_int')
-        cls.rg_list_pixel=cls._parse_vectorlist('noiseRangeVectorList','pixel','vector_int')
-        cls.rg_list_noise_range_lut=cls._parse_vectorlist('noiseRangeVectorList','noiseRangeLut','vector_float')
-        cls.az_first_azimuth_line=cls._parse_vectorlist('noiseAzimuthVectorList','firstAzimuthLine','scalar_int')[0]
-        cls.az_first_range_sample=cls._parse_vectorlist('noiseAzimuthVectorList','firstRangeSample','scalar_int')[0]
-        cls.az_last_azimuth_line=cls._parse_vectorlist('noiseAzimuthVectorList','lastAzimuthLine','scalar_int')[0]
-        cls.az_last_range_sample=cls._parse_vectorlist('noiseAzimuthVectorList','lastRangeSample','scalar_int')[0]
-        cls.az_line=cls._parse_vectorlist('noiseAzimuthVectorList','line','vector_int')[0]
-        cls.az_noise_azimuth_lut=cls._parse_vectorlist('noiseAzimuthVectorList','noiseAzimuthLut','vector_float')[0]
+
+        if ipf_version<2.90: #legacy SAFE data
+            cls.rg_list_azimuth_time=cls._parse_vectorlist('noiseVectorList','azimuthTime','datetime')
+            cls.rg_list_line=cls._parse_vectorlist('noiseVectorList','line','scalar_int')
+            cls.rg_list_pixel=cls._parse_vectorlist('noiseVectorList','pixel','vector_int')
+            cls.rg_list_noise_range_lut=cls._parse_vectorlist('noiseVectorList','noiseLut','vector_float')
+            cls.az_first_azimuth_line=None
+            cls.az_first_range_sample=None
+            cls.az_last_azimuth_line=None
+            cls.az_last_range_sample=None
+            cls.az_line=None
+            cls.az_noise_azimuth_lut=None
+
+        else:
+            cls.rg_list_azimuth_time=cls._parse_vectorlist('noiseRangeVectorList','azimuthTime','datetime')
+            cls.rg_list_line=cls._parse_vectorlist('noiseRangeVectorList','line','scalar_int')
+            cls.rg_list_pixel=cls._parse_vectorlist('noiseRangeVectorList','pixel','vector_int')
+            cls.rg_list_noise_range_lut=cls._parse_vectorlist('noiseRangeVectorList','noiseRangeLut','vector_float')
+            cls.az_first_azimuth_line=cls._parse_vectorlist('noiseAzimuthVectorList','firstAzimuthLine','scalar_int')[0]
+            cls.az_first_range_sample=cls._parse_vectorlist('noiseAzimuthVectorList','firstRangeSample','scalar_int')[0]
+            cls.az_last_azimuth_line=cls._parse_vectorlist('noiseAzimuthVectorList','lastAzimuthLine','scalar_int')[0]
+            cls.az_last_range_sample=cls._parse_vectorlist('noiseAzimuthVectorList','lastRangeSample','scalar_int')[0]
+            cls.az_line=cls._parse_vectorlist('noiseAzimuthVectorList','line','vector_int')[0]
+            cls.az_noise_azimuth_lut=cls._parse_vectorlist('noiseAzimuthVectorList','noiseAzimuthLut','vector_float')[0]
 
         return cls
 
@@ -249,11 +264,10 @@ def closest_block_to_azimuth_time(vector_azimuth_time:np.ndarray, azmuth_time_bu
 
     return np.argmin(np.abs(vector_azimuth_time-azmuth_time_burst))
 
+
 @dataclass
 class BurstNoise: #For thermal noise correction
-    #TODO Capability to deal with NADS without azimuth noise vectors i.e. IPF lower than 2.90
-    '''Noise correction information for Sentinel-1 burst
-    '''
+    '''Noise correction information for Sentinel-1 burst'''
     range_azimith_time: datetime.datetime = None
     range_line: float = None
     range_pixel: np.ndarray = None
@@ -264,24 +278,57 @@ class BurstNoise: #For thermal noise correction
     azimuth_last_range_sample: int = None
     azimuth_line: np.ndarray = None
     azimuth_lut: np.ndarray = None
-    #TODO add 2d lookup table here
+    line_from:int=None
+    line_to:int=None
 
-    @classmethod
-    def from_noise_annotation(cls, noise_annotation:NoiseAnnotation, azimuth_time:datetime):
+
+    def from_noise_annotation(self, noise_annotation:NoiseAnnotation, azimuth_time:datetime, line_from:int, line_to:int, ipf_version:float=3.10):
         '''Extracts the noise correction info for the burst'''
+        threshold_ipf_version=2.90 #IPF version that stared to provide azimuth noise vector
         id_closest=closest_block_to_azimuth_time(noise_annotation.rg_list_azimuth_time,azimuth_time)
-        cls.range_vector_azimith_time=noise_annotation.rg_list_azimuth_time[id_closest]
-        cls.range_line=noise_annotation.rg_list_line[id_closest]
-        cls.range_pixel=noise_annotation.rg_list_pixel[id_closest]
-        cls.range_lut=noise_annotation.rg_list_noise_range_lut[id_closest]
+        self.range_azimith_time=noise_annotation.rg_list_azimuth_time[id_closest]
+        self.range_line=noise_annotation.rg_list_line[id_closest]
+        self.range_pixel=noise_annotation.rg_list_pixel[id_closest]
+        self.range_lut=noise_annotation.rg_list_noise_range_lut[id_closest]
 
-        cls.azimuth_first_azimuth_line=noise_annotation.az_first_azimuth_line
-        cls.azimuth_first_range_sample=noise_annotation.az_first_range_sample
-        cls.azimuth_last_azimuth_line=noise_annotation.az_last_azimuth_line
-        cls.azimuth_last_range_sample=noise_annotation.az_last_range_sample
-        cls.azimuth_lut=noise_annotation.az_noise_azimuth_lut #TODO clip the whole azimuth LUT to the burst
+        self.azimuth_first_azimuth_line=noise_annotation.az_first_azimuth_line
+        self.azimuth_first_range_sample=noise_annotation.az_first_range_sample
+        self.azimuth_last_azimuth_line=noise_annotation.az_last_azimuth_line
+        self.azimuth_last_range_sample=noise_annotation.az_last_range_sample
 
-        return cls
+        self.line_from=line_from
+        self.line_to=line_to
+
+        if ipf_version>=threshold_ipf_version:
+            #Azinuth noise LUT exists - crop to the extent of the burst
+            id_top=np.argmin(np.abs(noise_annotation.az_line-line_from))
+            id_bottom=np.argmin(np.abs(noise_annotation.az_line-line_to))
+            #put some margin when possible
+            if id_top>0:
+                id_top-=1
+            if id_bottom<len(noise_annotation.az_line)-1:
+                id_bottom+=1
+            self.azimuth_line=noise_annotation.az_line[id_top:id_bottom]
+            self.azimuth_lut=noise_annotation.az_noise_azimuth_lut[id_top:id_bottom]
+
+
+        #return cls
+    def export_lut(self):
+        '''Gives out the LUT table whose size is the same as the burst SLC'''
+        ncols=self.azimuth_last_range_sample-self.azimuth_first_range_sample+1
+        nrows=self.line_to-self.line_from+1
+
+        intp_rg_lut=InterpolatedUnivariateSpline(self.range_pixel,self.range_lut,k=1)
+        intp_az_lut=InterpolatedUnivariateSpline(self.azimuth_line,self.azimuth_lut,k=1)
+
+        grid_rg=np.arange(self.azimuth_last_range_sample+1)
+        grid_az=np.arange(self.line_from,self.line_to+1)
+
+        rg_lut_interp=intp_rg_lut(grid_rg).reshape((1,ncols))
+        az_lut_interp=intp_az_lut(grid_az).reshape((nrows,1))
+
+        arr_lut_total=np.matmul(az_lut_interp,rg_lut_interp)
+        return arr_lut_total
 
 
 @dataclass
@@ -309,7 +356,6 @@ class BurstCalibration:
         cls.dn=calibration_annotation.list_dn[id_closest]
 
         return cls
-
 
 
 @dataclass
