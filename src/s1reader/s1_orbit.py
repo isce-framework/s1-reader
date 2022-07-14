@@ -38,11 +38,13 @@ def download_orbit(safe_file, orbit_dir):
     orbit_dict = get_orbit_dict(sensor_id, start_time,
                                 end_time, 'AUX_POEORB')
     # If orbit dict is empty, find restituted orbits
-    if orbit_dict == None:
+    if orbit_dict is None:
         orbit_dict = get_orbit_dict(sensor_id, start_time,
                                     end_time, 'AUX_RESORB')
     # Download orbit file
-    download_orbit_file(orbit_dir, orbit_dict['orbit_url'])
+    filename = os.path.join(orbit_dir, orbit_dict["orbit_name"])
+    if not os.path.exists(filename):
+       download_orbit_file(orbit_dir, orbit_dict['orbit_url'])
 
 
 def check_internet_connection():
@@ -60,11 +62,12 @@ def parse_safe_filename(safe_filename):
     '''
     Extract info from S1-A/B SAFE filename
     SAFE filename structure: S1A_IW_SLC__1SDV_20150224T114043_20150224T114111_004764_005E86_AD02.SAFE
-    Parameters:
+    Parameters
     -----------
     safe_filename: string
        Path to S1-A/B SAFE file
-    Returns:
+
+    Returns
     -------
     List of [sensor_id, mode_id, start_datetime,
                 end_datetime, abs_orbit_num]
@@ -74,7 +77,7 @@ def parse_safe_filename(safe_filename):
        stop_datetime: acquisition stop datetime
        abs_orbit_num: absolute orbit number
 
-    Examples:
+    Examples
     ---------
     parse_safe_filename('S1A_IW_SLC__1SDV_20150224T114043_20150224T114111_004764_005E86_AD02.SAFE')
     returns
@@ -97,7 +100,7 @@ def parse_safe_filename(safe_filename):
 def get_orbit_dict(sensor_id, start_time, end_time, orbit_type):
     '''
     Query Copernicus GNSS API to find latest orbit file
-    Parameters:
+    Parameters
     ----------
     sensor_id: str
         Sentinel satellite identifier ('A' or 'B')
@@ -107,7 +110,9 @@ def get_orbit_dict(sensor_id, start_time, end_time, orbit_type):
         Sentinel end acquisition time
     orbit_type: str
         Type of orbit to download (AUX_POEORB: precise, AUX_RESORB: restituted)
-    Returns:
+
+    Returns
+    -------
     orbit_dict: dict
         Python dictionary with [orbit_name, orbit_type, download_url]
     '''
@@ -156,7 +161,7 @@ def get_orbit_dict(sensor_id, start_time, end_time, orbit_type):
 def download_orbit_file(output_folder, orbit_url):
     '''
     Download S1-A/B orbits
-    Parameters:
+    Parameters
     ----------
     output_folder: str
         Path to directory where to store orbits
@@ -177,15 +182,15 @@ def download_orbit_file(output_folder, orbit_url):
 def get_file_name_tokens(zip_path: str) -> [str, list[datetime.datetime]]:
     '''Extract swath platform ID and start/stop times from SAFE zip file path.
 
-    Parameters:
-    -----------
+    Parameters
+    ----------
     zip_path: list[str]
         List containing orbit path strings. Orbit files required to adhere to
         naming convention found here:
         https://s1qc.asf.alaska.edu/aux_poeorb/
 
-    Returns:
-    --------
+    Returns
+    -------
     platform_id: ('S1A', 'S1B')
     orbit_path : str
         Path the orbit file.
