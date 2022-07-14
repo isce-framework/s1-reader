@@ -197,19 +197,8 @@ def get_file_name_tokens(zip_path: str) -> [str, list[datetime.datetime]]:
     t_swath_start_stop: list[datetime.datetime]
         Swath start/stop times
     '''
-    file_name_tokens = os.path.basename(zip_path).split('_')
-
-    # extract and check platform ID
-    platform_id = file_name_tokens[0]
-    if platform_id not in ['S1A', 'S1B']:
-        err_str = f'{platform_id} not S1A nor S1B'
-        ValueError(err_str)
-
-    # extract start/stop time as a list[datetime.datetime]: [t_start, t_stop]
-    t_swath_start_stop = [datetime.datetime.strptime(t, FMT)
-                          for t in file_name_tokens[5:7]]
-
-    return platform_id, t_swath_start_stop
+    platform_id, _, start_time, end_time, _ = parse_safe_filename(zip_path)
+    return platform_id,[start_time, end_time]
 
 
 # lambda to check if file exists if desired sat_id in basename
