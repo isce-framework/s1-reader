@@ -14,6 +14,37 @@ FMT = "%Y%m%dT%H%M%S"
 scihub_user = 'gnssguest'
 scihub_password = 'gnssguest'
 
+
+def download_orbit(safe_file, orbit_dir):
+    '''
+    Download orbits for S1-A/B SAFE "safe_file"
+
+    Parameters
+    ----------
+    safe_file: str
+        File path to SAFE file for which download the orbits
+    orbit_dir: str
+        File path to directory where to store downloaded orbits
+    '''
+
+    # Create output directory & check internet connection
+    os.makedirs(orbit_dir, exist_ok=True)
+    check_internet_connection()
+
+    # Parse info from SAFE file name
+    sensor_id, _, start_time, end_time, _ = parse_safe_filename(safe_file)
+
+    # Find precise orbit first
+    orbit_dict = get_orbit_dict(sensor_id, start_time,
+                                end_time, 'AUX_POEORB')
+    # If orbit dict is empty, find restituted orbits
+    if orbit_dict == None:
+        orbit_dict = get_orbit_dict(sensor_id, start_time,
+                                    end_time, 'AUX_RESORB')
+    # Download orbit file
+    download_orbit_file(orbit_dir, orbit_dict['orbit_url'])
+
+
 def check_internet_connection():
     '''
     Check connection availability
@@ -42,11 +73,18 @@ def parse_safe_filename(safe_filename):
        start_datetime: acquisition start datetime
        stop_datetime: acquisition stop datetime
        abs_orbit_num: absolute orbit number
+
+    Examples:
+    ---------
+    parse_safe_filename('S1A_IW_SLC__1SDV_20150224T114043_20150224T114111_004764_005E86_AD02.SAFE')
+    returns
+    ['A', 'IW', datetime.datetime(2015, 2, 24, 11, 40, 43),\
+    datetime.datetime(2015, 2, 24, 11, 41, 11), 4764]
     '''
 
     safe_name = os.path.basename(safe_filename)
     sensor_id = safe_name[2]
-    sensor_mode = safe_name[4:10]
+    sensor_mode = safe_name[4:6]
     start_datetime = datetime.datetime.strptime(safe_name[17:32],
                                                 FMT)
     end_datetime = datetime.datetime.strptime(safe_name[33:48],
@@ -134,36 +172,6 @@ def download_orbit_file(output_folder, orbit_url):
     orbit_filename = os.path.join(output_folder, header_params['filename'])
     # Save orbits
     open(orbit_filename, 'wb').write(response.content)
-
-
-def download_orbit(safe_file, orbit_dir):
-    '''
-    Download orbits for S1-A/B SAFE "safe_file"
-
-    Parameters
-    ----------
-    safe_file: str
-        File path to SAFE file for which download the orbits
-    orbit_dir: str
-        File path to directory where to store downloaded orbits
-    '''
-
-    # Create output directory & check internet connection
-    os.makedirs(orbit_dir, exist_ok=True)
-    check_internet_connection()
-
-    # Parse info from SAFE file name
-    sensor_id, _, start_time, end_time, _ = parse_safe_filename(safe_file)
-
-    # Find precise orbit first
-    orbit_dict = get_orbit_dict(sensor_id, start_time,
-                                end_time, 'AUX_POEORB')
-    # If orbit dict is empty, find restituted orbits
-    if orbit_dict == None:
-        orbit_dict = get_orbit_dict(sensor_id, start_time,
-                                    end_time, 'AUX_RESORB')
-    # Download orbit file
-    download_orbit_file(orbit_dir, orbit_dict['orbit_url'])
 
 
 def get_file_name_tokens(zip_path: str) -> [str, list[datetime.datetime]]:
