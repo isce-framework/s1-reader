@@ -343,19 +343,20 @@ class BurstCalibration:
     gamma: np.ndarray = None
     dn: np.ndarray = None
 
-    @classmethod
-    def from_calibraiton_annotation(cls, calibration_annotation:CalibrationAnnotation, azimuth_time:datetime):
+    def from_calibraiton_annotation(self, calibration_annotation:CalibrationAnnotation, azimuth_time:datetime):
         '''Extracts the calibration info for the burst'''
         id_closest=closest_block_to_azimuth_time(calibration_annotation.list_azimuth_time, azimuth_time)
-        cls.azimuth_time=calibration_annotation.list_azimuth_time[id_closest]
-        cls.line=calibration_annotation.list_line[id_closest]
-        cls.pixel=calibration_annotation.list_pixel[id_closest]
-        cls.sigma_naught=calibration_annotation.list_sigma_nought[id_closest]
-        cls.beta_naught=calibration_annotation.list_beta_nought[id_closest]
-        cls.gamma=calibration_annotation.list_gamma[id_closest]
-        cls.dn=calibration_annotation.list_dn[id_closest]
+        self.azimuth_time=calibration_annotation.list_azimuth_time[id_closest]
+        self.line=calibration_annotation.list_line[id_closest]
+        self.pixel=calibration_annotation.list_pixel[id_closest]
+        self.sigma_naught=calibration_annotation.list_sigma_nought[id_closest]
 
-        return cls
+        matrix_beta_naught=np.array(calibration_annotation.list_beta_nought)
+        if matrix_beta_naught.min()==matrix_beta_naught.max(): #NOTE It might not be a good idea to attempt '==' operation on the floating point data.
+            self.beta_naught=np.min(matrix_beta_naught)
+        else:
+            #TODO Switch to LUT-based method when there is significant changes in the array
+            self.beta_naught=np.mean(matrix_beta_naught)
 
 
 @dataclass
