@@ -1,3 +1,6 @@
+# version info
+from .version import release_version as __version__
+
 # top-level functions to be easily used
 from .s1_burst_slc import Sentinel1BurstSlc
 from .s1_reader import load_bursts
