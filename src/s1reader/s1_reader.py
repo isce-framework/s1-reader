@@ -50,10 +50,12 @@ def parse_polynomial_element(elem, poly_name, ipf_version=3.10):
 
     half_c = 0.5 * isce3.core.speed_of_light
     r0 = half_c * float(elem.find('t0').text)
-    if ipf_version>=2.90: #TODO The threshold needs to be more accurate and be based on ESA documentation
+    
+    try:
         coeffs = [float(x) for x in elem.find(poly_name).text.split()]
-    else:
+    except ValueError:
         coeffs=[float(x.text) for x in elem[1:]]
+        
     poly1d = isce3.core.Poly1d(coeffs, r0, half_c)
     return (ref_time, poly1d)
 
