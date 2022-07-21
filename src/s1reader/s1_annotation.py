@@ -136,7 +136,7 @@ class NoiseAnnotation(AnnotationBase):
     az_noise_azimuth_lut:np.ndarray
 
     @classmethod
-    def from_et(cls,et_in,ipf_version=3.10):
+    def from_et(cls,et_in:ET,et_in_lads:ET=None,ipf_version=3.10):
         '''Extracts list of noise information from etree'''
         if et_in is not None:
             cls.xml_et=et_in
@@ -146,10 +146,10 @@ class NoiseAnnotation(AnnotationBase):
             cls.rg_list_line=cls._parse_vectorlist('noiseVectorList','line','scalar_int')
             cls.rg_list_pixel=cls._parse_vectorlist('noiseVectorList','pixel','vector_int')
             cls.rg_list_noise_range_lut=cls._parse_vectorlist('noiseVectorList','noiseLut','vector_float')
-            cls.az_first_azimuth_line=None
-            cls.az_first_range_sample=None
+            cls.az_first_azimuth_line=0
+            cls.az_first_range_sample=0
             cls.az_last_azimuth_line=None
-            cls.az_last_range_sample=None
+            cls.az_last_range_sample=int(et_in_lads.find('imageAnnotation/imageInformation/numberOfSamples').text)-1
             cls.az_line=None
             cls.az_noise_azimuth_lut=None
 
@@ -259,6 +259,8 @@ def is_eap_correction_necesasry(ipf_version:float) -> int :
     else:
         return 2 # Phase and Magniture correction is necessary
 
+
+
 def closest_block_to_azimuth_time(vector_azimuth_time:np.ndarray, azmuth_time_burst:datetime.datetime) -> int:
     '''Find the id of the closest data block in annotation.'''
 
@@ -310,24 +312,34 @@ class BurstNoise: #For thermal noise correction
                 id_bottom+=1
             self.azimuth_line=noise_annotation.az_line[id_top:id_bottom]
             self.azimuth_lut=noise_annotation.az_noise_azimuth_lut[id_top:id_bottom]
+        
+
 
 
         #return cls
+
+
     def export_lut(self):
         '''Gives out the LUT table whose size is the same as the burst SLC'''
         ncols=self.azimuth_last_range_sample-self.azimuth_first_range_sample+1
         nrows=self.line_to-self.line_from+1
 
+        #interpolator for range noise vector
         intp_rg_lut=InterpolatedUnivariateSpline(self.range_pixel,self.range_lut,k=1)
-        intp_az_lut=InterpolatedUnivariateSpline(self.azimuth_line,self.azimuth_lut,k=1)
-
         grid_rg=np.arange(self.azimuth_last_range_sample+1)
-        grid_az=np.arange(self.line_from,self.line_to+1)
-
         rg_lut_interp=intp_rg_lut(grid_rg).reshape((1,ncols))
-        az_lut_interp=intp_az_lut(grid_az).reshape((nrows,1))
 
+        #interpolator for azimuth noise vector - take IPF version into consideration
+        if (self.azimuth_line is None) or (self.azimuth_lut is None): # IPF <2.90
+            az_lut_interp=np.ones(nrows).reshape((nrows,1))
+
+        else: #IPF >= 2.90
+            intp_az_lut=InterpolatedUnivariateSpline(self.azimuth_line,self.azimuth_lut,k=1)
+            grid_az=np.arange(self.line_from,self.line_to+1)
+            az_lut_interp=intp_az_lut(grid_az).reshape((nrows,1))
+        
         arr_lut_total=np.matmul(az_lut_interp,rg_lut_interp)
+        
         return arr_lut_total
 
 
@@ -372,23 +384,9 @@ class BurstEAP:
     tau_sub: np.ndarray #antennaPattern/slantRangeTime
     theta_sub: np.ndarray #antennaPattern/elevationAngle
     azimuth_time: datetime
+    ascending_node_time: datetime
 
     #from AUX_CAL
     G_eap: np.ndarray #elevationAntennaPattern
     delta_theta:float #elavationAngleIncrement
 
-    @classmethod
-    def from_product_annotation_and_aux_cal(cls,product_annotation:ProductAnnotation, aux_cal:AuxCal, azimuth_time:datetime):
-        '''Extracts the calibration info for the burst'''
-        id_closest=closest_block_to_azimuth_time(product_annotation.antenna_pattern_azimuth_time, azimuth_time)
-        cls.Ns=product_annotation.number_of_samples
-        cls.fs=product_annotation.range_sampling_rate
-        cls.eta_start=azimuth_time
-        cls.tau_0=product_annotation.antenna_pattern_slant_range_time[id_closest]
-        cls.tau_sub=product_annotation.antenna_pattern_slant_range_time[id_closest]
-        cls.theta_am=product_annotation.antenna_pattern_elevation_angle
-
-        cls.G_eap=aux_cal.elevation_antenna_pattern
-        cls.delta_theta=aux_cal.elevation_angle_increment
-
-        return cls

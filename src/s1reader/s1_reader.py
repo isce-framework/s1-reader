@@ -338,7 +338,7 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
     #load the Noise annotation
     with open_method(noise_annotation_path, 'r') as f_nads:
         tree_nads=ET.parse(f_nads)
-        noise_annotation=s1_annotation.NoiseAnnotation.from_et(tree_nads,ipf_version=ipf_version)
+        noise_annotation=s1_annotation.NoiseAnnotation.from_et(tree_nads,tree_lads,ipf_version=ipf_version)
 
     #find the corresponding AUX_CAL and load
     aux_cal=None #placeholder
