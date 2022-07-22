@@ -253,16 +253,20 @@ def get_ipf_version(tree:ET):
     '''Extract the IPF version from the ET of manifest.safe
     '''
     elem_metadata_section=tree.find('metadataSection')
-    flag_found_ipf_version=False
-    idx_processing=0
-    for idx_processing,elem_sub in enumerate(elem_metadata_section):
-        if elem_sub.attrib['ID']=='processing':
-            flag_found_ipf_version=True
-            break
-
-    if flag_found_ipf_version:
-        str_ipf_version=elem_metadata_section[idx_processing][0][0][0][0][0].attrib['version']
-        return float(str_ipf_version)
+    # path to xmlData in manifest
+    xml_meta_path = 'metadataSection/metadataObject/metadataWrap/xmlData'
+    
+    # piecemeal build path to software path to access version attrib
+    esa_http = '{http://www.esa.int/safe/sentinel-1.0}'
+    processing = xml_meta_path + f'/{esa_http}processing'
+    facility = processing + 'f'/{esa_http}facility'
+    software = facility + f'/{esa_http}software'
+    
+    # get version from software element
+    software_elem = et.find(software)
+    ipf_version = float(software_elem.attrib['version'])
+    
+    return ipf_version
 
 def is_eap_correction_necesasry(ipf_version:float) -> int :
     '''Examines if what level of EAP correction is necessary, based on the IPF version
