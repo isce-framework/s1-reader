@@ -8,7 +8,7 @@ import datetime
 import xml.etree.ElementTree as ET
 
 import numpy as np
-from scipy.interpolate import InterpolatedUnivariateSpline, interp1d
+from scipy.interpolate import InterpolatedUnivariateSpline
 
 @dataclass
 class AnnotationBase:
@@ -95,12 +95,12 @@ class AnnotationBase:
 class CalibrationAnnotation(AnnotationBase):
     '''Reader for Calibration Annotation Data Set (CADS)'''
     list_azimuth_time: np.ndarray
-    list_line:list
-    list_pixel:None
-    list_sigma_nought:list
-    list_beta_nought:list
-    list_gamma:list
-    list_dn:list
+    list_line: list
+    list_pixel: None
+    list_sigma_nought: list
+    list_beta_nought : list
+    list_gamma: list
+    list_dn: list
 
     @classmethod
     def from_et(cls,et_in=None):
@@ -124,16 +124,16 @@ class NoiseAnnotation(AnnotationBase):
     #in ISCE2 code: if float(self.IPFversion) < 2.90:
     # REF: .../isce2/components/isceobj/Sensor/GRD/Sentinel1.py
 
-    rg_list_azimuth_time:np.ndarray
-    rg_list_line:list
-    rg_list_pixel:list
-    rg_list_noise_range_lut:list
-    az_first_azimuth_line:int
-    az_first_range_sample:int
-    az_last_azimuth_line:int
-    az_last_range_sample:int
-    az_line:np.ndarray
-    az_noise_azimuth_lut:np.ndarray
+    rg_list_azimuth_time: np.ndarray
+    rg_list_line: list
+    rg_list_pixel: list
+    rg_list_noise_range_lut: list
+    az_first_azimuth_line: int
+    az_first_range_sample: int
+    az_last_azimuth_line: int
+    az_last_range_sample: int
+    az_line: np.ndarray
+    az_noise_azimuth_lut: np.ndarray
 
     @classmethod
     def from_et(cls,et_in,ipf_version=3.10):
@@ -171,16 +171,16 @@ class NoiseAnnotation(AnnotationBase):
 @dataclass
 class ProductAnnotation(AnnotationBase):
     '''For L1 SLC product annotation file. For EAP correction.'''
-    image_information_slant_range_time:float
+    image_information_slant_range_time: float
     #elevation_angle:
-    antenna_pattern_azimuth_time:list
-    antenna_pattern_slant_range_time:list
-    antenna_pattern_elevation_angle:list
-    antenna_pattern_elevation_pattern:list
+    antenna_pattern_azimuth_time: list
+    antenna_pattern_slant_range_time: list
+    antenna_pattern_elevation_angle: list
+    antenna_pattern_elevation_pattern: list
 
-    ascending_node_time:datetime
-    number_of_samples:int
-    range_sampling_rate:float
+    ascending_node_time: datetime
+    number_of_samples: int
+    range_sampling_rate: float
 
     @classmethod
     def from_et(cls,et_in):
@@ -203,16 +203,16 @@ class ProductAnnotation(AnnotationBase):
 @dataclass
 class AuxCal(AnnotationBase):
     '''AUX_CAL'''
-    beam_nominal_near_range:float
-    beam_nominal_far_range:float
-    elevation_angle_increment:float
-    elevation_antenna_pattern:np.ndarray
-    azimuth_angle_increment:float
-    azimuth_antenna_pattern:np.ndarray
-    azimuth_antenna_element_pattern_increment:float
-    azimuth_antenna_element_pattern:float
-    absolute_calibration_constant:float
-    noise_calibration_factor:float
+    beam_nominal_near_range: float
+    beam_nominal_far_range: float
+    elevation_angle_increment: float
+    elevation_antenna_pattern: np.ndarray
+    azimuth_angle_increment: float
+    azimuth_antenna_pattern: np.ndarray
+    azimuth_antenna_element_pattern_increment: float
+    azimuth_antenna_element_pattern: float
+    absolute_calibration_constant: float
+    noise_calibration_factor: float
 
     @classmethod
     def from_et(cls,et_in:ET, pol:str, str_swath:str):
@@ -244,21 +244,6 @@ class AuxCal(AnnotationBase):
         return cls
 
 
-
-def is_eap_correction_necesasry(ipf_version:float) -> int :
-    '''Examines if what level of EAP correction is necessary, based on the IPF version
-    0: No EAP correction necessary (i.e. correction already applied)
-    1: Phase-only correction is necessary
-    2: Phase and Magniture correction is necessary'''
-    ipf_ver_int=int(ipf_version*100)
-    #Based on ESA technical document
-    if ipf_ver_int>=243:
-        return 0 # No EAP correction necessary (i.e. correction already applied)
-    elif ipf_ver_int>=236:
-        return 1 # Phase-only correction is necessary
-    else:
-        return 2 # Phase and Magniture correction is necessary
-
 def closest_block_to_azimuth_time(vector_azimuth_time:np.ndarray, azmuth_time_burst:datetime.datetime) -> int:
     '''Find the id of the closest data block in annotation.'''
 
@@ -272,14 +257,16 @@ class BurstNoise: #For thermal noise correction
     range_line: float = None
     range_pixel: np.ndarray = None
     range_lut: np.ndarray = None
+
     azimuth_first_azimuth_line: int = None
     azimuth_first_range_sample: int = None
     azimuth_last_azimuth_line: int = None
     azimuth_last_range_sample: int = None
     azimuth_line: np.ndarray = None
     azimuth_lut: np.ndarray = None
-    line_from:int=None
-    line_to:int=None
+
+    line_from: int=None
+    line_to: int=None
 
 
     def from_noise_annotation(self, noise_annotation:NoiseAnnotation, azimuth_time:datetime, line_from:int, line_to:int, ipf_version:float=3.10):
@@ -364,8 +351,8 @@ class BurstEAP:
        Currently Under development
     '''
     #from LADS
-    Ns:int #number of samples
-    fs:float #range sampling rate
+    Ns: int #number of samples
+    fs: float #range sampling rate
     eta_start: datetime
     tau_0: float #imageInformation/slantRangeTime
     tau_sub: np.ndarray #antennaPattern/slantRangeTime
