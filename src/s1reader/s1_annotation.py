@@ -13,7 +13,8 @@ from scipy.interpolate import InterpolatedUnivariateSpline
 @dataclass
 class AnnotationBase:
     '''
-    A base class of the inheriting annotation class i.e. Product, Calibration, and Noise.
+    A virtual base class of the inheriting annotation class i.e. Product, Calibration, and Noise.
+    Not intended for standalone use.
     '''
     # A parent class for annotation reader for Calibrarion, Noise, and Product
     xml_et: ET
