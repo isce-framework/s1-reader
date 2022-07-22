@@ -11,7 +11,7 @@ jobs:
           command: |
             conda install -y --file .circleci/specfile.txt
       - run:
-          name: "Build s1-reader python package"
+          name: "Build s1reader python package"
           command: |
             python3 -m build --sdist --wheel .
       - run:
@@ -19,11 +19,11 @@ jobs:
           command: |
             python3 tests/download_data.py
       - run:
-          name: "Install s1-reader python package"
+          name: "Install s1reader python package"
           command: |
             python3 -m pip install .
       - run:
-          name: "Run s1-reader unit tests"
+          name: "Run unit tests"
           command: |
             python3 -m pytest
 
