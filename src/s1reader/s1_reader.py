@@ -338,11 +338,6 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
         tree_nads = ET.parse(f_nads)
         noise_annotation = s1_annotation.NoiseAnnotation.from_et(tree_nads,ipf_version=ipf_version)
 
-    #find the corresponding AUX_CAL and load
-    aux_cal=None #placeholder
-
-
-
     # Nearly all metadata loaded here is common to all bursts in annotation XML
     with open_method(annotation_path, 'r') as f:
         tree = ET.parse(f)
