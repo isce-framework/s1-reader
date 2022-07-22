@@ -253,16 +253,20 @@ def get_ipf_version(tree:ET):
     '''Extract the IPF version from the ET of manifest.safe
     '''
     elem_metadata_section=tree.find('metadataSection')
-    flag_found_ipf_version=False
-    idx_processing=0
-    for idx_processing,elem_sub in enumerate(elem_metadata_section):
-        if elem_sub.attrib['ID']=='processing':
-            flag_found_ipf_version=True
-            break
-
-    if flag_found_ipf_version:
-        str_ipf_version=elem_metadata_section[idx_processing][0][0][0][0][0].attrib['version']
-        return float(str_ipf_version)
+    # path to xmlData in manifest
+    xml_meta_path = 'metadataSection/metadataObject/metadataWrap/xmlData'
+    
+    # piecemeal build path to software path to access version attrib
+    esa_http = '{http://www.esa.int/safe/sentinel-1.0}'
+    processing = xml_meta_path + f'/{esa_http}processing'
+    facility = processing + 'f'/{esa_http}facility'
+    software = facility + f'/{esa_http}software'
+    
+    # get version from software element
+    software_elem = et.find(software)
+    ipf_version = float(software_elem.attrib['version'])
+    
+    return ipf_version
 
 def is_eap_correction_necesasry(ipf_version:float) -> int :
     '''Examines if what level of EAP correction is necessary, based on the IPF version
@@ -304,10 +308,6 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
     _, tail = os.path.split(annotation_path)
     platform_id, subswath_id, _, pol = [x.upper() for x in tail.split('-')[:4]]
 
-    noise_annotation_path=annotation_path.replace('annotation/','annotation/calibration/noise-')
-    calibration_annotation_path=annotation_path.replace('annotation/','annotation/calibration/calibration-')
-    manifest_path=os.path.dirname(annotation_path).replace('annotation','')+'manifest.safe'
-
     # For IW mode, one burst has a duration of ~2.75 seconds and a burst
     # overlap of approximately ~0.4 seconds.
     # https://sentinels.copernicus.eu/web/sentinel/user-guides/sentinel-1-sar/product-types-processing-levels/level-1
@@ -337,11 +337,6 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
     with open_method(noise_annotation_path, 'r') as f_nads:
         tree_nads = ET.parse(f_nads)
         noise_annotation = s1_annotation.NoiseAnnotation.from_et(tree_nads,ipf_version=ipf_version)
-
-    #find the corresponding AUX_CAL and load
-    aux_cal=None #placeholder
-
-
 
     # Nearly all metadata loaded here is common to all bursts in annotation XML
     with open_method(annotation_path, 'r') as f:
@@ -453,10 +448,9 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
 
 
         #Extract burst-wise information for Calibration, Noise, and EAP correction
-        burst_calibration=s1_annotation.BurstCalibration.from_calibraiton_annotation(calibration_annotation,sensing_start)
+        burst_calibration = s1_annotation.BurstCalibration.from_calibraiton_annotation(calibration_annotation, sensing_start)
         bursts_noise=s1_annotation.BurstNoise()
         bursts_noise.from_noise_annotation(noise_annotation,sensing_start,i*n_lines,(i+1)*n_lines-1,ipf_version)
-        burst_eap=None #placeholder
 
         bursts[i] = Sentinel1BurstSlc(ipf_version, sensing_start, radar_freq, wavelength,
                                       azimuth_steer_rate, azimuth_time_interval,
