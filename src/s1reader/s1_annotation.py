@@ -43,7 +43,7 @@ class AnnotationBase:
             val_out=elem_field.text
 
         else:
-            raise ValueError(f'Cannot recognize the type of the element: "{str_type}"')
+            raise ValueError(f'Unsupported type the element: "{str_type}"')
 
         return val_out
 
