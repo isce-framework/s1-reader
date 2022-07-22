@@ -249,26 +249,25 @@ def get_burst_centers_and_boundaries(tree):
 
     return center_pts, boundary_pts
 
-def get_ipf_version(tree:ET):
+def get_ipf_version(tree: ET):
     '''Extract the IPF version from the ET of manifest.safe
     '''
-    elem_metadata_section=tree.find('metadataSection')
     # path to xmlData in manifest
     xml_meta_path = 'metadataSection/metadataObject/metadataWrap/xmlData'
-    
+
     # piecemeal build path to software path to access version attrib
     esa_http = '{http://www.esa.int/safe/sentinel-1.0}'
     processing = xml_meta_path + f'/{esa_http}processing'
-    facility = processing + 'f'/{esa_http}facility'
+    facility = processing + f'/{esa_http}facility'
     software = facility + f'/{esa_http}software'
-    
+
     # get version from software element
-    software_elem = et.find(software)
+    software_elem = tree.find(software)
     ipf_version = float(software_elem.attrib['version'])
-    
+
     return ipf_version
 
-def is_eap_correction_necesasry(ipf_version:float) -> int :
+def is_eap_correction_necesasry(ipf_version: float) -> int :
     '''Examines if what level of EAP correction is necessary, based on the IPF version
     0: No EAP correction necessary (i.e. correction already applied)
     1: Phase-only correction is necessary
@@ -448,7 +447,7 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
 
 
         #Extract burst-wise information for Calibration, Noise, and EAP correction
-        burst_calibration = s1_annotation.BurstCalibration.from_calibraiton_annotation(calibration_annotation, sensing_start)
+        burst_calibration = s1_annotation.BurstCalibration.from_calibration_annotation(calibration_annotation, sensing_start)
         bursts_noise=s1_annotation.BurstNoise()
         bursts_noise.from_noise_annotation(noise_annotation,sensing_start,i*n_lines,(i+1)*n_lines-1,ipf_version)
 
@@ -464,7 +463,7 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
                                       last_sample, first_valid_line, last_line,
                                       range_window_type, range_window_coeff,
                                       rank, prf_raw_data, range_chirp_ramp_rate,
-                                      burst_calibration, bursts_noise, burst_eap)
+                                      burst_calibration, bursts_noise, None) #TODO Replace the last argument (i.e. None) with an instance of BurstNoise when EAP correction is in place.
 
     return bursts
 

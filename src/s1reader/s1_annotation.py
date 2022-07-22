@@ -20,8 +20,11 @@ class AnnotationBase:
     #kind:str
 
     @classmethod
-    def _parse_scalar(cls,path_field:str, str_type:str):
-        '''Parse the scalar value in the annotation'''
+    def _parse_scalar(cls, path_field: str, str_type: str):
+        '''Parse the scalar value in the annotation
+        path_field: field in the xml_et to parse
+        str_type: Choose how the taxts in the field will be parsed: {datetime, scalar_int, scalar_float, vector_int, vector_float, str}
+        '''
         elem_field=cls.xml_et.find(path_field)
         if str_type=='datetime':
             val_out=datetime.datetime.strptime(elem_field.text,'%Y-%m-%dT%H:%M:%S.%f')
@@ -47,9 +50,12 @@ class AnnotationBase:
         return val_out
 
     @classmethod
-    def _parse_vectorlist(cls, name_vector_list:str, name_vector:str, str_type:str):
-        '''Parse the list of the values in the annotation'''
-        #NOTE: str type: ['datetime','scalar_integer','scalar_float','vector_integer','vector_float','str']
+    def _parse_vectorlist(cls, name_vector_list: str, name_vector: str, str_type: str):
+        '''Parse the list of the values in the Sentinel-1 annotation data set
+        name_vector_list: Name of the vector list to access
+        name_vector: Name of the vector to parse
+        str_type: Choose how the taxts in the field will be parsed: {datetime, scalar_int, scalar_float, vector_int, vector_float, str}
+        '''
 
         element_to_parse=cls.xml_et.find(name_vector_list)
         num_element=len(element_to_parse)
@@ -103,8 +109,8 @@ class CalibrationAnnotation(AnnotationBase):
     list_dn: list
 
     @classmethod
-    def from_et(cls,et_in=None):
-        '''Extracts list of calibration from etree'''
+    def from_et(cls, et_in=None):
+        '''Extracts the list of calibration informaton from etree from CADS'''
         cls.xml_et=et_in
         cls.list_azimuth_time=cls._parse_vectorlist('calibrationVectorList','azimuthTime','datetime')
         cls.list_line=cls._parse_vectorlist('calibrationVectorList','line','scalar_int')
@@ -136,7 +142,7 @@ class NoiseAnnotation(AnnotationBase):
     az_noise_azimuth_lut: np.ndarray
 
     @classmethod
-    def from_et(cls,et_in,ipf_version=3.10):
+    def from_et(cls,et_in, ipf_version=3.10):
         '''Extracts list of noise information from etree'''
         if et_in is not None:
             cls.xml_et=et_in
@@ -183,8 +189,8 @@ class ProductAnnotation(AnnotationBase):
     range_sampling_rate: float
 
     @classmethod
-    def from_et(cls,et_in):
-        '''Extracts list of noise information from etree'''
+    def from_et(cls, et_in):
+        '''Extracts list of product information from etree from L1 annotation data set (LADS)'''
         if et_in is not None:
             cls.xml_et=et_in
         cls.image_information_slant_range_time=cls._parse_scalar('imageAnnotation/imageInformation/slantRangeTime','scalar_float')
@@ -215,7 +221,7 @@ class AuxCal(AnnotationBase):
     noise_calibration_factor: float
 
     @classmethod
-    def from_et(cls,et_in:ET, pol:str, str_swath:str):
+    def from_et(cls,et_in: ET, pol: str, str_swath: str):
         '''Extracts list of information AUX_CAL from its etree'''
         calibration_params_list=et_in.find('calibrationParamsList')
         for calibration_params in calibration_params_list:
@@ -244,7 +250,7 @@ class AuxCal(AnnotationBase):
         return cls
 
 
-def closest_block_to_azimuth_time(vector_azimuth_time:np.ndarray, azmuth_time_burst:datetime.datetime) -> int:
+def closest_block_to_azimuth_time(vector_azimuth_time: np.ndarray, azmuth_time_burst: datetime.datetime) -> int:
     '''Find the id of the closest data block in annotation.'''
 
     return np.argmin(np.abs(vector_azimuth_time-azmuth_time_burst))
@@ -265,12 +271,17 @@ class BurstNoise: #For thermal noise correction
     azimuth_line: np.ndarray = None
     azimuth_lut: np.ndarray = None
 
-    line_from: int=None
-    line_to: int=None
+    line_from: int = None
+    line_to: int = None
 
 
-    def from_noise_annotation(self, noise_annotation:NoiseAnnotation, azimuth_time:datetime, line_from:int, line_to:int, ipf_version:float=3.10):
-        '''Extracts the noise correction info for the burst'''
+    def from_noise_annotation(self, noise_annotation: NoiseAnnotation, azimuth_time: datetime, line_from: int, line_to: int, ipf_version: float = 3.10):
+        '''
+        Extracts the noise correction info for the burst
+        noise_annotation: swath-wide annotation information
+        azimuth_time: azimuth time of the burst
+        line_from, line_to: line numbers of the burst. (starting from 0). Can be calaulated from Sentinel1BurstSlc.i_burst
+        '''
         threshold_ipf_version=2.90 #IPF version that stared to provide azimuth noise vector
         id_closest=closest_block_to_azimuth_time(noise_annotation.rg_list_azimuth_time,azimuth_time)
         self.range_azimith_time=noise_annotation.rg_list_azimuth_time[id_closest]
@@ -331,7 +342,7 @@ class BurstCalibration:
     dn: np.ndarray = None
 
     @classmethod
-    def from_calibraiton_annotation(cls, calibration_annotation:CalibrationAnnotation, azimuth_time:datetime):
+    def from_calibration_annotation(cls, calibration_annotation: CalibrationAnnotation, azimuth_time: datetime):
         '''Extracts the calibration info for the burst'''
         id_closest=closest_block_to_azimuth_time(calibration_annotation.list_azimuth_time, azimuth_time)
         cls.azimuth_time=calibration_annotation.list_azimuth_time[id_closest]
@@ -364,7 +375,7 @@ class BurstEAP:
     delta_theta:float #elavationAngleIncrement
 
     @classmethod
-    def from_product_annotation_and_aux_cal(cls,product_annotation:ProductAnnotation, aux_cal:AuxCal, azimuth_time:datetime):
+    def from_product_annotation_and_aux_cal(cls,product_annotation: ProductAnnotation, aux_cal: AuxCal, azimuth_time: datetime):
         '''Extracts the calibration info for the burst'''
         id_closest=closest_block_to_azimuth_time(product_annotation.antenna_pattern_azimuth_time, azimuth_time)
         cls.Ns=product_annotation.number_of_samples
