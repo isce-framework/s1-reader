@@ -13,7 +13,8 @@ from scipy.interpolate import InterpolatedUnivariateSpline
 @dataclass
 class AnnotationBase:
     '''
-    A base class of the inheriting annotation class i.e. Product, Calibration, and Noise.
+    A virtual base class of the inheriting annotation class i.e. Product, Calibration, and Noise.
+    Not intended for standalone use.
     '''
     # A parent class for annotation reader for Calibrarion, Noise, and Product
     xml_et: ET
@@ -45,7 +46,7 @@ class AnnotationBase:
             val_out=elem_field.text
 
         else:
-            raise ValueError(f'Cannot recognize the type of the element: "{str_type}"')
+            raise ValueError(f'Unsupported type the element: "{str_type}"')
 
         return val_out
 
