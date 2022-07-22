@@ -316,24 +316,27 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
     burst_interval = 2.758277
 
     #parse manifest.safe to retrieve IPF version
+    manifest_path = os.path.dirname(annotation_path).replace('annotation','') + 'manifest.safe'
     with open_method(manifest_path, 'r') as f_manifest:
-        tree_manfest=ET.parse(f_manifest)
-        ipf_version=get_ipf_version(tree_manfest)
+        tree_manfest = ET.parse(f_manifest)
+        ipf_version = get_ipf_version(tree_manfest)
 
     #Load the Product annotation - for EAP calibration
     with open_method(annotation_path, 'r') as f_lads:
-        tree_lads=ET.parse(f_lads)
-        product_annotation=s1_annotation.ProductAnnotation.from_et(tree_lads)
+        tree_lads = ET.parse(f_lads)
+        product_annotation = s1_annotation.ProductAnnotation.from_et(tree_lads)
 
     #load the Calibraton annotation
+    calibration_annotation_path = annotation_path.replace('annotation/','annotation/calibration/calibration-')
     with open_method(calibration_annotation_path, 'r') as f_cads:
-        tree_cads=ET.parse(f_cads)
-        calibration_annotation=s1_annotation.CalibrationAnnotation.from_et(tree_cads)
+        tree_cads = ET.parse(f_cads)
+        calibration_annotation = s1_annotation.CalibrationAnnotation.from_et(tree_cads)
 
     #load the Noise annotation
+    noise_annotation_path = annotation_path.replace('annotation/','annotation/calibration/noise-')
     with open_method(noise_annotation_path, 'r') as f_nads:
-        tree_nads=ET.parse(f_nads)
-        noise_annotation=s1_annotation.NoiseAnnotation.from_et(tree_nads,ipf_version=ipf_version)
+        tree_nads = ET.parse(f_nads)
+        noise_annotation = s1_annotation.NoiseAnnotation.from_et(tree_nads,ipf_version=ipf_version)
 
     #find the corresponding AUX_CAL and load
     aux_cal=None #placeholder
