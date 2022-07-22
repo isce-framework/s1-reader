@@ -8,7 +8,7 @@ import datetime
 import xml.etree.ElementTree as ET
 
 import numpy as np
-from scipy.interpolate import InterpolatedUnivariateSpline
+from scipy.interpolate import InterpolatedUnivariateSpline, interp1d
 
 @dataclass
 class AnnotationBase:
