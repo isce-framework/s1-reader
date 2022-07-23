@@ -6,6 +6,7 @@ import collections
 # release history
 Tag = collections.namedtuple('Tag', 'version date')
 release_history = (
+    Tag('0.1.1', '2022-07-21'),
     Tag('0.1.0', '2022-06-07'),
 )
 
@@ -13,5 +14,3 @@ release_history = (
 release_version = release_history[0].version
 release_date = release_history[0].date
 
-# variable
-__version__ = release_version
