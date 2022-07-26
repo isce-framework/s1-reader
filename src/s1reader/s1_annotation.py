@@ -18,7 +18,6 @@ class AnnotationBase:
     '''
     # A parent class for annotation reader for Calibrarion, Noise, and Product
     xml_et: ET
-    #kind:str
 
     @classmethod
     def _parse_scalar(cls, path_field: str, str_type: str):
