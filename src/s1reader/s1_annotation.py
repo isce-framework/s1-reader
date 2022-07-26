@@ -25,9 +25,9 @@ class AnnotationBase:
         path_field: field in the xml_et to parse
         str_type: Choose how the taxts in the field will be parsed: {datetime, scalar_int, scalar_float, vector_int, vector_float, str}
         '''
-        elem_field=cls.xml_et.find(path_field)
-        if str_type=='datetime':
-            val_out=datetime.datetime.strptime(elem_field.text,'%Y-%m-%dT%H:%M:%S.%f')
+        elem_field = cls.xml_et.find(path_field)
+        if str_type == 'datetime':
+            val_out = datetime.datetime.strptime(elem_field.text, '%Y-%m-%dT%H:%M:%S.%f')
 
         elif str_type=='scalar_int':
             val_out=int(elem_field.text)
