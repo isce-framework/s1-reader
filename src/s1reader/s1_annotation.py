@@ -8,7 +8,12 @@ import datetime
 import xml.etree.ElementTree as ET
 
 import numpy as np
+
+from packaging import version
 from scipy.interpolate import InterpolatedUnivariateSpline
+
+#some thresholds
+version_threshold_azimuth_noise_vector=version.parse('2.90')
 
 @dataclass
 class AnnotationBase:
@@ -148,6 +153,8 @@ class CalibrationAnnotation(AnnotationBase):
         return cls
 
 
+
+
 @dataclass
 class NoiseAnnotation(AnnotationBase):
     '''Reader for Noise Annotation Data Set (NADS) for IW SLC'''
@@ -168,12 +175,13 @@ class NoiseAnnotation(AnnotationBase):
     az_noise_azimuth_lut: np.ndarray
 
     @classmethod
-    def from_et(cls,et_in, ipf_version=3.10):
+    def from_et(cls,et_in: ET, ipf_version: version.Version = version.parse('3.10')):
         '''Extracts list of noise information from etree'''
+        
         if et_in is not None:
             cls.xml_et = et_in
 
-        if ipf_version<2.90: #legacy SAFE data
+        if ipf_version < version_threshold_azimuth_noise_vector: #legacy SAFE data
             cls.rg_list_azimuth_time = cls._parse_vectorlist('noiseVectorList','azimuthTime','datetime')
             cls.rg_list_line = cls._parse_vectorlist('noiseVectorList','line','scalar_int')
             cls.rg_list_pixel = cls._parse_vectorlist('noiseVectorList','pixel','vector_int')
@@ -333,7 +341,7 @@ class BurstNoise: #For thermal noise correction
 
 
     def from_noise_annotation(self, noise_annotation: NoiseAnnotation, azimuth_time: datetime.datetime,
-                              line_from: int, line_to: int, ipf_version: float = 3.10):
+                              line_from: int, line_to: int, ipf_version: version.Version = version.parse('3.10')):
         '''Extracts the noise correction information for individual burst from NoiseAnnotation
 
         Parameters
@@ -351,7 +359,7 @@ class BurstNoise: #For thermal noise correction
 
         '''
 
-        threshold_ipf_version = 2.90 #IPF version that stared to provide azimuth noise vector
+        #threshold_ipf_version = 2.90 #IPF version that stared to provide azimuth noise vector
         id_closest = closest_block_to_azimuth_time(noise_annotation.rg_list_azimuth_time, azimuth_time)
         self.range_azimith_time = noise_annotation.rg_list_azimuth_time[id_closest]
         self.range_line = noise_annotation.rg_list_line[id_closest]
@@ -366,14 +374,14 @@ class BurstNoise: #For thermal noise correction
         self.line_from = line_from
         self.line_to = line_to
 
-        if ipf_version >= threshold_ipf_version:
+        if ipf_version >= version_threshold_azimuth_noise_vector: 
             #Azinuth noise LUT exists - crop to the extent of the burst
             id_top = np.argmin(np.abs(noise_annotation.az_line-line_from))
             id_bottom = np.argmin(np.abs(noise_annotation.az_line-line_to))
             #put some margin when possible
             if id_top > 0:
                 id_top -= 1
-            if id_bottom<len(noise_annotation.az_line)-1:
+            if id_bottom < len(noise_annotation.az_line)-1:
                 id_bottom += 1
             self.azimuth_line = noise_annotation.az_line[id_top:id_bottom]
             self.azimuth_lut = noise_annotation.az_noise_azimuth_lut[id_top:id_bottom]

@@ -3,6 +3,7 @@ from dataclasses import dataclass
 import datetime
 import tempfile
 import warnings
+from packaging import version
 
 import isce3
 import numpy as np
@@ -128,7 +129,8 @@ class Doppler:
 class Sentinel1BurstSlc:
     '''Raw values extracted from SAFE XML.
     '''
-    ipf_version:float
+    #ipf_version:float
+    ipf_version: version.Version
     sensing_start: datetime.datetime
     radar_center_frequency: float
     wavelength: float

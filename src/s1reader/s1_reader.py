@@ -4,10 +4,13 @@ import warnings
 import xml.etree.ElementTree as ET
 import zipfile
 
+from packaging import version
+from types import SimpleNamespace
+
+import isce3
 import numpy as np
 import shapely
 
-import isce3
 from nisar.workflows.stage_dem import check_dateline
 from s1reader.s1_burst_slc import Doppler, Sentinel1BurstSlc
 from s1reader import s1_annotation
@@ -263,23 +266,40 @@ def get_ipf_version(tree: ET):
 
     # get version from software element
     software_elem = tree.find(software)
-    ipf_version = float(software_elem.attrib['version'])
+    #ipf_version = float(software_elem.attrib['version'])
+    ipf_version = version.parse(software_elem.attrib['version'])
 
     return ipf_version
 
-def is_eap_correction_necesasry(ipf_version: float) -> int :
-    '''Examines if what level of EAP correction is necessary, based on the IPF version
-    0: No EAP correction necessary (i.e. correction already applied)
-    1: Phase-only correction is necessary
-    2: Phase and Magniture correction is necessary'''
-    ipf_ver_int = int(ipf_version*100)
+def is_eap_correction_necesasry(ipf_version: version.Version) -> SimpleNamespace :
+    '''Examines if what level of EAP correction is necessary, based on the IPF version.
+    Based on the comment on PR: https://github.com/opera-adt/s1-reader/pull/48#discussion_r926138372
+
+    Parameter
+    ---------
+    ipf_version: version.Version
+        IPF version of the burst
+
+    Return
+    ------
+    eap: SimpleNamespace
+        eap.magnitude_correction == True if both magnitude and phase need to be corrected
+        eap.phase_correction == True if only phase correction is necessary
+
+    '''
+
+    #ipf_ver = version.parse(str(ipf_version))
+
     #Based on ESA technical document
-    if ipf_ver_int >= 243:
-        return 0 # No EAP correction necessary (i.e. correction already applied)
-    elif ipf_ver_int >= 236:
-        return 1 # Phase-only correction is necessary
-    else:
-        return 2 # Phase and Magniture correction is necessary
+    eap = SimpleNamespace()
+
+    ipf_243 = version.parse('2.43')
+    eap.phase_correction = True if ipf_version < ipf_243 else False
+
+    ipf_236 = version.parse('2.36')
+    eap.magnitude_correction = True if ipf_version < ipf_236 else False
+
+    return eap
 
 def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
                    iw2_annotation_path: str, open_method=open):
