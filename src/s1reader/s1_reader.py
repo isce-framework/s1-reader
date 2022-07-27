@@ -272,11 +272,11 @@ def is_eap_correction_necesasry(ipf_version: float) -> int :
     0: No EAP correction necessary (i.e. correction already applied)
     1: Phase-only correction is necessary
     2: Phase and Magniture correction is necessary'''
-    ipf_ver_int=int(ipf_version*100)
+    ipf_ver_int = int(ipf_version*100)
     #Based on ESA technical document
-    if ipf_ver_int>=243:
+    if ipf_ver_int >= 243:
         return 0 # No EAP correction necessary (i.e. correction already applied)
-    elif ipf_ver_int>=236:
+    elif ipf_ver_int >= 236:
         return 1 # Phase-only correction is necessary
     else:
         return 2 # Phase and Magniture correction is necessary
