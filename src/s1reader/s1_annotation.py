@@ -142,13 +142,13 @@ class CalibrationAnnotation(AnnotationBase):
     def from_et(cls, et_in=None):
         '''Extracts the list of calibration informaton from etree from CADS'''
         cls.xml_et = et_in
-        cls.list_azimuth_time = cls._parse_vectorlist('calibrationVectorList','azimuthTime','datetime')
-        cls.list_line = cls._parse_vectorlist('calibrationVectorList','line','scalar_int')
-        cls.list_pixel = cls._parse_vectorlist('calibrationVectorList','pixel','vector_int')
-        cls.list_sigma_nought = cls._parse_vectorlist('calibrationVectorList','sigmaNought','vector_float')
-        cls.list_beta_nought = cls._parse_vectorlist('calibrationVectorList','betaNought','vector_float')
-        cls.list_gamma = cls._parse_vectorlist('calibrationVectorList','gamma','vector_float')
-        cls.list_dn = cls._parse_vectorlist('calibrationVectorList','dn','vector_float')
+        cls.list_azimuth_time = cls._parse_vectorlist('calibrationVectorList', 'azimuthTime', 'datetime')
+        cls.list_line = cls._parse_vectorlist('calibrationVectorList', 'line', 'scalar_int')
+        cls.list_pixel = cls._parse_vectorlist('calibrationVectorList', 'pixel', 'vector_int')
+        cls.list_sigma_nought = cls._parse_vectorlist('calibrationVectorList', 'sigmaNought', 'vector_float')
+        cls.list_beta_nought = cls._parse_vectorlist('calibrationVectorList', 'betaNought', 'vector_float')
+        cls.list_gamma = cls._parse_vectorlist('calibrationVectorList', 'gamma', 'vector_float')
+        cls.list_dn = cls._parse_vectorlist('calibrationVectorList', 'dn', 'vector_float')
 
         return cls
 
@@ -182,10 +182,10 @@ class NoiseAnnotation(AnnotationBase):
             cls.xml_et = et_in
 
         if ipf_version < version_threshold_azimuth_noise_vector: #legacy SAFE data
-            cls.rg_list_azimuth_time = cls._parse_vectorlist('noiseVectorList','azimuthTime','datetime')
-            cls.rg_list_line = cls._parse_vectorlist('noiseVectorList','line','scalar_int')
-            cls.rg_list_pixel = cls._parse_vectorlist('noiseVectorList','pixel','vector_int')
-            cls.rg_list_noise_range_lut = cls._parse_vectorlist('noiseVectorList','noiseLut','vector_float')
+            cls.rg_list_azimuth_time = cls._parse_vectorlist('noiseVectorList', 'azimuthTime', 'datetime')
+            cls.rg_list_line = cls._parse_vectorlist('noiseVectorList', 'line', 'scalar_int')
+            cls.rg_list_pixel = cls._parse_vectorlist('noiseVectorList', 'pixel', 'vector_int')
+            cls.rg_list_noise_range_lut = cls._parse_vectorlist('noiseVectorList', 'noiseLut', 'vector_float')
             cls.az_first_azimuth_line = None
             cls.az_first_range_sample = None
             cls.az_last_azimuth_line = None
@@ -194,16 +194,16 @@ class NoiseAnnotation(AnnotationBase):
             cls.az_noise_azimuth_lut = None
 
         else:
-            cls.rg_list_azimuth_time = cls._parse_vectorlist('noiseRangeVectorList','azimuthTime','datetime')
-            cls.rg_list_line = cls._parse_vectorlist('noiseRangeVectorList','line','scalar_int')
-            cls.rg_list_pixel = cls._parse_vectorlist('noiseRangeVectorList','pixel','vector_int')
-            cls.rg_list_noise_range_lut = cls._parse_vectorlist('noiseRangeVectorList','noiseRangeLut','vector_float')
-            cls.az_first_azimuth_line = cls._parse_vectorlist('noiseAzimuthVectorList','firstAzimuthLine','scalar_int')[0]
-            cls.az_first_range_sample = cls._parse_vectorlist('noiseAzimuthVectorList','firstRangeSample','scalar_int')[0]
-            cls.az_last_azimuth_line = cls._parse_vectorlist('noiseAzimuthVectorList','lastAzimuthLine','scalar_int')[0]
-            cls.az_last_range_sample = cls._parse_vectorlist('noiseAzimuthVectorList','lastRangeSample','scalar_int')[0]
-            cls.az_line = cls._parse_vectorlist('noiseAzimuthVectorList','line','vector_int')[0]
-            cls.az_noise_azimuth_lut = cls._parse_vectorlist('noiseAzimuthVectorList','noiseAzimuthLut','vector_float')[0]
+            cls.rg_list_azimuth_time = cls._parse_vectorlist('noiseRangeVectorList', 'azimuthTime', 'datetime')
+            cls.rg_list_line = cls._parse_vectorlist('noiseRangeVectorList', 'line', 'scalar_int')
+            cls.rg_list_pixel = cls._parse_vectorlist('noiseRangeVectorList', 'pixel', 'vector_int')
+            cls.rg_list_noise_range_lut = cls._parse_vectorlist('noiseRangeVectorList', 'noiseRangeLut', 'vector_float')
+            cls.az_first_azimuth_line = cls._parse_vectorlist('noiseAzimuthVectorList', 'firstAzimuthLine', 'scalar_int')[0]
+            cls.az_first_range_sample = cls._parse_vectorlist('noiseAzimuthVectorList', 'firstRangeSample', 'scalar_int')[0]
+            cls.az_last_azimuth_line = cls._parse_vectorlist('noiseAzimuthVectorList', 'lastAzimuthLine', 'scalar_int')[0]
+            cls.az_last_range_sample = cls._parse_vectorlist('noiseAzimuthVectorList', 'lastRangeSample', 'scalar_int')[0]
+            cls.az_line = cls._parse_vectorlist('noiseAzimuthVectorList', 'line', 'vector_int')[0]
+            cls.az_noise_azimuth_lut = cls._parse_vectorlist('noiseAzimuthVectorList', 'noiseAzimuthLut', 'vector_float')[0]
 
         return cls
 
@@ -228,15 +228,15 @@ class ProductAnnotation(AnnotationBase):
         '''Extracts list of product information from etree from L1 annotation data set (LADS)'''
         if et_in is not None:
             cls.xml_et = et_in
-        cls.image_information_slant_range_time = cls._parse_scalar('imageAnnotation/imageInformation/slantRangeTime','scalar_float')
-        cls.antenna_pattern_azimuth_time = cls._parse_vectorlist('antennaPattern/antennaPatternList','azimuthTime','datetime')
-        cls.antenna_pattern_slant_range_time = cls._parse_vectorlist('antennaPattern/antennaPatternList','slantRangeTime','vector_float')
-        cls.antenna_pattern_elevation_angle = cls._parse_vectorlist('antennaPattern/antennaPatternList','elevationAngle','vector_float')
-        cls.antenna_pattern_elevation_pattern = cls._parse_vectorlist('antennaPattern/antennaPatternList','elevationPattern','vector_float')
-        cls.ascending_node_time = cls._parse_scalar('imageAnnotation/imageInformation/ascendingNodeTime','datetime')
-        cls.number_of_samples = cls._parse_scalar('imageAnnotation/imageInformation/numberOfSamples','scalar_int')
-        cls.number_of_samples = cls._parse_scalar('imageAnnotation/imageInformation/numberOfSamples','scalar_int')
-        cls.range_sampling_rate = cls._parse_scalar('generalAnnotation/productInformation/rangeSamplingRate','scalar_float')
+        cls.image_information_slant_range_time = cls._parse_scalar('imageAnnotation/imageInformation/slantRangeTime', 'scalar_float')
+        cls.antenna_pattern_azimuth_time = cls._parse_vectorlist('antennaPattern/antennaPatternList', 'azimuthTime', 'datetime')
+        cls.antenna_pattern_slant_range_time = cls._parse_vectorlist('antennaPattern/antennaPatternList', 'slantRangeTime', 'vector_float')
+        cls.antenna_pattern_elevation_angle = cls._parse_vectorlist('antennaPattern/antennaPatternList', 'elevationAngle', 'vector_float')
+        cls.antenna_pattern_elevation_pattern = cls._parse_vectorlist('antennaPattern/antennaPatternList', 'elevationPattern', 'vector_float')
+        cls.ascending_node_time = cls._parse_scalar('imageAnnotation/imageInformation/ascendingNodeTime', 'datetime')
+        cls.number_of_samples = cls._parse_scalar('imageAnnotation/imageInformation/numberOfSamples', 'scalar_int')
+        cls.number_of_samples = cls._parse_scalar('imageAnnotation/imageInformation/numberOfSamples', 'scalar_int')
+        cls.range_sampling_rate = cls._parse_scalar('generalAnnotation/productInformation/rangeSamplingRate', 'scalar_float')
 
         return cls
 
