@@ -142,7 +142,7 @@ class Sentinel1BurstSlc:
     doppler: Doppler
     range_bandwidth: float
     polarization: str # {VV, VH, HH, HV}
-    burst_id: str # t{track_number}_iw{1,2,3}_b{burst_index}
+    burst_id: str # t{track_number}_{burst_index}_iw{1,2,3}
     platform_id: str # S1{A,B}
     center: tuple # {center lon, center lat} in degrees
     border: list # list of lon, lat coordinate tuples (in degrees) representing burst border
