@@ -175,11 +175,21 @@ class NoiseAnnotation(AnnotationBase):
     az_noise_azimuth_lut: np.ndarray
 
     @classmethod
-    def from_et(cls,et_in: ET, ipf_version: version.Version = version.parse('3.10')):
-        '''Extracts list of noise information from etree'''
-        
-        if et_in is not None:
-            cls.xml_et = et_in
+    def from_et(cls,et_in: ET, ipf_version: version.Version):
+        '''Extracts list of noise information from etree
+
+        Parameter
+        ----------
+        et_in : xml.etree.ElementTree
+            Parsed NADS annotation .xml
+
+        Return
+        -------
+        cls: NoiseAnnotation
+            Parsed NADS from et_in
+        '''
+
+        cls.xml_et = et_in
 
         if ipf_version < version_threshold_azimuth_noise_vector: #legacy SAFE data
             cls.rg_list_azimuth_time = cls._parse_vectorlist('noiseVectorList', 'azimuthTime', 'datetime')
@@ -224,10 +234,21 @@ class ProductAnnotation(AnnotationBase):
     range_sampling_rate: float
 
     @classmethod
-    def from_et(cls, et_in):
-        '''Extracts list of product information from etree from L1 annotation data set (LADS)'''
-        if et_in is not None:
-            cls.xml_et = et_in
+    def from_et(cls, et_in: ET):
+        '''Extracts list of product information from etree from L1 annotation data set (LADS)
+        Parameter
+        ----------
+        et_in : xml.etree.ElementTree
+            Parsed LADS annotation .xml
+
+        Return
+        -------
+        cls: ProductAnnotation
+            Parsed LADS from et_in
+        '''
+
+        cls.xml_et = et_in
+
         cls.image_information_slant_range_time = cls._parse_scalar('imageAnnotation/imageInformation/slantRangeTime', 'scalar_float')
         cls.antenna_pattern_azimuth_time = cls._parse_vectorlist('antennaPattern/antennaPatternList', 'azimuthTime', 'datetime')
         cls.antenna_pattern_slant_range_time = cls._parse_vectorlist('antennaPattern/antennaPatternList', 'slantRangeTime', 'vector_float')
@@ -302,7 +323,7 @@ class AuxCal(AnnotationBase):
 
 
 def closest_block_to_azimuth_time(vector_azimuth_time: np.ndarray,
-                                  azmuth_time_burst: datetime.datetime) -> int:
+                                  azimuth_time_burst: datetime.datetime) -> int:
     '''Find the id of the closest data block in annotation. To be used when populating BurstNoise, BurstCalibration, and BurstEAP.
 
     Parameters
@@ -310,7 +331,7 @@ def closest_block_to_azimuth_time(vector_azimuth_time: np.ndarray,
     vector_azimuth_time : np.ndarray
         numpy array azimuth time whose data type is datetime.datetime
     azimuth_time_burst: datetime.datetime
-        Polarization of interest
+        Azimuth time of the burst
 
     Returns
     -------
@@ -319,7 +340,7 @@ def closest_block_to_azimuth_time(vector_azimuth_time: np.ndarray,
 
     '''
 
-    return np.argmin(np.abs(vector_azimuth_time-azmuth_time_burst))
+    return np.argmin(np.abs(vector_azimuth_time-azimuth_time_burst))
 
 
 @dataclass
@@ -342,7 +363,7 @@ class BurstNoise: #For thermal noise correction
 
 
     def from_noise_annotation(self, noise_annotation: NoiseAnnotation, azimuth_time: datetime.datetime,
-                              line_from: int, line_to: int, ipf_version: version.Version = version.parse('3.10')):
+                              line_from: int, line_to: int, ipf_version: version.Version):
         '''Extracts the noise correction information for individual burst from NoiseAnnotation
 
         Parameters
@@ -375,8 +396,8 @@ class BurstNoise: #For thermal noise correction
         self.line_from = line_from
         self.line_to = line_to
 
-        if ipf_version >= version_threshold_azimuth_noise_vector: 
-            #Azinuth noise LUT exists - crop to the extent of the burst
+        if ipf_version >= version_threshold_azimuth_noise_vector:
+            #Azimuth noise LUT exists - crop to the extent of the burst
             id_top = np.argmin(np.abs(noise_annotation.az_line-line_from))
             id_bottom = np.argmin(np.abs(noise_annotation.az_line-line_to))
             #put some margin when possible
@@ -411,7 +432,7 @@ class BurstNoise: #For thermal noise correction
 class BurstCalibration:
     '''Calibration information for Sentinel-1 IW SLC burst
     '''
-    azimith_time: datetime.datetime = None
+    azimuth_time: datetime.datetime = None
     line: float = None
     pixel: np.ndarray = None
     sigma_naught: np.ndarray = None

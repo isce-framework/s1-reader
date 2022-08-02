@@ -358,16 +358,16 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
         product_annotation = s1_annotation.ProductAnnotation.from_et(tree_lads)
 
     #load the Calibraton annotation
-    calibration_annotation_path = annotation_path.replace('annotation/','annotation/calibration/calibration-')
+    calibration_annotation_path = annotation_path.replace('annotation/', 'annotation/calibration/calibration-')
     with open_method(calibration_annotation_path, 'r') as f_cads:
         tree_cads = ET.parse(f_cads)
         calibration_annotation = s1_annotation.CalibrationAnnotation.from_et(tree_cads)
 
     #load the Noise annotation
-    noise_annotation_path = annotation_path.replace('annotation/','annotation/calibration/noise-')
+    noise_annotation_path = annotation_path.replace('annotation/', 'annotation/calibration/noise-')
     with open_method(noise_annotation_path, 'r') as f_nads:
         tree_nads = ET.parse(f_nads)
-        noise_annotation = s1_annotation.NoiseAnnotation.from_et(tree_nads,ipf_version=ipf_version)
+        noise_annotation = s1_annotation.NoiseAnnotation.from_et(tree_nads, ipf_version)
 
     # Nearly all metadata loaded here is common to all bursts in annotation XML
     with open_method(annotation_path, 'r') as f:
@@ -504,7 +504,8 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
                                       last_sample, first_valid_line, last_line,
                                       range_window_type, range_window_coeff,
                                       rank, prf_raw_data, range_chirp_ramp_rate,
-                                      burst_calibration, bursts_noise, None) #TODO Replace the last argument (i.e. None) with an instance of BurstNoise when EAP correction is in place.
+                                      burst_calibration, bursts_noise, None)
+                                      #TODO Replace the last argument (i.e. None) with an instance of BurstNoise when EAP correction is in place.
 
     return bursts
 
