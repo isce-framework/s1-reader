@@ -386,7 +386,6 @@ class BurstNoise: #For thermal noise correction
             self.azimuth_lut = noise_annotation.az_noise_azimuth_lut[id_top:id_bottom]
 
 
-        #return cls
     def export_lut(self):
         '''Gives out the LUT table whose size is the same as the burst SLC'''
         ncols = self.azimuth_last_range_sample-self.azimuth_first_range_sample+1
