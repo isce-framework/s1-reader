@@ -447,7 +447,7 @@ class BurstCalibration:
 
 @dataclass
 class BurstEAP:
-    '''EAP correction information for Sentinel-1 IW SLC burst
+    '''Elevation antenna pattern (EAP) correction information for Sentinel-1 IW SLC burst
     '''
     #from LADS
     Ns: int #number of samples
