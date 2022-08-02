@@ -360,7 +360,6 @@ class BurstNoise: #For thermal noise correction
 
         '''
 
-        #threshold_ipf_version = 2.90 #IPF version that stared to provide azimuth noise vector
         id_closest = closest_block_to_azimuth_time(noise_annotation.rg_list_azimuth_time, azimuth_time)
         self.range_azimith_time = noise_annotation.rg_list_azimuth_time[id_closest]
         self.range_line = noise_annotation.rg_list_line[id_closest]
