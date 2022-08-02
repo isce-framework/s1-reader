@@ -21,7 +21,6 @@ class AnnotationBase:
     A virtual base class of the inheriting annotation class i.e. Product, Calibration, and Noise.
     Not intended for standalone use.
     '''
-    # A parent class for annotation reader for Calibrarion, Noise, and Product
     xml_et: ET
 
     @classmethod
