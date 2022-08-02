@@ -290,8 +290,6 @@ def is_eap_correction_necessary(ipf_version: version.Version) -> SimpleNamespace
 
     '''
 
-    #ipf_ver = version.parse(str(ipf_version))
-
     #Based on ESA technical document
     eap = SimpleNamespace()
 
