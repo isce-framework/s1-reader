@@ -269,7 +269,6 @@ def get_ipf_version(tree: ET):
 
     # get version from software element
     software_elem = tree.find(software)
-    #ipf_version = float(software_elem.attrib['version'])
     ipf_version = version.parse(software_elem.attrib['version'])
 
     return ipf_version
