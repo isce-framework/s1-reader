@@ -21,7 +21,6 @@ class AnnotationBase:
     A virtual base class of the inheriting annotation class i.e. Product, Calibration, and Noise.
     Not intended for standalone use.
     '''
-    # A parent class for annotation reader for Calibrarion, Noise, and Product
     xml_et: ET
 
     @classmethod
@@ -381,7 +380,6 @@ class BurstNoise: #For thermal noise correction
 
         '''
 
-        #threshold_ipf_version = 2.90 #IPF version that stared to provide azimuth noise vector
         id_closest = closest_block_to_azimuth_time(noise_annotation.rg_list_azimuth_time, azimuth_time)
         self.range_azimith_time = noise_annotation.rg_list_azimuth_time[id_closest]
         self.range_line = noise_annotation.rg_list_line[id_closest]
@@ -405,11 +403,10 @@ class BurstNoise: #For thermal noise correction
                 id_top -= 1
             if id_bottom < len(noise_annotation.az_line)-1:
                 id_bottom += 1
-            self.azimuth_line = noise_annotation.az_line[id_top:id_bottom]
-            self.azimuth_lut = noise_annotation.az_noise_azimuth_lut[id_top:id_bottom]
+            self.azimuth_line = noise_annotation.az_line[id_top:id_bottom + 1]
+            self.azimuth_lut = noise_annotation.az_noise_azimuth_lut[id_top:id_bottom + 1]
 
 
-        #return cls
     def export_lut(self):
         '''Gives out the LUT table whose size is the same as the burst SLC'''
         ncols = self.azimuth_last_range_sample-self.azimuth_first_range_sample+1
@@ -471,7 +468,7 @@ class BurstCalibration:
 
 @dataclass
 class BurstEAP:
-    '''EAP correction information for Sentinel-1 IW SLC burst
+    '''Elevation antenna pattern (EAP) correction information for Sentinel-1 IW SLC burst
     '''
     #from LADS
     Ns: int #number of samples
