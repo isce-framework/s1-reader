@@ -12,7 +12,7 @@ from nisar.workflows.stage_dem import check_dateline
 from s1reader.s1_burst_slc import Doppler, Sentinel1BurstSlc
 
 
-esa_track_burst_id_file = f"{os.path.dirname(os.path.realpath(__file__))}/data/sentinel1_track_burst_id.txt" 
+esa_track_burst_id_file = f"{os.path.dirname(os.path.realpath(__file__))}/data/sentinel1_track_burst_id.txt"
 
 # TODO evaluate if it make sense to combine below into a class
 def as_datetime(t_str, fmt = "%Y-%m-%dT%H:%M:%S.%f"):
@@ -275,8 +275,8 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
         List of Sentinel1BurstSlc objects found in annotation XML.
     '''
 
-    # a 1D array where the indices are the Sentinel-1 track number 
-    # and the data at each row are the corresponding cumulative ID 
+    # a 1D array where the indices are the Sentinel-1 track number
+    # and the data at each row are the corresponding cumulative ID
     # number for the last burst of the given track (i.e., line number)
     # get last burst ID number of each track and prepend 0
     tracks_burst_id = np.insert(np.loadtxt(esa_track_burst_id_file,
@@ -366,12 +366,12 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
         dt = sensing_times[i] - ascending_node_time
         id_burst = int((dt.seconds + dt.microseconds / 1e6) // burst_interval)
 
-        # To be consistent with ESA let's start the counter of the ID 
-        # from 1 instead of from 0, i,e, the ID of the first burst of the 
+        # To be consistent with ESA let's start the counter of the ID
+        # from 1 instead of from 0, i,e, the ID of the first burst of the
         # first track is 1
         id_burst += 1
 
-        # the IDs are currently local to one track. Let's adjust based on 
+        # the IDs are currently local to one track. Let's adjust based on
         # the last ID of the previous track
         id_burst += tracks_burst_id[track_number-1]
 
