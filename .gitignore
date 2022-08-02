@@ -1,9 +1,4 @@
-tester_*.py
-tester_*.ipynb
-launch.json
-*.png
 *.DS_Store
-*.ipynb
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

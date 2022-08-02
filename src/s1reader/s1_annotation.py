@@ -301,7 +301,8 @@ class AuxCal(AnnotationBase):
         return cls
 
 
-def closest_block_to_azimuth_time(vector_azimuth_time: np.ndarray, azmuth_time_burst: datetime.datetime) -> int:
+def closest_block_to_azimuth_time(vector_azimuth_time: np.ndarray,
+                                  azmuth_time_burst: datetime.datetime) -> int:
     '''Find the id of the closest data block in annotation. To be used when populating BurstNoise, BurstCalibration, and BurstEAP.
 
     Parameters
@@ -348,8 +349,8 @@ class BurstNoise: #For thermal noise correction
         ----------
         noise_annotation: NoiseAnnotation
             Subswath-wide noise annotation information
-        azimuth_time : datetime
-            Azimiuth time of the burst
+        azimuth_time : datetime.datetime
+            Azimuth time of the burst
         line_from: int
             First line of the burst in the subswath
         line_to: int
