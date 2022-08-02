@@ -28,7 +28,7 @@ def test_burst(bursts):
         [-2056.701472691132, 353389.9614836443, -54143009.57327797]]
 
     for i, burst in enumerate(bursts):
-        expected_burst_id = f't71_iw3_b{844 + i}'
+        expected_burst_id = f't71_{151200 + i}_iw3'
         assert burst.burst_id == expected_burst_id
         assert burst.i_burst == i
 
