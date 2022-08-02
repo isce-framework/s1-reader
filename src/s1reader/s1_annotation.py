@@ -382,8 +382,8 @@ class BurstNoise: #For thermal noise correction
                 id_top -= 1
             if id_bottom < len(noise_annotation.az_line)-1:
                 id_bottom += 1
-            self.azimuth_line = noise_annotation.az_line[id_top:id_bottom]
-            self.azimuth_lut = noise_annotation.az_noise_azimuth_lut[id_top:id_bottom]
+            self.azimuth_line = noise_annotation.az_line[id_top:id_bottom + 1]
+            self.azimuth_lut = noise_annotation.az_noise_azimuth_lut[id_top:id_bottom + 1]
 
 
     def export_lut(self):
