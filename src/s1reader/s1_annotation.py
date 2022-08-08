@@ -158,7 +158,8 @@ class CalibrationAnnotation(AnnotationBase):
 class NoiseAnnotation(AnnotationBase):
     '''Reader for Noise Annotation Data Set (NADS) for IW SLC'''
     # NOTE Schema of the NADS is slightly different before/after IPF version 2.90. Needs to be adaptive in accordance with the version.
-    # The issue above was fixed in further implement of thermal noise correction. A separete PR regarding this will be submitted upon the acceptance of this code.
+    # The issue above was fixed in further implement of thermal noise correction.
+    # A separete PR regarding this will be submitted upon the acceptance of this code.
     # in ISCE2 code: if float(self.IPFversion) < 2.90:
     # REF: .../isce2/components/isceobj/Sensor/GRD/Sentinel1.py
 

@@ -350,9 +350,9 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
         ipf_version = get_ipf_version(tree_manfest)
 
     #Load the Product annotation - for EAP calibration
-    with open_method(annotation_path, 'r') as f_lads:
-        tree_lads = ET.parse(f_lads)
-        product_annotation = s1_annotation.ProductAnnotation.from_et(tree_lads)
+    #with open_method(annotation_path, 'r') as f_lads:
+    #    tree_lads = ET.parse(f_lads)
+    #    product_annotation = s1_annotation.ProductAnnotation.from_et(tree_lads)
 
     #load the Calibraton annotation
     calibration_annotation_path = annotation_path.replace('annotation/', 'annotation/calibration/calibration-')
@@ -502,7 +502,7 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
                                       range_window_type, range_window_coeff,
                                       rank, prf_raw_data, range_chirp_ramp_rate,
                                       burst_calibration, bursts_noise, None)
-                                      #TODO Replace the last argument (i.e. None) with an instance of BurstNoise when EAP correction is in place.
+                                    #TODO Replace the last argument (i.e. None) with an instance of BurstNoise when EAP correction is in place.
 
     return bursts
 
