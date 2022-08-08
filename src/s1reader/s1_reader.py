@@ -57,8 +57,8 @@ def parse_polynomial_element(elem, poly_name):
     half_c = 0.5 * isce3.core.speed_of_light
     r0 = half_c * float(elem.find('t0').text)
     
-    if elem.find(poly_name) is None: #some data with VERY old IPF version (lower than 2.82)
-        coeffs=[float(x.text) for x in elem[2:]]
+    if elem.find(poly_name) is None: #some data with VERY old IPF version
+        coeffs = [float(x.text) for x in elem[2:]]
     else: #Most of the recently processed S1 SAFE data
         coeffs = [float(x) for x in elem.find(poly_name).text.split()]
         
