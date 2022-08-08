@@ -341,10 +341,6 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
     _, tail = os.path.split(annotation_path)
     platform_id, subswath_id, _, pol = [x.upper() for x in tail.split('-')[:4]]
 
-    noise_annotation_path=annotation_path.replace('annotation/','annotation/calibration/noise-')
-    calibration_annotation_path=annotation_path.replace('annotation/','annotation/calibration/calibration-')
-    manifest_path=os.path.dirname(annotation_path).replace('annotation','')+'manifest.safe'
-
     # For IW mode, one burst has a duration of ~2.75 seconds and a burst
     # overlap of approximately ~0.4 seconds.
     # https://sentinels.copernicus.eu/web/sentinel/user-guides/sentinel-1-sar/product-types-processing-levels/level-1

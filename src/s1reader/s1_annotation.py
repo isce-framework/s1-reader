@@ -352,6 +352,7 @@ class BurstNoise: #For thermal noise correction
     range_line: float = None
     range_pixel: np.ndarray = None
     range_lut: np.ndarray = None
+
     azimuth_first_azimuth_line: int = None
     azimuth_first_range_sample: int = None
     azimuth_last_azimuth_line: int = None
