@@ -3,6 +3,7 @@ from dataclasses import dataclass
 import datetime
 import tempfile
 import warnings
+from packaging import version
 
 import isce3
 import numpy as np
@@ -128,7 +129,8 @@ class Doppler:
 class Sentinel1BurstSlc:
     '''Raw values extracted from SAFE XML.
     '''
-    ipf_version:float
+    #ipf_version:float
+    ipf_version: version.Version
     sensing_start: datetime.datetime
     radar_center_frequency: float
     wavelength: float
@@ -144,7 +146,7 @@ class Sentinel1BurstSlc:
     doppler: Doppler
     range_bandwidth: float
     polarization: str # {VV, VH, HH, HV}
-    burst_id: str # t{track_number}_iw{1,2,3}_b{burst_index}
+    burst_id: str # t{track_number}_{burst_index}_iw{1,2,3}
     platform_id: str # S1{A,B}
     center: tuple # {center lon, center lat} in degrees
     border: list # list of lon, lat coordinate tuples (in degrees) representing burst border

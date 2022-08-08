@@ -4,13 +4,19 @@ import warnings
 import xml.etree.ElementTree as ET
 import zipfile
 
+from packaging import version
+from types import SimpleNamespace
+
+import isce3
 import numpy as np
 import shapely
 
-import isce3
 from nisar.workflows.stage_dem import check_dateline
 from s1reader.s1_burst_slc import Doppler, Sentinel1BurstSlc
 from s1reader import s1_annotation
+
+
+esa_track_burst_id_file = f"{os.path.dirname(os.path.realpath(__file__))}/data/sentinel1_track_burst_id.txt"
 
 # TODO evaluate if it make sense to combine below into a class
 def as_datetime(t_str, fmt = "%Y-%m-%dT%H:%M:%S.%f"):
@@ -254,34 +260,51 @@ def get_burst_centers_and_boundaries(tree):
 
     return center_pts, boundary_pts
 
-def get_ipf_version(tree:ET):
+def get_ipf_version(tree: ET):
     '''Extract the IPF version from the ET of manifest.safe
     '''
-    elem_metadata_section=tree.find('metadataSection')
-    flag_found_ipf_version=False
-    idx_processing=0
-    for idx_processing,elem_sub in enumerate(elem_metadata_section):
-        if elem_sub.attrib['ID']=='processing':
-            flag_found_ipf_version=True
-            break
+    # path to xmlData in manifest
+    xml_meta_path = 'metadataSection/metadataObject/metadataWrap/xmlData'
 
-    if flag_found_ipf_version:
-        str_ipf_version=elem_metadata_section[idx_processing][0][0][0][0][0].attrib['version']
-        return float(str_ipf_version)
+    # piecemeal build path to software path to access version attrib
+    esa_http = '{http://www.esa.int/safe/sentinel-1.0}'
+    processing = xml_meta_path + f'/{esa_http}processing'
+    facility = processing + f'/{esa_http}facility'
+    software = facility + f'/{esa_http}software'
 
-def is_eap_correction_necesasry(ipf_version:float) -> int :
-    '''Examines if what level of EAP correction is necessary, based on the IPF version
-    0: No EAP correction necessary (i.e. correction already applied)
-    1: Phase-only correction is necessary
-    2: Phase and Magniture correction is necessary'''
-    ipf_ver_int=int(ipf_version*100)
+    # get version from software element
+    software_elem = tree.find(software)
+    ipf_version = version.parse(software_elem.attrib['version'])
+
+    return ipf_version
+
+def is_eap_correction_necessary(ipf_version: version.Version) -> SimpleNamespace :
+    '''Examines if what level of EAP correction is necessary, based on the IPF version.
+    Based on the comment on PR: https://github.com/opera-adt/s1-reader/pull/48#discussion_r926138372
+
+    Parameter
+    ---------
+    ipf_version: version.Version
+        IPF version of the burst
+
+    Return
+    ------
+    eap: SimpleNamespace
+        eap.magnitude_correction == True if both magnitude and phase need to be corrected
+        eap.phase_correction == True if only phase correction is necessary
+
+    '''
+
     #Based on ESA technical document
-    if ipf_ver_int>=243:
-        return 0 # No EAP correction necessary (i.e. correction already applied)
-    elif ipf_ver_int>=236:
-        return 1 # Phase-only correction is necessary
-    else:
-        return 2 # Phase and Magniture correction is necessary
+    eap = SimpleNamespace()
+
+    ipf_243 = version.parse('2.43')
+    eap.phase_correction = True if ipf_version < ipf_243 else False
+
+    ipf_236 = version.parse('2.36')
+    eap.magnitude_correction = True if ipf_version < ipf_236 else False
+
+    return eap
 
 def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
                    iw2_annotation_path: str, open_method=open):
@@ -306,6 +329,15 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
     bursts : list
         List of Sentinel1BurstSlc objects found in annotation XML.
     '''
+
+    # a 1D array where the indices are the Sentinel-1 track number
+    # and the data at each row are the corresponding cumulative ID
+    # number for the last burst of the given track (i.e., line number)
+    # get last burst ID number of each track and prepend 0
+    tracks_burst_id = np.insert(np.loadtxt(esa_track_burst_id_file,
+                                       usecols=[2], dtype=int),
+                                        0, 0)
+
     _, tail = os.path.split(annotation_path)
     platform_id, subswath_id, _, pol = [x.upper() for x in tail.split('-')[:4]]
 
@@ -321,29 +353,27 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
     burst_interval = 2.758277
 
     #parse manifest.safe to retrieve IPF version
+    manifest_path = os.path.dirname(annotation_path).replace('annotation','') + 'manifest.safe'
     with open_method(manifest_path, 'r') as f_manifest:
-        tree_manfest=ET.parse(f_manifest)
-        ipf_version=get_ipf_version(tree_manfest)
+        tree_manfest = ET.parse(f_manifest)
+        ipf_version = get_ipf_version(tree_manfest)
 
     #Load the Product annotation - for EAP calibration
-    with open_method(annotation_path, 'r') as f_lads:
-        tree_lads=ET.parse(f_lads)
-        product_annotation=s1_annotation.ProductAnnotation.from_et(tree_lads)
+    #with open_method(annotation_path, 'r') as f_lads:
+    #    tree_lads = ET.parse(f_lads)
+    #    product_annotation = s1_annotation.ProductAnnotation.from_et(tree_lads)
 
     #load the Calibraton annotation
+    calibration_annotation_path = annotation_path.replace('annotation/', 'annotation/calibration/calibration-')
     with open_method(calibration_annotation_path, 'r') as f_cads:
-        tree_cads=ET.parse(f_cads)
-        calibration_annotation=s1_annotation.CalibrationAnnotation.from_et(tree_cads)
+        tree_cads = ET.parse(f_cads)
+        calibration_annotation = s1_annotation.CalibrationAnnotation.from_et(tree_cads)
 
     #load the Noise annotation
+    noise_annotation_path = annotation_path.replace('annotation/', 'annotation/calibration/noise-')
     with open_method(noise_annotation_path, 'r') as f_nads:
-        tree_nads=ET.parse(f_nads)
-        noise_annotation=s1_annotation.NoiseAnnotation.from_et(tree_nads,tree_lads,ipf_version=ipf_version)
-
-    #find the corresponding AUX_CAL and load
-    aux_cal=None #placeholder
-
-
+        tree_nads = ET.parse(f_nads)
+        noise_annotation = s1_annotation.NoiseAnnotation.from_et(tree_nads, ipf_version)
 
     # Nearly all metadata loaded here is common to all bursts in annotation XML
     with open_method(annotation_path, 'r') as f:
@@ -418,6 +448,15 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
         dt = sensing_times[i] - ascending_node_time
         id_burst = int((dt.seconds + dt.microseconds / 1e6) // burst_interval)
 
+        # To be consistent with ESA let's start the counter of the ID
+        # from 1 instead of from 0, i,e, the ID of the first burst of the
+        # first track is 1
+        id_burst += 1
+
+        # the IDs are currently local to one track. Let's adjust based on
+        # the last ID of the previous track
+        id_burst += tracks_burst_id[track_number-1]
+
         # choose nearest azimuth FM rate
         d_seconds = 0.5 * (n_lines - 1) * azimuth_time_interval
         sensing_mid = sensing_start + datetime.timedelta(seconds=d_seconds)
@@ -451,16 +490,13 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
                           last_valid_samples[last_line])
 
 
-        burst_id = f't{track_number}_{subswath_id.lower()}_b{id_burst}'
+        burst_id = f't{track_number}_{id_burst}_{subswath_id.lower()}'
 
 
         #Extract burst-wise information for Calibration, Noise, and EAP correction
-        burst_calibration=s1_annotation.BurstCalibration()
-        burst_calibration.from_calibraiton_annotation(calibration_annotation,sensing_start)
-
+        burst_calibration = s1_annotation.BurstCalibration.from_calibration_annotation(calibration_annotation, sensing_start)
         bursts_noise=s1_annotation.BurstNoise()
         bursts_noise.from_noise_annotation(noise_annotation,sensing_start,i*n_lines,(i+1)*n_lines-1,ipf_version)
-        burst_eap=None #placeholder
 
         bursts[i] = Sentinel1BurstSlc(ipf_version, sensing_start, radar_freq, wavelength,
                                       azimuth_steer_rate, azimuth_time_interval,
@@ -474,7 +510,8 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
                                       last_sample, first_valid_line, last_line,
                                       range_window_type, range_window_coeff,
                                       rank, prf_raw_data, range_chirp_ramp_rate,
-                                      burst_calibration, bursts_noise, burst_eap)
+                                      burst_calibration, bursts_noise, None)
+
 
     return bursts
 

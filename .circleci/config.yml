@@ -1,0 +1,33 @@
+version: 2.1
+
+jobs:
+  build:
+    docker:
+      - image: continuumio/miniconda3
+    steps:
+      - checkout
+      - run:
+          name: "Install dependencies"
+          command: |
+            conda install -y --file .circleci/specfile.txt
+      - run:
+          name: "Build s1reader python package"
+          command: |
+            python3 -m build --sdist --wheel .
+     #- run:
+     #    name: "Download S1 test data"
+     #    command: |
+     #      python3 tests/download_data.py
+      - run:
+          name: "Install s1reader python package"
+          command: |
+            python3 -m pip install .
+      - run:
+          name: "Run unit tests"
+          command: |
+            python3 -m pytest
+
+workflows:
+  build-workflow:
+    jobs:
+      - build
