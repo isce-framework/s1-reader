@@ -502,7 +502,7 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
                                       range_window_type, range_window_coeff,
                                       rank, prf_raw_data, range_chirp_ramp_rate,
                                       burst_calibration, bursts_noise, None)
-                                    #TODO Replace the last argument (i.e. None) with an instance of BurstNoise when EAP correction is in place.
+                                    
 
     return bursts
 

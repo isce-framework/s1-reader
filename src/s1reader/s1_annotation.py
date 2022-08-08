@@ -315,7 +315,9 @@ class AuxCal(AnnotationBase):
                     raise ValueError(f'The number of values does not match. n_val={n_val}, #values in elevationAntennaPattern/values={len(arr_eap_val)}')
 
                 cls.azimuth_angle_increment = float(calibration_params.find('azimuthAntennaPattern/azimuthAngleIncrement').text)
-                cls.azimuth_antenna_pattern = np.array([float(token_val) for token_val in calibration_params.find('azimuthAntennaPattern/values').text.split()])
+                cls.azimuth_antenna_pattern = np.array(
+                    [float(token_val) for token_val in calibration_params.find('azimuthAntennaPattern/values').text.split()]
+                    )
                 cls.absolute_calibration_constant = float(calibration_params.find('absoluteCalibrationConstant').text)
                 cls.noise_calibration_factor = float(calibration_params.find('noiseCalibrationFactor').text)
 
