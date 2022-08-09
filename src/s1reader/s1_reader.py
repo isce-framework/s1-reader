@@ -56,7 +56,13 @@ def parse_polynomial_element(elem, poly_name):
 
     half_c = 0.5 * isce3.core.speed_of_light
     r0 = half_c * float(elem.find('t0').text)
-    coeffs = [float(x) for x in elem.find(poly_name).text.split()]
+
+    # NOTE Format of the Azimith FM rate polynomials has changed when IPF version was somewhere between 2.36 and 2.82
+    if elem.find(poly_name) is None:  # before the format change i.e. older IPF
+        coeffs = [float(x.text) for x in elem[2:]]
+    else:  # after the format change i.e. newer IPF
+        coeffs = [float(x) for x in elem.find(poly_name).text.split()]
+
     poly1d = isce3.core.Poly1d(coeffs, r0, half_c)
     return (ref_time, poly1d)
 
