@@ -4,8 +4,8 @@ import warnings
 import xml.etree.ElementTree as ET
 import zipfile
 
-from packaging import version
 from types import SimpleNamespace
+from packaging import version
 
 import isce3
 import numpy as np
@@ -361,7 +361,8 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
     #    product_annotation = s1_annotation.ProductAnnotation.from_et(tree_lads)
 
     #load the Calibraton annotation
-    calibration_annotation_path = annotation_path.replace('annotation/', 'annotation/calibration/calibration-')
+    calibration_annotation_path =\
+        annotation_path.replace('annotation/', 'annotation/calibration/calibration-')
     with open_method(calibration_annotation_path, 'r') as f_cads:
         tree_cads = ET.parse(f_cads)
         calibration_annotation = s1_annotation.CalibrationAnnotation.from_et(tree_cads)
@@ -491,9 +492,12 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
 
 
         #Extract burst-wise information for Calibration, Noise, and EAP correction
-        burst_calibration = s1_annotation.BurstCalibration.from_calibration_annotation(calibration_annotation, sensing_start)
-        bursts_noise=s1_annotation.BurstNoise.from_noise_annotation(noise_annotation, sensing_start, i*n_lines, (i+1)*n_lines-1, ipf_version)
-        
+        burst_calibration =\
+            s1_annotation.BurstCalibration.from_calibration_annotation(calibration_annotation, sensing_start)
+        bursts_noise=\
+            s1_annotation.BurstNoise.from_noise_annotation(noise_annotation, sensing_start,
+                                                           i*n_lines, (i+1)*n_lines-1, ipf_version)
+
         bursts[i] = Sentinel1BurstSlc(ipf_version, sensing_start, radar_freq, wavelength,
                                       azimuth_steer_rate, azimuth_time_interval,
                                       slant_range_time, starting_range, iw2_mid_range,
