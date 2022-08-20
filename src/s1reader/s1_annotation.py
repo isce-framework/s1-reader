@@ -13,7 +13,7 @@ from packaging import version
 from scipy.interpolate import InterpolatedUnivariateSpline, interp1d
 
 #A IPF version from which has azimuth noise vector
-version_threshold_azimuth_noise_vector=version.parse('2.90')
+version_threshold_azimuth_noise_vector = version.parse('2.90')
 
 @dataclass
 class AnnotationBase:
@@ -147,10 +147,12 @@ class CalibrationAnnotation(AnnotationBase):
         '''Extracts the list of calibration informaton from etree from CADS
         Parameters:
         -----------
-            et_in: ElementTree From CADS .xml file
+        et_in: ET
+            ElementTree From CADS .xml file
 
         Returns:
-            cls: CalibrationAnnotation
+        --------
+        cls: CalibrationAnnotation
             instance from CalibrationAnnotation initialized by the input parameter
         '''
 
@@ -232,6 +234,9 @@ class ProductAnnotation(AnnotationBase):
     '''For L1 SLC product annotation file. For EAP correction.'''
     image_information_slant_range_time: float
 
+    # Attributes to be used when determining what AUX_CAL to load
+    inst_config_id: int
+
     #elevation_angle:
     antenna_pattern_azimuth_time: list
     antenna_pattern_slant_range_time: list
@@ -241,6 +246,8 @@ class ProductAnnotation(AnnotationBase):
     ascending_node_time: datetime.datetime
     number_of_samples: int
     range_sampling_rate: float
+
+    slant_range_time: float
 
     @classmethod
     def from_et(cls, et_in: ET):
@@ -259,6 +266,7 @@ class ProductAnnotation(AnnotationBase):
         cls.xml_et = et_in
 
         cls.image_information_slant_range_time = cls._parse_scalar('imageAnnotation/imageInformation/slantRangeTime', 'scalar_float')
+        cls.inst_config_id = cls._parse_scalar('generalAnnotation/downlinkInformationList/downlinkInformation/downlinkValues/instrumentConfigId', 'scalar_int')    
         cls.antenna_pattern_azimuth_time = cls._parse_vectorlist('antennaPattern/antennaPatternList', 'azimuthTime', 'datetime')
         cls.antenna_pattern_slant_range_time = cls._parse_vectorlist('antennaPattern/antennaPatternList', 'slantRangeTime', 'vector_float')
         cls.antenna_pattern_elevation_angle = cls._parse_vectorlist('antennaPattern/antennaPatternList', 'elevationAngle', 'vector_float')
@@ -268,6 +276,8 @@ class ProductAnnotation(AnnotationBase):
         cls.number_of_samples = cls._parse_scalar('imageAnnotation/imageInformation/numberOfSamples', 'scalar_int')
         cls.range_sampling_rate = cls._parse_scalar('generalAnnotation/productInformation/rangeSamplingRate', 'scalar_float')
 
+        cls.slant_range_time =  cls._parse_scalar('imageAnnotation/imageInformation/slantRangeTime','scalar_float')
+
         return cls
 
 
@@ -276,8 +286,10 @@ class AuxCal(AnnotationBase):
     '''AUX_CAL information for elevation antenna pattern (EAP) correction'''
     beam_nominal_near_range: float
     beam_nominal_far_range: float
+
     elevation_angle_increment: float
     elevation_antenna_pattern: np.ndarray
+
     azimuth_angle_increment: float
     azimuth_antenna_pattern: np.ndarray
     azimuth_antenna_element_pattern_increment: float
@@ -285,8 +297,9 @@ class AuxCal(AnnotationBase):
     absolute_calibration_constant: float
     noise_calibration_factor: float
 
+
     @classmethod
-    def from_et(cls,et_in: ET, pol: str, str_swath: str):
+    def from_et(cls, et_in: ET, pol: str, str_swath: str):
         '''A class method that Extracts list of information AUX_CAL from the input ET.
 
         Parameters
@@ -317,17 +330,26 @@ class AuxCal(AnnotationBase):
                 n_val = int(calibration_params.find('elevationAntennaPattern/values').attrib['count'])
                 arr_eap_val = np.array([float(token_val) for token_val in calibration_params.find('elevationAntennaPattern/values').text.split()])
                 if n_val == len(arr_eap_val): #Provided in real numbers: In case of AUX_CAL for old IPFs.
-                    cls.azimuth_antenna_element_pattern=arr_eap_val
+                    cls.elevation_antenna_pattern = arr_eap_val
                 elif n_val*2 == len(arr_eap_val): #Provided in complex numbers: In case of recent IPFs e.g. 3.10
-                    cls.azimuth_antenna_element_pattern = arr_eap_val[0::2]+arr_eap_val[1::2]*1.0j
+                    cls.elevation_antenna_pattern = arr_eap_val[0::2]+arr_eap_val[1::2]*1.0j
                 else:
                     raise ValueError(f'The number of values does not match. n_val={n_val}, #values in elevationAntennaPattern/values={len(arr_eap_val)}')
 
-                cls.azimuth_angle_increment = float(calibration_params.find('azimuthAntennaPattern/azimuthAngleIncrement').text)
+                cls.azimuth_angle_increment = \
+                    float(calibration_params.find('azimuthAntennaPattern/azimuthAngleIncrement').text)
                 cls.azimuth_antenna_pattern = \
                     np.array([float(token_val) for token_val in calibration_params.find('azimuthAntennaPattern/values').text.split()])
-                cls.absolute_calibration_constant = float(calibration_params.find('absoluteCalibrationConstant').text)
-                cls.noise_calibration_factor = float(calibration_params.find('noiseCalibrationFactor').text)
+
+                cls.azimuth_antenna_element_pattern_increment = \
+                    float(calibration_params.find('azimuthAntennaElementPattern/azimuthAngleIncrement').text)
+                cls.azimuth_antenna_element_pattern = \
+                    np.array([float(token_val) for token_val in calibration_params.find('azimuthAntennaElementPattern/values').text.split()])
+
+                cls.absolute_calibration_constant = \
+                    float(calibration_params.find('absoluteCalibrationConstant').text)
+                cls.noise_calibration_factor = \
+                    float(calibration_params.find('noiseCalibrationFactor').text)
 
         return cls
 
@@ -432,30 +454,6 @@ class BurstNoise: #For thermal noise correction
                    line_from, line_to)
 
 
-    def export_lut(self):
-        '''Returns the burst-sized LUT for thermal noise correction'''
-        ncols = self.azimuth_last_range_sample - self.azimuth_first_range_sample + 1
-        nrows = self.line_to - self.line_from + 1
-
-        #interpolator for range noise vector
-        intp_rg_lut = InterpolatedUnivariateSpline(self.range_pixel, self.range_lut, k=1)
-        grid_rg = np.arange(self.azimuth_last_range_sample + 1)
-        rg_lut_interp = intp_rg_lut(grid_rg).reshape((1, ncols))
-
-        #interpolator for azimuth noise vector
-        if (self.azimuth_line is None) or (self.azimuth_lut is None):  # IPF <2.90
-            az_lut_interp = np.ones(nrows).reshape((nrows, 1))
-        else:  # IPF >= 2.90
-            intp_az_lut = InterpolatedUnivariateSpline(self.azimuth_line, self.azimuth_lut, k=1)
-            grid_az = np.arange(self.line_from,self.line_to + 1)
-            az_lut_interp = intp_az_lut(grid_az).reshape((nrows, 1))
-
-        arr_lut_total = np.matmul(az_lut_interp, rg_lut_interp)
-
-        return arr_lut_total
-
-
-
 @dataclass
 class BurstCalibration:
     '''Calibration information for Sentinel-1 IW SLC burst
@@ -487,7 +485,9 @@ class BurstCalibration:
             EAP correction info for the burst
         '''
 
-        id_closest = closest_block_to_azimuth_time(calibration_annotation.list_azimuth_time, azimuth_time)
+        id_closest = closest_block_to_azimuth_time(calibration_annotation.list_azimuth_time,
+                                                   azimuth_time)
+
         azimuth_time = calibration_annotation.list_azimuth_time[id_closest]
         line = calibration_annotation.list_line[id_closest]
         pixel = calibration_annotation.list_pixel[id_closest]
@@ -501,7 +501,7 @@ class BurstCalibration:
         if matrix_beta_naught.min() == matrix_beta_naught.max():
             beta_naught = np.min(matrix_beta_naught)
         else:
-            #TODO Switch to LUT-based method when there is significant changes in the array
+            # TODO Switch to LUT-based method when there is significant changes in the array
             beta_naught = np.mean(matrix_beta_naught)
 
         return cls(azimuth_time, line, pixel,
@@ -553,9 +553,10 @@ class BurstEAP:
         Ns = product_annotation.number_of_samples
         fs = product_annotation.range_sampling_rate
         eta_start = azimuth_time
-        tau_0 = product_annotation.antenna_pattern_slant_range_time[id_closest]
+        tau_0 = product_annotation.slant_range_time
         tau_sub = product_annotation.antenna_pattern_slant_range_time[id_closest]
-        theta_sub = product_annotation.antenna_pattern_elevation_pattern[id_closest]
+        #theta_sub = product_annotation.antenna_pattern_elevation_pattern[id_closest]
+        theta_sub = product_annotation.antenna_pattern_elevation_angle[id_closest]
         #self.theta_am = product_annotation.antenna_pattern_elevation_angle
         G_eap = aux_cal.elevation_antenna_pattern
         delta_theta = aux_cal.elevation_angle_increment
@@ -567,34 +568,10 @@ class BurstEAP:
                    G_eap, delta_theta)
 
 
-    def export_lut(self):
-        '''Returns LUT for EAP correction.
-        Parts of the codes and subfunctions were borrowed from ISCE2.
-        Based on ESA docuemnt : "Impact of the Elevation Antenna Pattern Phase Compensation on the Interferometric Phase Preservation"'''
-
-        n_elt = len(self.G_eap)
-
-        theta_am = (np.arange(n_elt)-(n_elt-1)/2)* self.delta_theta
-
-        delta_anx = self.eta_start-self.ascending_node_time
-        theta_offnadir = self._anx2roll(delta_anx)
-
-        theta_eap = theta_am+theta_offnadir
-
-        tau = self.tau_0+np.arange(self.Ns)/self.fs
-
-        theta = np.interp(tau, self.tau_sub, self.theta_sub)
-
-        interpolator_G = interp1d(theta_eap,self.G_eap)
-        G_eap_interpolated = interpolator_G(theta)
-        phi_EAP = np.angle(G_eap_interpolated)
-        cJ = np.complex64(1.0j)
-        G_EAP = np.exp(cJ * phi_EAP)
-
-        return G_EAP
-
     def _anx2roll(self, delta_anx):
         '''
+        Borrowed from ISCE2. The original docstring as below:
+
         Returns the Platform nominal roll as function of elapsed time from
         ascending node crossing time (ANX).
         Straight from S1A documentation.
@@ -620,9 +597,12 @@ class BurstEAP:
 
     def _anx2height(self, delta_anx):
         '''
+        Borrowed from ISCE2. The original docstring as below:
+
         Returns the platform nominal height as function of elapse time from
         ascending node crossing time (ANX).
         Straight from S1A documention.
+
         '''
 
         ###Average height
@@ -635,7 +615,7 @@ class BurstEAP:
         phi = np.array([3.1495, -1.5655 , -3.1297, 4.7222]) #;radians
 
         ###Orbital time period in seconds
-        Torb = (12*24*60*60)/175.
+        Torb = (12*24*60*60) / 175.
 
         ###Angular velocity
         worb = 2*np.pi / Torb

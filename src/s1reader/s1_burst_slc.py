@@ -8,6 +8,7 @@ from packaging import version
 import isce3
 import numpy as np
 from osgeo import gdal
+from scipy.interpolate import InterpolatedUnivariateSpline, interp1d
 
 from s1reader import s1_annotation
 
@@ -621,3 +622,62 @@ class Sentinel1BurstSlc:
         '''Swath name in iw1, iw2, iw3.'''
         return self.burst_id.split('_')[1]
 
+    @property
+    def thermal_noise_lut(self):
+        '''Returns the burst-sized LUT for thermal noise correction'''
+        #ncols = self.azimuth_last_range_sample - self.azimuth_first_range_sample + 1
+        #nrows = self.line_to - self.line_from + 1
+        ncols = self.shape[1]
+        nrows = self.shape[0]
+
+        # Interpolate the range noise vector
+        intp_rg_lut = InterpolatedUnivariateSpline(self.burst_noise.range_pixel,
+                                                   self.burst_noise.range_lut,
+                                                   k=1)
+        if self.burst_noise.azimuth_last_range_sample is not None:
+            grid_rg = np.arange(self.burst_noise.azimuth_last_range_sample + 1)
+        else:
+            grid_rg = np.arange(ncols)
+        rg_lut_interp = intp_rg_lut(grid_rg).reshape((1, ncols))
+
+        # Interpolate the azimuth noise vector
+        if (self.burst_noise.azimuth_line is None) or (self.burst_noise.azimuth_lut is None):
+            az_lut_interp = np.ones(nrows).reshape((nrows, 1))
+        else:  # IPF >= 2.90
+            intp_az_lut = InterpolatedUnivariateSpline(self.burst_noise.azimuth_line,
+                                                       self.burst_noise.azimuth_lut,
+                                                       k=1)
+            grid_az = np.arange(self.burst_noise.line_from, self.burst_noise.line_to + 1)
+            az_lut_interp = intp_az_lut(grid_az).reshape((nrows, 1))
+
+        arr_lut_total = np.matmul(az_lut_interp, rg_lut_interp)
+
+        return arr_lut_total
+
+    @property
+    def eap_compensation_lut(self):
+        '''Returns LUT for EAP compensation.
+        Based on ESA docuemnt :
+        "Impact of the Elevation Antenna Pattern Phase Compensation on the Interferometric Phase Preservation"
+        '''
+        
+        n_elt = len(self.burst_eap.G_eap)
+
+        theta_am = (np.arange(n_elt)-(n_elt-1)/2)* self.burst_eap.delta_theta
+
+        delta_anx = self.burst_eap.eta_start-self.burst_eap.ascending_node_time
+        theta_offnadir = self.burst_eap._anx2roll(delta_anx.seconds + delta_anx.microseconds * 1.0e-6)
+
+        theta_eap = theta_am + theta_offnadir
+
+        tau = self.burst_eap.tau_0 + np.arange(self.burst_eap.Ns) / self.burst_eap.fs
+
+        theta = np.interp(tau, self.burst_eap.tau_sub, self.burst_eap.theta_sub)
+
+        interpolator_G = interp1d(theta_eap, self.burst_eap.G_eap)
+        G_eap_interpolated = interpolator_G(theta)
+        phi_EAP = np.angle(G_eap_interpolated)
+        cJ = np.complex64(1.0j)
+        G_EAP = np.exp(cJ * phi_EAP)
+
+        return G_EAP
