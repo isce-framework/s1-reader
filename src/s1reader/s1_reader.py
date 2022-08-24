@@ -487,7 +487,7 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
                           last_valid_samples[last_line])
 
 
-        burst_id = f't{track_number}_{id_burst}_{subswath_id.lower()}'
+        burst_id = f't{track_number:03d}_{id_burst}_{subswath_id.lower()}'
 
 
         #Extract burst-wise information for Calibration, Noise, and EAP correction
@@ -502,7 +502,7 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
                                       (n_lines, n_samples), az_fm_rate, doppler,
                                       rng_processing_bandwidth, pol, burst_id,
                                       platform_id, center_pts[i],
-                                      boundary_pts[i], orbit, orbit_direction,
+                                      boundary_pts[i], orbit, orbit_direction, orbit_number,
                                       tiff_path, i, first_valid_sample,
                                       last_sample, first_valid_line, last_line,
                                       range_window_type, range_window_coeff,
