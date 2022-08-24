@@ -167,10 +167,10 @@ class Sentinel1BurstSlc:
     prf_raw_data: float  # Pulse repetition frequency (PRF) of the raw data [Hz]
     range_chirp_rate: float # Range chirp rate [Hz]
 
-    #Correction information
-    burst_calibration: s1_annotation.BurstCalibration #Radiometric correction
-    burst_noise: s1_annotation.BurstNoise #Thermal noise correction
-    burst_eap: s1_annotation.BurstEAP #EAP correction
+    # Correction information
+    burst_calibration: s1_annotation.BurstCalibration  # Radiometric correction
+    burst_noise: s1_annotation.BurstNoise  # Thermal noise correction
+    burst_eap: s1_annotation.BurstEAP  # EAP correction
 
 
     def as_isce3_radargrid(self):

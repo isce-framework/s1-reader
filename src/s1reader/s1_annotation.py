@@ -10,7 +10,7 @@ import xml.etree.ElementTree as ET
 import numpy as np
 
 from packaging import version
-from scipy.interpolate import InterpolatedUnivariateSpline, interp1d
+#from scipy.interpolate import InterpolatedUnivariateSpline, interp1d
 
 #A IPF version from which has azimuth noise vector
 version_threshold_azimuth_noise_vector = version.parse('2.90')
@@ -377,7 +377,7 @@ def closest_block_to_azimuth_time(vector_azimuth_time: np.ndarray,
 
 
 @dataclass
-class BurstNoise: #For thermal noise correction
+class BurstNoise:
     '''Noise correction information for Sentinel-1 burst'''
     range_azimith_time: datetime.datetime
     range_line: float
@@ -496,7 +496,7 @@ class BurstCalibration:
         gamma = calibration_annotation.list_gamma[id_closest]
         dn = calibration_annotation.list_dn[id_closest]
 
-        #Check if all values in the list of beta_naught LUTs are the same
+        # Check if all values in the list of beta_naught LUTs are the same
         matrix_beta_naught = np.array(calibration_annotation.list_beta_nought)
         if matrix_beta_naught.min() == matrix_beta_naught.max():
             beta_naught = np.min(matrix_beta_naught)
