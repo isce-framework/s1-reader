@@ -153,6 +153,7 @@ class Sentinel1BurstSlc:
     border: list # list of lon, lat coordinate tuples (in degrees) representing burst border
     orbit: isce3.core.Orbit
     orbit_direction: str
+    abs_orbit_number: int  # Absolute orbit number
     # VRT params
     tiff_path: str  # path to measurement tiff in SAFE/zip
     i_burst: int
