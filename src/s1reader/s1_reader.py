@@ -390,13 +390,16 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
         annotation_path.replace('annotation/', 'annotation/calibration/calibration-')
     with open_method(calibration_annotation_path, 'r') as f_cads:
         tree_cads = ET.parse(f_cads)
-        calibration_annotation = s1_annotation.CalibrationAnnotation.from_et(tree_cads)
+        calibration_annotation =\
+            s1_annotation.CalibrationAnnotation.from_et(tree_cads,
+                                                        calibration_annotation_path)
 
     # load the Noise annotation
     noise_annotation_path = annotation_path.replace('annotation/', 'annotation/calibration/noise-')
     with open_method(noise_annotation_path, 'r') as f_nads:
         tree_nads = ET.parse(f_nads)
-        noise_annotation = s1_annotation.NoiseAnnotation.from_et(tree_nads, ipf_version)
+        noise_annotation = s1_annotation.NoiseAnnotation.from_et(tree_nads, ipf_version,
+                                                                 noise_annotation_path)
 
     # load AUX_CAL annotation
     flag_apply_eap = is_eap_correction_necessary(ipf_version)
@@ -404,7 +407,7 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
         path_aux_cal = get_path_aux_cal(f'{os.path.dirname(s1_annotation.__file__)}/data/aux_cal',
                                         platform_id,
                                         product_annotation.inst_config_id)
-        
+
         with zipfile.ZipFile(path_aux_cal,'r') as zipfile_aux_cal:
             str_safe_aux_cal = os.path.basename(path_aux_cal).replace('.zip','')
             with zipfile_aux_cal.open(f'{str_safe_aux_cal}/data/s1a-aux-cal.xml','r') as f_aux_cal:
