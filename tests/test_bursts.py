@@ -28,9 +28,10 @@ def test_burst(bursts):
         [-2056.701472691132, 353389.9614836443, -54143009.57327797]]
 
     for i, burst in enumerate(bursts):
-        expected_burst_id = f't71_{151200 + i}_iw3'
+        expected_burst_id = f't071_{151200 + i}_iw3'
         assert burst.burst_id == expected_burst_id
         assert burst.i_burst == i
+        assert burst.abs_orbit_number == 32518
 
         assert burst.radar_center_frequency == 5405000454.33435
         assert burst.wavelength == 0.05546576
