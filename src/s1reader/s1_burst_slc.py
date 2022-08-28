@@ -636,7 +636,7 @@ class Sentinel1BurstSlc:
             grid_rg = np.arange(self.burst_noise.azimuth_last_range_sample + 1)
         else:
             grid_rg = np.arange(ncols)
-        rg_lut_interp = intp_rg_lut(grid_rg).reshape((1, ncols))
+        rg_lut_interpolated = intp_rg_lut(grid_rg).reshape((1, ncols))
 
         # Interpolate the azimuth noise vector
         if (self.burst_noise.azimuth_line is None) or (self.burst_noise.azimuth_lut is None):
