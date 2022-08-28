@@ -666,7 +666,7 @@ class Sentinel1BurstSlc:
         
         n_elt = len(self.burst_eap.G_eap)
 
-        theta_am = (np.arange(n_elt)-(n_elt-1)/2)* self.burst_eap.delta_theta
+        theta_am = (np.arange(n_elt) - (n_elt - 1) / 2) * self.burst_eap.delta_theta
 
         delta_anx = self.burst_eap.eta_start-self.burst_eap.ascending_node_time
         theta_offnadir = self.burst_eap._anx2roll(delta_anx.seconds + delta_anx.microseconds * 1.0e-6)
