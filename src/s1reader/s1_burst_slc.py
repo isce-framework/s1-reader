@@ -642,7 +642,7 @@ class Sentinel1BurstSlc:
         if (self.burst_noise.azimuth_line is None) or (self.burst_noise.azimuth_lut is None):
             az_lut_interp = np.ones(nrows).reshape((nrows, 1))
         else:  # IPF >= 2.90
-            intp_az_lut = InterpolatedUnivariateSpline(self.burst_noise.azimuth_line,
+            az_lut_intp_obj = InterpolatedUnivariateSpline(self.burst_noise.azimuth_line,
                                                        self.burst_noise.azimuth_lut,
                                                        k=1)
             grid_az = np.arange(self.burst_noise.line_from, self.burst_noise.line_to + 1)
