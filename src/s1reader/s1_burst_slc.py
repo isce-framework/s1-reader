@@ -629,7 +629,7 @@ class Sentinel1BurstSlc:
         nrows, ncols = self.shape
 
         # Interpolate the range noise vector
-        intp_rg_lut = InterpolatedUnivariateSpline(self.burst_noise.range_pixel,
+        rg_lut_interp_obj = InterpolatedUnivariateSpline(self.burst_noise.range_pixel,
                                                    self.burst_noise.range_lut,
                                                    k=1)
         if self.burst_noise.azimuth_last_range_sample is not None:
