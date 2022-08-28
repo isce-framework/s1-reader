@@ -637,8 +637,8 @@ class Sentinel1BurstSlc:
 
         # Interpolate the range noise vector
         rg_lut_interp_obj = InterpolatedUnivariateSpline(self.burst_noise.range_pixel,
-                                                   self.burst_noise.range_lut,
-                                                   k=1)
+                                                         self.burst_noise.range_lut,
+                                                         k=1)
         if self.burst_noise.azimuth_last_range_sample is not None:
             vec_rg = np.arange(self.burst_noise.azimuth_last_range_sample + 1)
         else:
@@ -651,8 +651,8 @@ class Sentinel1BurstSlc:
             az_lut_interpolated = np.ones(nrows).reshape((nrows, 1))
         else:  # IPF >= 2.90
             az_lut_interp_obj = InterpolatedUnivariateSpline(self.burst_noise.azimuth_line,
-                                                       self.burst_noise.azimuth_lut,
-                                                       k=1)
+                                                             self.burst_noise.azimuth_lut,
+                                                             k=1)
             vec_az = np.arange(self.burst_noise.line_from, self.burst_noise.line_to + 1)
             az_lut_interpolated = az_lut_interp_obj(vec_az).reshape((nrows, 1))
 
@@ -666,6 +666,7 @@ class Sentinel1BurstSlc:
         Based on ESA docuemnt :
         "Impact of the Elevation Antenna Pattern Phase Compensation
          on the Interferometric Phase Preservation"
+
         Document URL:
         https://sentinel.esa.int/documents/247904/1653440/Sentinel-1-IPF_EAP_Phase_correction
         '''
@@ -686,7 +687,7 @@ class Sentinel1BurstSlc:
         interpolator_gain = interp1d(theta_eap, self.burst_eap.gain_eap)
         gain_eap_interpolated = interpolator_gain(theta)
         phi_eap = np.angle(gain_eap_interpolated)
-        cJ = np.complex64(1.0j)
-        gain_eap = np.exp(cJ * phi_eap)
+        c_j = np.complex64(1.0j)
+        gain_eap = np.exp(c_j * phi_eap)
 
         return gain_eap
