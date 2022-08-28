@@ -564,9 +564,7 @@ class BurstEAP:
         eta_start = azimuth_time
         tau_0 = product_annotation.slant_range_time
         tau_sub = product_annotation.antenna_pattern_slant_range_time[id_closest]
-        #theta_sub = product_annotation.antenna_pattern_elevation_pattern[id_closest]
         theta_sub = product_annotation.antenna_pattern_elevation_angle[id_closest]
-        #self.theta_am = product_annotation.antenna_pattern_elevation_angle
         G_eap = aux_cal.elevation_antenna_pattern
         delta_theta = aux_cal.elevation_angle_increment
 
