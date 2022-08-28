@@ -626,8 +626,6 @@ class Sentinel1BurstSlc:
     @property
     def thermal_noise_lut(self):
         '''Returns the burst-sized LUT for thermal noise correction'''
-        #ncols = self.azimuth_last_range_sample - self.azimuth_first_range_sample + 1
-        #nrows = self.line_to - self.line_from + 1
         ncols = self.shape[1]
         nrows = self.shape[0]
 
