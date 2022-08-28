@@ -626,8 +626,7 @@ class Sentinel1BurstSlc:
     @property
     def thermal_noise_lut(self):
         '''Returns the burst-sized LUT for thermal noise correction'''
-        ncols = self.shape[1]
-        nrows = self.shape[0]
+        nrows, ncols = self.shape
 
         # Interpolate the range noise vector
         intp_rg_lut = InterpolatedUnivariateSpline(self.burst_noise.range_pixel,
