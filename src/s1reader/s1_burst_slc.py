@@ -626,11 +626,13 @@ class Sentinel1BurstSlc:
     @property
     def thermal_noise_lut(self):
         '''Returns the burst-sized LUT for thermal noise correction
-            
+
         Returns
         -------
         arr_lut_total: np.array
             2d array containing thermal noise correction look up table values
+        '''
+
         nrows, ncols = self.shape
 
         # Interpolate the range noise vector
@@ -641,19 +643,20 @@ class Sentinel1BurstSlc:
             vec_rg = np.arange(self.burst_noise.azimuth_last_range_sample + 1)
         else:
             vec_rg = np.arange(ncols)
-        rg_lut_interp = intp_rg_lut(vec_rg).reshape((1, ncols))
+        rg_lut_interpolated = rg_lut_interp_obj(vec_rg).reshape((1, ncols))
+
 
         # Interpolate the azimuth noise vector
         if (self.burst_noise.azimuth_line is None) or (self.burst_noise.azimuth_lut is None):
             az_lut_interpolated = np.ones(nrows).reshape((nrows, 1))
         else:  # IPF >= 2.90
-            az_lut_intp_obj = InterpolatedUnivariateSpline(self.burst_noise.azimuth_line,
+            az_lut_interp_obj = InterpolatedUnivariateSpline(self.burst_noise.azimuth_line,
                                                        self.burst_noise.azimuth_lut,
                                                        k=1)
-            grid_az = np.arange(self.burst_noise.line_from, self.burst_noise.line_to + 1)
-            az_lut_interp = intp_az_lut(grid_az).reshape((nrows, 1))
+            vec_az = np.arange(self.burst_noise.line_from, self.burst_noise.line_to + 1)
+            az_lut_interpolated = az_lut_interp_obj(vec_az).reshape((nrows, 1))
 
-        arr_lut_total = np.matmul(az_lut_interp, rg_lut_interpolated)
+        arr_lut_total = np.matmul(az_lut_interpolated, rg_lut_interpolated)
 
         return arr_lut_total
 
