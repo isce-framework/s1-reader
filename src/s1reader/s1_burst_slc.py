@@ -640,7 +640,7 @@ class Sentinel1BurstSlc:
 
         # Interpolate the azimuth noise vector
         if (self.burst_noise.azimuth_line is None) or (self.burst_noise.azimuth_lut is None):
-            az_lut_interp = np.ones(nrows).reshape((nrows, 1))
+            az_lut_interpolated = np.ones(nrows).reshape((nrows, 1))
         else:  # IPF >= 2.90
             az_lut_intp_obj = InterpolatedUnivariateSpline(self.burst_noise.azimuth_line,
                                                        self.burst_noise.azimuth_lut,
