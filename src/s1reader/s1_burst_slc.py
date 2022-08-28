@@ -625,14 +625,16 @@ class Sentinel1BurstSlc:
 
     @property
     def thermal_noise_lut(self):
-        '''Returns the burst-sized LUT for thermal noise correction'''
-        #ncols = self.azimuth_last_range_sample - self.azimuth_first_range_sample + 1
-        #nrows = self.line_to - self.line_from + 1
-        ncols = self.shape[1]
-        nrows = self.shape[0]
+        '''Returns the burst-sized LUT for thermal noise correction
+            
+        Returns
+        -------
+        arr_lut_total: np.array
+            2d array containing thermal noise correction look up table values
+        nrows, ncols = self.shape
 
         # Interpolate the range noise vector
-        intp_rg_lut = InterpolatedUnivariateSpline(self.burst_noise.range_pixel,
+        rg_lut_interp_obj = InterpolatedUnivariateSpline(self.burst_noise.range_pixel,
                                                    self.burst_noise.range_lut,
                                                    k=1)
         if self.burst_noise.azimuth_last_range_sample is not None:
@@ -643,9 +645,9 @@ class Sentinel1BurstSlc:
 
         # Interpolate the azimuth noise vector
         if (self.burst_noise.azimuth_line is None) or (self.burst_noise.azimuth_lut is None):
-            az_lut_interp = np.ones(nrows).reshape((nrows, 1))
+            az_lut_interpolated = np.ones(nrows).reshape((nrows, 1))
         else:  # IPF >= 2.90
-            intp_az_lut = InterpolatedUnivariateSpline(self.burst_noise.azimuth_line,
+            az_lut_intp_obj = InterpolatedUnivariateSpline(self.burst_noise.azimuth_line,
                                                        self.burst_noise.azimuth_lut,
                                                        k=1)
             grid_az = np.arange(self.burst_noise.line_from, self.burst_noise.line_to + 1)
@@ -667,7 +669,7 @@ class Sentinel1BurstSlc:
 
         n_elt = len(self.burst_eap.gain_eap)
 
-        theta_am = (np.arange(n_elt)-(n_elt-1)/2)* self.burst_eap.delta_theta
+        theta_am = (np.arange(n_elt) - (n_elt - 1) / 2) * self.burst_eap.delta_theta
 
         delta_anx = self.burst_eap.eta_start-self.burst_eap.ascending_node_time
         theta_offnadir = self.burst_eap._anx2roll(delta_anx.seconds + delta_anx.microseconds * 1.0e-6)
