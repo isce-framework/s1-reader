@@ -13,8 +13,13 @@ import numpy as np
 import shapely
 
 from nisar.workflows.stage_dem import check_dateline
+
+from s1reader import s1_annotation  # to access __file__
+from s1reader.s1_annotation import ProductAnnotation, NoiseAnnotation,\
+                                   CalibrationAnnotation, AuxCal, \
+                                   BurstCalibration, BurstEAP, BurstNoise
+
 from s1reader.s1_burst_slc import Doppler, Sentinel1BurstSlc
-from s1reader import s1_annotation
 
 
 esa_track_burst_id_file = f"{os.path.dirname(os.path.realpath(__file__))}/data/sentinel1_track_burst_id.txt"
@@ -383,7 +388,7 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
     # Load the Product annotation - for EAP calibration
     with open_method(annotation_path, 'r') as f_lads:
         tree_lads = ET.parse(f_lads)
-        product_annotation = s1_annotation.ProductAnnotation.from_et(tree_lads)
+        product_annotation = ProductAnnotation.from_et(tree_lads)
 
     # load the Calibraton annotation
     calibration_annotation_path =\
@@ -391,15 +396,15 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
     with open_method(calibration_annotation_path, 'r') as f_cads:
         tree_cads = ET.parse(f_cads)
         calibration_annotation =\
-            s1_annotation.CalibrationAnnotation.from_et(tree_cads,
-                                                        calibration_annotation_path)
+            CalibrationAnnotation.from_et(tree_cads,
+                                          calibration_annotation_path)
 
     # load the Noise annotation
     noise_annotation_path = annotation_path.replace('annotation/', 'annotation/calibration/noise-')
     with open_method(noise_annotation_path, 'r') as f_nads:
         tree_nads = ET.parse(f_nads)
-        noise_annotation = s1_annotation.NoiseAnnotation.from_et(tree_nads, ipf_version,
-                                                                 noise_annotation_path)
+        noise_annotation = NoiseAnnotation.from_et(tree_nads, ipf_version,
+                                                   noise_annotation_path)
 
     # load AUX_CAL annotation
     flag_apply_eap = is_eap_correction_necessary(ipf_version)
@@ -409,11 +414,11 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
                                             platform_id,
                                             product_annotation.inst_config_id)
 
-        aux_cal_subswath = s1_annotation.AuxCal.load_from_zip_file(path_aux_cal_zip,
-                                                                   pol,
-                                                                   subswath_id)
+        aux_cal_subswath = AuxCal.load_from_zip_file(path_aux_cal_zip,
+                                                     pol,
+                                                     subswath_id)
     else:
-        #No need to load aux_cal (not applying EAP correction)
+        # No need to load aux_cal (not applying EAP correction)
         aux_cal_subswath = None
 
     # Nearly all metadata loaded here is common to all bursts in annotation XML
@@ -535,17 +540,14 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
 
 
         #Extract burst-wise information for Calibration, Noise, and EAP correction
-        burst_calibration = \
-            s1_annotation.BurstCalibration.from_calibration_annotation(calibration_annotation,
-                                                                       sensing_start)
-        burst_noise = \
-            s1_annotation.BurstNoise.from_noise_annotation(noise_annotation, sensing_start,
-                                                           i*n_lines, (i+1)*n_lines-1, ipf_version)
+        burst_calibration = BurstCalibration.from_calibration_annotation(calibration_annotation,
+                                                                         sensing_start)
+        burst_noise = BurstNoise.from_noise_annotation(noise_annotation, sensing_start,
+                                             i*n_lines, (i+1)*n_lines-1, ipf_version)
         if flag_apply_eap.phase_correction:
-            burst_aux_cal = \
-                s1_annotation.BurstEAP.from_product_annotation_and_aux_cal(product_annotation,
-                                                                           aux_cal_subswath,
-                                                                           sensing_start)
+            burst_aux_cal = BurstEAP.from_product_annotation_and_aux_cal(product_annotation,
+                                                                         aux_cal_subswath,
+                                                                         sensing_start)
         else:
             # Not applying EAP correction; No need to fill in `burst_aux_cal`
             burst_aux_cal = None
