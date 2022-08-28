@@ -625,7 +625,12 @@ class Sentinel1BurstSlc:
 
     @property
     def thermal_noise_lut(self):
-        '''Returns the burst-sized LUT for thermal noise correction'''
+        '''Returns the burst-sized LUT for thermal noise correction
+            
+        Returns
+        -------
+        arr_lut_total: np.array
+            2d array containing thermal noise correction look up table values
         nrows, ncols = self.shape
 
         # Interpolate the range noise vector
