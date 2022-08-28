@@ -519,11 +519,12 @@ class BurstCalibration:
 
 @dataclass
 class BurstEAP:
-    '''EAP correction information for Sentinel-1 IW SLC burst
+    '''Elevation antenna pattern (EAP) correction information for
+    Sentinel-1 IW SLC burst
     '''
     #from LADS
-    Ns: int  # number of samples
-    fs: float  # range sampling rate
+    num_sample: int  # number of samples
+    freq_sampling: float  # range sampling rate
     eta_start: datetime.datetime
     tau_0: float  # imageInformation/slantRangeTime
     tau_sub: np.ndarray  # antennaPattern/slantRangeTime
@@ -532,7 +533,7 @@ class BurstEAP:
     ascending_node_time: datetime.datetime
 
     #from AUX_CAL
-    G_eap: np.ndarray  # elevationAntennaPattern
+    gain_eap: np.ndarray  # elevationAntennaPattern
     delta_theta:float  # elavationAngleIncrement
 
     @classmethod
@@ -558,23 +559,22 @@ class BurstEAP:
             A burst-wide information for EAP correction
 
         '''
-        id_closest = closest_block_to_azimuth_time(product_annotation.antenna_pattern_azimuth_time, azimuth_time)
-        Ns = product_annotation.number_of_samples
-        fs = product_annotation.range_sampling_rate
+        id_closest = closest_block_to_azimuth_time(product_annotation.antenna_pattern_azimuth_time,
+                                                   azimuth_time)
+        num_sample = product_annotation.number_of_samples
+        freq_sampling = product_annotation.range_sampling_rate
         eta_start = azimuth_time
         tau_0 = product_annotation.slant_range_time
         tau_sub = product_annotation.antenna_pattern_slant_range_time[id_closest]
-        #theta_sub = product_annotation.antenna_pattern_elevation_pattern[id_closest]
         theta_sub = product_annotation.antenna_pattern_elevation_angle[id_closest]
-        #self.theta_am = product_annotation.antenna_pattern_elevation_angle
-        G_eap = aux_cal.elevation_antenna_pattern
+        gain_eap = aux_cal.elevation_antenna_pattern
         delta_theta = aux_cal.elevation_angle_increment
 
         ascending_node_time = product_annotation.ascending_node_time
 
-        return cls(Ns, fs, eta_start, tau_0, tau_sub, theta_sub,
+        return cls(num_sample, freq_sampling, eta_start, tau_0, tau_sub, theta_sub,
                    azimuth_time, ascending_node_time,
-                   G_eap, delta_theta)
+                   gain_eap, delta_theta)
 
 
     def _anx2roll(self, delta_anx):
@@ -606,11 +606,23 @@ class BurstEAP:
 
     def _anx2height(self, delta_anx):
         '''
-        Borrowed from ISCE2. The original docstring as below:
-
         Returns the platform nominal height as function of elapse time from
         ascending node crossing time (ANX).
         Straight from S1A documention.
+
+        Code copied from ISCE2.
+
+
+        Parameters:
+        -----------
+        delta_anx: float
+            elapsed time from ANX time
+
+
+        Returns:
+        --------
+        _: float
+            nominal height of the platform
 
         '''
 
@@ -624,14 +636,13 @@ class BurstEAP:
         phi = np.array([3.1495, -1.5655 , -3.1297, 4.7222]) #;radians
 
         ###Orbital time period in seconds
-        Torb = (12*24*60*60) / 175.
+        t_orb = (12*24*60*60) / 175.
 
         ###Angular velocity
-        worb = 2*np.pi / Torb
+        worb = 2*np.pi / t_orb
 
         ####Evaluation of series
         h_t = h_0
-        #for i in range(len(h)):
         for i, h_i in enumerate(h):
             h_t += h_i * np.sin((i+1) * worb * delta_anx + phi[i])
 

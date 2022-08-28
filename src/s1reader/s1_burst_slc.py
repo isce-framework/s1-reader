@@ -636,10 +636,10 @@ class Sentinel1BurstSlc:
                                                    self.burst_noise.range_lut,
                                                    k=1)
         if self.burst_noise.azimuth_last_range_sample is not None:
-            grid_rg = np.arange(self.burst_noise.azimuth_last_range_sample + 1)
+            vec_rg = np.arange(self.burst_noise.azimuth_last_range_sample + 1)
         else:
-            grid_rg = np.arange(ncols)
-        rg_lut_interp = intp_rg_lut(grid_rg).reshape((1, ncols))
+            vec_rg = np.arange(ncols)
+        rg_lut_interp = intp_rg_lut(vec_rg).reshape((1, ncols))
 
         # Interpolate the azimuth noise vector
         if (self.burst_noise.azimuth_line is None) or (self.burst_noise.azimuth_lut is None):
@@ -651,7 +651,7 @@ class Sentinel1BurstSlc:
             grid_az = np.arange(self.burst_noise.line_from, self.burst_noise.line_to + 1)
             az_lut_interp = intp_az_lut(grid_az).reshape((nrows, 1))
 
-        arr_lut_total = np.matmul(az_lut_interp, rg_lut_interp)
+        arr_lut_total = np.matmul(az_lut_interp, rg_lut_interpolated)
 
         return arr_lut_total
 
@@ -659,10 +659,13 @@ class Sentinel1BurstSlc:
     def eap_compensation_lut(self):
         '''Returns LUT for EAP compensation.
         Based on ESA docuemnt :
-        "Impact of the Elevation Antenna Pattern Phase Compensation on the Interferometric Phase Preservation"
+        "Impact of the Elevation Antenna Pattern Phase Compensation
+         on the Interferometric Phase Preservation"
+        Document URL:
+        https://sentinel.esa.int/documents/247904/1653440/Sentinel-1-IPF_EAP_Phase_correction
         '''
-        
-        n_elt = len(self.burst_eap.G_eap)
+
+        n_elt = len(self.burst_eap.gain_eap)
 
         theta_am = (np.arange(n_elt)-(n_elt-1)/2)* self.burst_eap.delta_theta
 
@@ -671,14 +674,14 @@ class Sentinel1BurstSlc:
 
         theta_eap = theta_am + theta_offnadir
 
-        tau = self.burst_eap.tau_0 + np.arange(self.burst_eap.Ns) / self.burst_eap.fs
+        tau = self.burst_eap.tau_0 + np.arange(self.burst_eap.num_sample) / self.burst_eap.freq_sampling
 
         theta = np.interp(tau, self.burst_eap.tau_sub, self.burst_eap.theta_sub)
 
-        interpolator_G = interp1d(theta_eap, self.burst_eap.G_eap)
-        G_eap_interpolated = interpolator_G(theta)
-        phi_EAP = np.angle(G_eap_interpolated)
+        interpolator_gain = interp1d(theta_eap, self.burst_eap.gain_eap)
+        gain_eap_interpolated = interpolator_gain(theta)
+        phi_eap = np.angle(gain_eap_interpolated)
         cJ = np.complex64(1.0j)
-        G_EAP = np.exp(cJ * phi_EAP)
+        gain_eap = np.exp(cJ * phi_eap)
 
-        return G_EAP
+        return gain_eap
