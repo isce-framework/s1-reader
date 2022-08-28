@@ -12,7 +12,6 @@ import zipfile
 import numpy as np
 
 from packaging import version
-#from scipy.interpolate import InterpolatedUnivariateSpline, interp1d
 
 #A IPF version from which has azimuth noise vector
 version_threshold_azimuth_noise_vector = version.parse('2.90')
@@ -322,7 +321,11 @@ class AuxCal(AnnotationBase):
         cls: AuxCal class populated by et_in in the parameter
 
         '''
-        str_safe_aux_cal = os.path.basename(path_aux_cal_zip).replace('.zip','')
+        if os.path.exists(path_aux_cal_zip):
+            str_safe_aux_cal = os.path.basename(path_aux_cal_zip).replace('.zip','')
+        else:
+            raise ValueError(f'Cannot find AUX_CAL .zip file: {path_aux_cal_zip}')
+
         with zipfile.ZipFile(path_aux_cal_zip, 'r') as zipfile_aux_cal:
             with zipfile_aux_cal.open(f'{str_safe_aux_cal}/data/s1a-aux-cal.xml','r') as f_aux_cal:
                 et_in = ET.parse(f_aux_cal)
@@ -430,7 +433,8 @@ class BurstNoise:
         '''
 
         basename_nads = noise_annotation.basename_annotation
-        id_closest = closest_block_to_azimuth_time(noise_annotation.rg_list_azimuth_time, azimuth_time)
+        id_closest = closest_block_to_azimuth_time(noise_annotation.rg_list_azimuth_time,
+                                                   azimuth_time)
 
         range_azimith_time = noise_annotation.rg_list_azimuth_time[id_closest]
         range_line = noise_annotation.rg_list_line[id_closest]
@@ -443,10 +447,11 @@ class BurstNoise:
         azimuth_last_range_sample = noise_annotation.az_last_range_sample
 
         if ipf_version >= version_threshold_azimuth_noise_vector:
-            #Azimuth noise LUT exists - crop to the extent of the burst
+            # Azimuth noise LUT exists - crop to the extent of the burst
             id_top = np.argmin(np.abs(noise_annotation.az_line-line_from))
             id_bottom = np.argmin(np.abs(noise_annotation.az_line-line_to))
-            #put some margin when possible
+
+            # put some margin when possible
             if id_top > 0:
                 id_top -= 1
             if id_bottom < len(noise_annotation.az_line)-1:
@@ -505,7 +510,6 @@ class BurstCalibration:
         line = calibration_annotation.list_line[id_closest]
         pixel = calibration_annotation.list_pixel[id_closest]
         sigma_naught = calibration_annotation.list_sigma_nought[id_closest]
-        #beta_naught = calibration_annotation.list_beta_nought[id_closest]
         gamma = calibration_annotation.list_gamma[id_closest]
         dn = calibration_annotation.list_dn[id_closest]
 
@@ -526,7 +530,7 @@ class BurstEAP:
     '''Elevation antenna pattern (EAP) correction information for
     Sentinel-1 IW SLC burst
     '''
-    #from LADS
+    # from LADS
     num_sample: int  # number of samples
     freq_sampling: float  # range sampling rate
     eta_start: datetime.datetime
@@ -536,7 +540,7 @@ class BurstEAP:
     azimuth_time: datetime.datetime
     ascending_node_time: datetime.datetime
 
-    #from AUX_CAL
+    # from AUX_CAL
     gain_eap: np.ndarray  # elevationAntennaPattern
     delta_theta:float  # elavationAngleIncrement
 
@@ -585,14 +589,14 @@ class BurstEAP:
         '''
         Returns the Platform nominal roll as function of elapsed time from
         ascending node crossing time (ANX). (Implemented from S1A documentation.)
-        
+
         Code copied from ISCE2.
-        
+
         Parameters
         ----------
         delta_anx: float
             elapsed time from ascending node crossing time
-            
+
         Returns
         -------
         _: float
@@ -638,22 +642,22 @@ class BurstEAP:
 
         '''
 
-        ###Average height
+        ### Average height
         h_0 = 707714.8  #;m
 
-        ####Perturbation amplitudes
+        #### Perturbation amplitudes
         h = np.array([8351.5, 8947.0, 23.32, 11.74]) #;m
 
-        ####Perturbation phases
+        #### Perturbation phases
         phi = np.array([3.1495, -1.5655 , -3.1297, 4.7222]) #;radians
 
-        ###Orbital time period in seconds
+        ###O rbital time period in seconds
         t_orb = (12*24*60*60) / 175.
 
-        ###Angular velocity
+        ### Angular velocity
         worb = 2*np.pi / t_orb
 
-        ####Evaluation of series
+        #### Evaluation of series
         h_t = h_0
         for i, h_i in enumerate(h):
             h_t += h_i * np.sin((i+1) * worb * delta_anx + phi[i])
