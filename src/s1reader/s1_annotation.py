@@ -7,6 +7,7 @@ from dataclasses import dataclass
 import datetime
 import os
 import xml.etree.ElementTree as ET
+import zipfile
 
 import numpy as np
 
@@ -304,13 +305,13 @@ class AuxCal(AnnotationBase):
 
 
     @classmethod
-    def from_et(cls, et_in: ET, pol: str, str_swath: str):
+    def load_from_zip_file(cls, path_aux_cal_zip: str, pol: str, str_swath: str):
         '''A class method that Extracts list of information AUX_CAL from the input ET.
 
         Parameters
         ---------
-        et_in : ET
-            ET from AUX_CAL
+        et_in : path_aux_cal_zip
+            Path to the AUX_CAL .zip file
         pol: str {'vv','vh','hh','hv'}
             Polarization of interest
         str_swath: {'iw1','iw2','iw3'}
@@ -321,6 +322,10 @@ class AuxCal(AnnotationBase):
         cls: AuxCal class populated by et_in in the parameter
 
         '''
+        str_safe_aux_cal = os.path.basename(path_aux_cal_zip).replace('.zip','')
+        with zipfile.ZipFile(path_aux_cal_zip, 'r') as zipfile_aux_cal:
+            with zipfile_aux_cal.open(f'{str_safe_aux_cal}/data/s1a-aux-cal.xml','r') as f_aux_cal:
+                et_in = ET.parse(f_aux_cal)
 
         calibration_params_list = et_in.find('calibrationParamsList')
         for calibration_params in calibration_params_list:
@@ -357,7 +362,6 @@ class AuxCal(AnnotationBase):
                     float(calibration_params.find('noiseCalibrationFactor').text)
 
         return cls
-
 
 def closest_block_to_azimuth_time(vector_azimuth_time: np.ndarray,
                                   azimuth_time_burst: datetime.datetime) -> int:

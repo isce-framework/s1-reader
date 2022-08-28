@@ -404,15 +404,14 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
     # load AUX_CAL annotation
     flag_apply_eap = is_eap_correction_necessary(ipf_version)
     if flag_apply_eap.phase_correction:
-        path_aux_cal = get_path_aux_cal(f'{os.path.dirname(s1_annotation.__file__)}/data/aux_cal',
-                                        platform_id,
-                                        product_annotation.inst_config_id)
+        path_aux_cal_zip = get_path_aux_cal(f'{os.path.dirname(s1_annotation.__file__)}'
+                                            '/data/aux_cal',
+                                            platform_id,
+                                            product_annotation.inst_config_id)
 
-        with zipfile.ZipFile(path_aux_cal,'r') as zipfile_aux_cal:
-            str_safe_aux_cal = os.path.basename(path_aux_cal).replace('.zip','')
-            with zipfile_aux_cal.open(f'{str_safe_aux_cal}/data/s1a-aux-cal.xml','r') as f_aux_cal:
-                tree_aux_cal = ET.parse(f_aux_cal)
-        aux_cal_subswath = s1_annotation.AuxCal.from_et(tree_aux_cal, pol, subswath_id)
+        aux_cal_subswath = s1_annotation.AuxCal.load_from_zip_file(path_aux_cal_zip,
+                                                                   pol,
+                                                                   subswath_id)
     else:
         #No need to load aux_cal (not applying EAP correction)
         aux_cal_subswath = None
