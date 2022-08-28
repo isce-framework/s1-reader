@@ -577,27 +577,35 @@ class BurstEAP:
 
     def _anx2roll(self, delta_anx):
         '''
-        Borrowed from ISCE2. The original docstring as below:
-
         Returns the Platform nominal roll as function of elapsed time from
-        ascending node crossing time (ANX).
-        Straight from S1A documentation.
+        ascending node crossing time (ANX). (Implemented from S1A documentation.)
+        
+        Code copied from ISCE2.
+        
+        Parameters
+        ----------
+        delta_anx: float
+            elapsed time from ascending node crossing time
+            
+        Returns
+        -------
+        _: float
+            Estimated nominal roll (degrees)
         '''
-
-        ####Estimate altitude based on time elapsed since ANX
+        # Estimate altitude based on time elapsed since ANX
         altitude = self._anx2height(delta_anx)
 
-        ####Reference altitude
-        href = 711.700 #;km
+        # Reference altitude (km)
+        href = 711.700
 
-        ####Reference boresight at reference altitude
-        boresight_ref = 29.450 # ; deg
+        # Reference boresight at reference altitude (degrees)
+        boresight_ref = 29.450
 
-        ####Partial derivative of roll vs altitude
-        alpha_roll = 0.0566 # ;deg/km
+        # Partial derivative of roll vs altitude (degrees/km)
+        alpha_roll = 0.0566
 
-        ####Estimate nominal roll
-        nominal_roll = boresight_ref - alpha_roll * (altitude/1000.0 - href)  #Theta off nadir
+        # Estimate nominal roll i.e. theta off nadir (degrees)
+        nominal_roll = boresight_ref - alpha_roll * (altitude/1000.0 - href)
 
         return nominal_roll
 
