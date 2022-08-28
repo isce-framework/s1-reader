@@ -669,6 +669,11 @@ class Sentinel1BurstSlc:
 
         Document URL:
         https://sentinel.esa.int/documents/247904/1653440/Sentinel-1-IPF_EAP_Phase_correction
+
+        Returns:
+        -------
+            gain_eap: EAP phase for the burst to be compensated
+
         '''
 
         n_elt = len(self.burst_eap.gain_eap)
