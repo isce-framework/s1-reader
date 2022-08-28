@@ -271,7 +271,7 @@ class ProductAnnotation(AnnotationBase):
         cls.xml_et = et_in
 
         cls.image_information_slant_range_time = cls._parse_scalar('imageAnnotation/imageInformation/slantRangeTime', 'scalar_float')
-        cls.inst_config_id = cls._parse_scalar('generalAnnotation/downlinkInformationList/downlinkInformation/downlinkValues/instrumentConfigId', 'scalar_int')    
+        cls.inst_config_id = cls._parse_scalar('generalAnnotation/downlinkInformationList/downlinkInformation/downlinkValues/instrumentConfigId', 'scalar_int')
         cls.antenna_pattern_azimuth_time = cls._parse_vectorlist('antennaPattern/antennaPatternList', 'azimuthTime', 'datetime')
         cls.antenna_pattern_slant_range_time = cls._parse_vectorlist('antennaPattern/antennaPatternList', 'slantRangeTime', 'vector_float')
         cls.antenna_pattern_elevation_angle = cls._parse_vectorlist('antennaPattern/antennaPatternList', 'elevationAngle', 'vector_float')
