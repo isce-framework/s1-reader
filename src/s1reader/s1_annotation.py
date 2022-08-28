@@ -337,7 +337,7 @@ class AuxCal(AnnotationBase):
                 if n_val == len(arr_eap_val): #Provided in real numbers: In case of AUX_CAL for old IPFs.
                     cls.elevation_antenna_pattern = arr_eap_val
                 elif n_val*2 == len(arr_eap_val): #Provided in complex numbers: In case of recent IPFs e.g. 3.10
-                    cls.elevation_antenna_pattern = arr_eap_val[0::2]+arr_eap_val[1::2]*1.0j
+                    cls.elevation_antenna_pattern = arr_eap_val[0::2] + arr_eap_val[1::2] * 1.0j
                 else:
                     raise ValueError(f'The number of values does not match. n_val={n_val}, #values in elevationAntennaPattern/values={len(arr_eap_val)}')
 
