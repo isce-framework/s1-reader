@@ -285,9 +285,9 @@ def get_ipf_version(tree: ET):
 
     return ipf_version
 
-def get_path_aux_cal(directory_aux_cal: str, str_platform: str, inst_config_id: int):
+def get_path_aux_cal(directory_aux_cal: str, str_platform: str, instrument_cfg_id: int):
     '''
-    Decide what aux_cal to load
+    Decide which aux_cal to load
 
     Parameters:
     -----------
@@ -295,13 +295,12 @@ def get_path_aux_cal(directory_aux_cal: str, str_platform: str, inst_config_id: 
         Directory for the AUX_CAL .zip files
     str_platform: str
         'S1A' or 'S1B'
-    insc_config_id: int
+    instrument_cfg_id: int
         Instrument configuration ID
 
     Returns:
     --------
     path_aux_cal: AUX_CAL file that corresponds to the criteria provided
-
     '''
     list_aux_cal = glob.glob(f'{directory_aux_cal}/{str_platform}_AUX_CAL_V*.SAFE.zip')
     list_aux_cal.sort()
