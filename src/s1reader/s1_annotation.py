@@ -13,8 +13,8 @@ import numpy as np
 
 from packaging import version
 
-#A IPF version from which has azimuth noise vector
-version_threshold_azimuth_noise_vector = version.parse('2.90')
+#IPF version from which the NADS has azimuth noise vector annotation
+ipf_version_az_noise_vector_available_from = version.parse('2.90')
 
 @dataclass
 class AnnotationBase:
