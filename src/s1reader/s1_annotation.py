@@ -207,7 +207,7 @@ class NoiseAnnotation(AnnotationBase):
         cls.xml_et = et_in
         cls.basename_annotation = os.path.basename(path_annotation)
 
-        if ipf_version < version_threshold_azimuth_noise_vector: #legacy SAFE data
+        if ipf_version < ipf_version_az_noise_vector_available_from: #legacy SAFE data
             cls.rg_list_azimuth_time = cls._parse_vectorlist('noiseVectorList', 'azimuthTime', 'datetime')
             cls.rg_list_line = cls._parse_vectorlist('noiseVectorList', 'line', 'scalar_int')
             cls.rg_list_pixel = cls._parse_vectorlist('noiseVectorList', 'pixel', 'vector_int')
@@ -446,7 +446,7 @@ class BurstNoise:
         azimuth_last_azimuth_line = noise_annotation.az_last_azimuth_line
         azimuth_last_range_sample = noise_annotation.az_last_range_sample
 
-        if ipf_version >= version_threshold_azimuth_noise_vector:
+        if ipf_version >= ipf_version_az_noise_vector_available_from:
             # Azimuth noise LUT exists - crop to the extent of the burst
             id_top = np.argmin(np.abs(noise_annotation.az_line-line_from))
             id_bottom = np.argmin(np.abs(noise_annotation.az_line-line_to))
