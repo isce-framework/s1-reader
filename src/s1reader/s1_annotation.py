@@ -309,7 +309,7 @@ class AuxCal(AnnotationBase):
 
         Parameters
         ---------
-        et_in : path_aux_cal_zip
+        path_aux_cal_zip : str
             Path to the AUX_CAL .zip file
         pol: str {'vv','vh','hh','hv'}
             Polarization of interest
