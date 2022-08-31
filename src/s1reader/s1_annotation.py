@@ -624,7 +624,7 @@ class BurstEAP:
         '''
         Returns the platform nominal height as function of elapse time from
         ascending node crossing time (ANX).
-        Straight from S1A documention.
+        Implementation from S1A documention.
 
         Code copied from ISCE2.
 
