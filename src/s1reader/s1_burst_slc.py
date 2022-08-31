@@ -633,6 +633,9 @@ class Sentinel1BurstSlc:
             2d array containing thermal noise correction look up table values
         '''
 
+        if self.burst_noise is None:
+            raise ValueError('burst_noise is not defined for this burst.')
+
         nrows, ncols = self.shape
 
         # Interpolate the range noise vector
