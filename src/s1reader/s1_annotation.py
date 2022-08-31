@@ -240,7 +240,7 @@ class ProductAnnotation(AnnotationBase):
     image_information_slant_range_time: float
 
     # Attributes to be used when determining what AUX_CAL to load
-    inst_config_id: int
+    instrument_cfg_id: int
 
     #elevation_angle:
     antenna_pattern_azimuth_time: list
