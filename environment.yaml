@@ -6,4 +6,6 @@ dependencies:
   - numpy
   - gdal
   - isce3
+  - packaging
+  - requests
   - shapely
