@@ -8,7 +8,6 @@ from packaging import version
 import isce3
 import numpy as np
 from osgeo import gdal
-from scipy.interpolate import InterpolatedUnivariateSpline, interp1d
 
 from s1reader import s1_annotation
 
@@ -625,77 +624,25 @@ class Sentinel1BurstSlc:
 
     @property
     def thermal_noise_lut(self):
-        '''Returns the burst-sized LUT for thermal noise correction
-
-        Returns
-        -------
-        arr_lut_total: np.array
-            2d array containing thermal noise correction look up table values
         '''
-
+        Returns the LUT for thermal noise correction for the burst
+        '''
         if self.burst_noise is None:
             raise ValueError('burst_noise is not defined for this burst.')
 
-        nrows, ncols = self.shape
-
-        # Interpolate the range noise vector
-        rg_lut_interp_obj = InterpolatedUnivariateSpline(self.burst_noise.range_pixel,
-                                                         self.burst_noise.range_lut,
-                                                         k=1)
-        if self.burst_noise.azimuth_last_range_sample is not None:
-            vec_rg = np.arange(self.burst_noise.azimuth_last_range_sample + 1)
-        else:
-            vec_rg = np.arange(ncols)
-        rg_lut_interpolated = rg_lut_interp_obj(vec_rg).reshape((1, ncols))
-
-
-        # Interpolate the azimuth noise vector
-        if (self.burst_noise.azimuth_line is None) or (self.burst_noise.azimuth_lut is None):
-            az_lut_interpolated = np.ones(nrows).reshape((nrows, 1))
-        else:  # IPF >= 2.90
-            az_lut_interp_obj = InterpolatedUnivariateSpline(self.burst_noise.azimuth_line,
-                                                             self.burst_noise.azimuth_lut,
-                                                             k=1)
-            vec_az = np.arange(self.burst_noise.line_from, self.burst_noise.line_to + 1)
-            az_lut_interpolated = az_lut_interp_obj(vec_az).reshape((nrows, 1))
-
-        arr_lut_total = np.matmul(az_lut_interpolated, rg_lut_interpolated)
-
-        return arr_lut_total
+        return self.burst_noise.compute_thermal_noise_lut(self.shape)
 
     @property
     def eap_compensation_lut(self):
         '''Returns LUT for EAP compensation.
-        Based on ESA docuemnt :
-        "Impact of the Elevation Antenna Pattern Phase Compensation
-         on the Interferometric Phase Preservation"
-
-        Document URL:
-        https://sentinel.esa.int/documents/247904/1653440/Sentinel-1-IPF_EAP_Phase_correction
-
+        
         Returns:
         -------
-            gain_eap: EAP phase for the burst to be compensated
+            _: Interpolated EAP gain for the burst's lines
 
         '''
+        if self.burst_eap is None:
+            raise ValueError('burst_eap is not defined for this burst.'
+                            f' IPF version = {self.ipf_version}')
 
-        n_elt = len(self.burst_eap.gain_eap)
-
-        theta_am = (np.arange(n_elt) - (n_elt - 1) / 2) * self.burst_eap.delta_theta
-
-        delta_anx = self.burst_eap.eta_start-self.burst_eap.ascending_node_time
-        theta_offnadir = self.burst_eap._anx2roll(delta_anx.seconds + delta_anx.microseconds * 1.0e-6)
-
-        theta_eap = theta_am + theta_offnadir
-
-        tau = self.burst_eap.tau_0 + np.arange(self.burst_eap.num_sample) / self.burst_eap.freq_sampling
-
-        theta = np.interp(tau, self.burst_eap.tau_sub, self.burst_eap.theta_sub)
-
-        interpolator_gain = interp1d(theta_eap, self.burst_eap.gain_eap)
-        gain_eap_interpolated = interpolator_gain(theta)
-        phi_eap = np.angle(gain_eap_interpolated)
-        c_j = np.complex64(1.0j)
-        gain_eap = np.exp(c_j * phi_eap)
-
-        return gain_eap
+        return self.burst_eap.compute_eap_compensation_lut(self.width)

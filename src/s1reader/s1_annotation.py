@@ -11,6 +11,7 @@ import zipfile
 
 import numpy as np
 
+from scipy.interpolate import InterpolatedUnivariateSpline, interp1d
 from packaging import version
 
 #IPF version from which the NADS has azimuth noise vector annotation
@@ -470,6 +471,49 @@ class BurstNoise:
                    line_from, line_to)
 
 
+    def compute_thermal_noise_lut(self, shape_lut):
+        '''Calculate thermal noise LUT whose shape is `shape_lut`
+
+        Parameter:
+        ----------
+        shape_lut: tuple or list
+            Shape of the output LUT
+
+        Returns
+        -------
+        arr_lut_total: np.ndarray
+            2d array containing thermal noise correction look up table values
+        '''
+
+        nrows, ncols = shape_lut
+
+        # Interpolate the range noise vector
+        rg_lut_interp_obj = InterpolatedUnivariateSpline(self.range_pixel,
+                                                         self.range_lut,
+                                                         k=1)
+        if self.azimuth_last_range_sample is not None:
+            vec_rg = np.arange(self.azimuth_last_range_sample + 1)
+        else:
+            vec_rg = np.arange(ncols)
+        rg_lut_interpolated = rg_lut_interp_obj(vec_rg)
+
+        # Interpolate the azimuth noise vector
+        if (self.azimuth_line is None) or (self.azimuth_lut is None):
+            az_lut_interpolated = np.ones(nrows)
+        else:  # IPF >= 2.90
+            az_lut_interp_obj = InterpolatedUnivariateSpline(self.azimuth_line,
+                                                             self.azimuth_lut,
+                                                             k=1)
+            vec_az = np.arange(self.line_from, self.line_to + 1)
+            az_lut_interpolated = az_lut_interp_obj(vec_az)
+
+        arr_lut_total = np.matmul(az_lut_interpolated[..., np.newaxis],
+                                  rg_lut_interpolated[np.newaxis, ...])
+
+        return arr_lut_total
+
+
+
 @dataclass
 class BurstCalibration:
     '''Calibration information for Sentinel-1 IW SLC burst
@@ -531,7 +575,6 @@ class BurstEAP:
     Sentinel-1 IW SLC burst
     '''
     # from LADS
-    num_sample: int  # number of samples
     freq_sampling: float  # range sampling rate
     eta_start: datetime.datetime
     tau_0: float  # imageInformation/slantRangeTime
@@ -569,7 +612,6 @@ class BurstEAP:
         '''
         id_closest = closest_block_to_azimuth_time(product_annotation.antenna_pattern_azimuth_time,
                                                    azimuth_time)
-        num_sample = product_annotation.number_of_samples
         freq_sampling = product_annotation.range_sampling_rate
         eta_start = azimuth_time
         tau_0 = product_annotation.slant_range_time
@@ -580,9 +622,47 @@ class BurstEAP:
 
         ascending_node_time = product_annotation.ascending_node_time
 
-        return cls(num_sample, freq_sampling, eta_start, tau_0, tau_sub, theta_sub,
+        return cls(freq_sampling, eta_start, tau_0, tau_sub, theta_sub,
                    azimuth_time, ascending_node_time,
                    gain_eap, delta_theta)
+
+
+    def compute_eap_compensation_lut(self, num_sample):
+        '''Returns LUT for EAP compensation whose size is `num_sample`.
+        Based on ESA docuemnt :
+        "Impact of the Elevation Antenna Pattern Phase Compensation
+         on the Interferometric Phase Preservation"
+
+        Document URL:
+        https://sentinel.esa.int/documents/247904/1653440/Sentinel-1-IPF_EAP_Phase_correction
+
+        Parameter:
+        num_sample: int
+            Size of the output LUT
+
+        Return:
+        -------
+            gain_eap_interpolatd: EAP phase for the burst to be compensated
+
+        '''
+
+        n_elt = len(self.gain_eap)
+
+        theta_am = (np.arange(n_elt) - (n_elt - 1) / 2) * self.delta_theta
+
+        delta_anx = self.eta_start - self.ascending_node_time
+        theta_offnadir = self._anx2roll(delta_anx.seconds + delta_anx.microseconds * 1.0e-6)
+
+        theta_eap = theta_am + theta_offnadir
+
+        tau = self.tau_0 + np.arange(num_sample) / self.freq_sampling
+
+        theta = np.interp(tau, self.tau_sub, self.theta_sub)
+
+        interpolator_gain = interp1d(theta_eap, self.gain_eap)
+        gain_eap_interpolated = interpolator_gain(theta)
+
+        return gain_eap_interpolated
 
 
     def _anx2roll(self, delta_anx):
@@ -599,7 +679,7 @@ class BurstEAP:
 
         Returns
         -------
-        _: float
+        nominal_roll: float
             Estimated nominal roll (degrees)
         '''
         # Estimate altitude based on time elapsed since ANX
@@ -637,7 +717,7 @@ class BurstEAP:
 
         Returns:
         --------
-        _: float
+        h_t: float
             nominal height of the platform
 
         '''

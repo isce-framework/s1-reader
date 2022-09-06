@@ -301,10 +301,11 @@ def get_path_aux_cal(directory_aux_cal: str, str_platform: str, instrument_cfg_i
     Returns:
     --------
     path_aux_cal: AUX_CAL file that corresponds to the criteria provided
+
     '''
     list_aux_cal = glob.glob(f'{directory_aux_cal}/{str_platform}_AUX_CAL_V*.SAFE.zip')
     list_aux_cal.sort()
-    path_aux_cal = list_aux_cal[inst_config_id-1]
+    path_aux_cal = list_aux_cal[instrument_cfg_id-1]
 
     return path_aux_cal
 
