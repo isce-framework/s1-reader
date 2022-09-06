@@ -635,7 +635,7 @@ class Sentinel1BurstSlc:
     @property
     def eap_compensation_lut(self):
         '''Returns LUT for EAP compensation.
-        
+
         Returns:
         -------
             _: Interpolated EAP gain for the burst's lines

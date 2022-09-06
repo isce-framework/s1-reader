@@ -685,17 +685,17 @@ class BurstEAP:
         # Estimate altitude based on time elapsed since ANX
         altitude = self._anx2height(delta_anx)
 
-        # Reference altitude (km)
-        href = 711.700
+        # Reference altitude (m)
+        href = 711700.0
 
         # Reference boresight at reference altitude (degrees)
         boresight_ref = 29.450
 
-        # Partial derivative of roll vs altitude (degrees/km)
-        alpha_roll = 0.0566
+        # Partial derivative of roll vs altitude (degrees/m)
+        alpha_roll = 0.0566 / 1000.0
 
         # Estimate nominal roll i.e. theta off nadir (degrees)
-        nominal_roll = boresight_ref - alpha_roll * (altitude/1000.0 - href)
+        nominal_roll = boresight_ref - alpha_roll * (altitude - href)
 
         return nominal_roll
 
