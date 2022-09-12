@@ -307,6 +307,33 @@ def is_eap_correction_necessary(ipf_version: version.Version) -> SimpleNamespace
 
     return eap
 
+def get_track_burst_num(track_burst_num_file: str=esa_track_burst_id_file):
+    '''Read the start / stop burst number info of each track from ESA.
+
+    Parameters:
+    -----------
+    track_burst_num_file : str
+        Path to the track burst number files.
+
+    Returns:
+    --------
+    track_burst_num : dict
+        Dictionary where each key is the track number, and each value is a list
+        of two integers for the start and stop burst number
+    '''
+
+    # read the text file to list
+    track_nums = np.loadtxt(track_burst_num_file, dtype=int, usecols=[0])
+    burst_num0s = np.loadtxt(track_burst_num_file, dtype=int, usecols=[1])
+    burst_num1s = np.loadtxt(track_burst_num_file, dtype=int, usecols=[2])
+
+    # convert lists into dict
+    track_burst_num = dict()
+    for track_num, burst_num0, burst_num1 in zip(track_nums, burst_num0s, burst_num1s):
+        track_burst_num[track_num] = [burst_num0, burst_num1]
+
+    return track_burst_num
+
 def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
                    iw2_annotation_path: str, open_method=open):
     '''Parse bursts in Sentinel-1 annotation XML.
@@ -331,16 +358,13 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
         List of Sentinel1BurstSlc objects found in annotation XML.
     '''
 
-    # a 1D array where the indices are the Sentinel-1 track number
-    # and the data at each row are the corresponding cumulative ID
-    # number for the last burst of the given track (i.e., line number)
-    # get last burst ID number of each track and prepend 0
-    tracks_burst_id = np.insert(np.loadtxt(esa_track_burst_id_file,
-                                       usecols=[2], dtype=int),
-                                        0, 0)
+    # a dict where the key is the track number and the value is a list of
+    # two integers for the start and stop burst number
+    track_burst_num = get_track_burst_num()
 
     _, tail = os.path.split(annotation_path)
-    platform_id, subswath_id, _, pol = [x.upper() for x in tail.split('-')[:4]]
+    platform_id, swath_name, _, pol = [x.upper() for x in tail.split('-')[:4]]
+    file_id = os.path.basename(annotation_path.split('.SAFE')[0])
 
     # For IW mode, one burst has a duration of ~2.75 seconds and a burst
     # overlap of approximately ~0.4 seconds.
@@ -360,17 +384,20 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
     #    tree_lads = ET.parse(f_lads)
     #    product_annotation = s1_annotation.ProductAnnotation.from_et(tree_lads)
 
-    #load the Calibraton annotation
-    calibration_annotation_path = annotation_path.replace('annotation/', 'annotation/calibration/calibration-')
-    with open_method(calibration_annotation_path, 'r') as f_cads:
-        tree_cads = ET.parse(f_cads)
-        calibration_annotation = s1_annotation.CalibrationAnnotation.from_et(tree_cads)
+    eap = is_eap_correction_necessary(ipf_version)
+    if eap.magnitude_correction or eap.magnitude_correction:
 
-    #load the Noise annotation
-    noise_annotation_path = annotation_path.replace('annotation/', 'annotation/calibration/noise-')
-    with open_method(noise_annotation_path, 'r') as f_nads:
-        tree_nads = ET.parse(f_nads)
-        noise_annotation = s1_annotation.NoiseAnnotation.from_et(tree_nads, ipf_version)
+        #load the Calibraton annotation
+        calibration_annotation_path = annotation_path.replace('annotation/', 'annotation/calibration/calibration-')
+        with open_method(calibration_annotation_path, 'r') as f_cads:
+            tree_cads = ET.parse(f_cads)
+            calibration_annotation = s1_annotation.CalibrationAnnotation.from_et(tree_cads)
+
+        #load the Noise annotation
+        noise_annotation_path = annotation_path.replace('annotation/', 'annotation/calibration/noise-')
+        with open_method(noise_annotation_path, 'r') as f_nads:
+            tree_nads = ET.parse(f_nads)
+            noise_annotation = s1_annotation.NoiseAnnotation.from_et(tree_nads, ipf_version)
 
     # Nearly all metadata loaded here is common to all bursts in annotation XML
     with open_method(annotation_path, 'r') as f:
@@ -443,16 +470,11 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
         sensing_starts[i] = sensing_start
         sensing_times[i] = as_datetime(burst_list_element.find('sensingTime').text)
         dt = sensing_times[i] - ascending_node_time
-        id_burst = int((dt.seconds + dt.microseconds / 1e6) // burst_interval)
+        # local burst_num within one track, starting from 0
+        burst_num = int((dt.seconds + dt.microseconds / 1e6) // burst_interval)
 
-        # To be consistent with ESA let's start the counter of the ID
-        # from 1 instead of from 0, i,e, the ID of the first burst of the
-        # first track is 1
-        id_burst += 1
-
-        # the IDs are currently local to one track. Let's adjust based on
-        # the last ID of the previous track
-        id_burst += tracks_burst_id[track_number-1]
+        # convert the local burst_num to the global burst_num, starting from 1
+        burst_num += track_burst_num[track_number][0]
 
         # choose nearest azimuth FM rate
         d_seconds = 0.5 * (n_lines - 1) * azimuth_time_interval
@@ -487,13 +509,17 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
                           last_valid_samples[last_line])
 
 
-        burst_id = f't{track_number:03d}_{id_burst}_{subswath_id.lower()}'
+        burst_id = f't{track_number:03d}_{burst_num}_{swath_name.lower()}'
 
 
         #Extract burst-wise information for Calibration, Noise, and EAP correction
-        burst_calibration = s1_annotation.BurstCalibration.from_calibration_annotation(calibration_annotation, sensing_start)
-        bursts_noise=s1_annotation.BurstNoise()
-        bursts_noise.from_noise_annotation(noise_annotation,sensing_start,i*n_lines,(i+1)*n_lines-1,ipf_version)
+        if eap.magnitude_correction or eap.magnitude_correction:
+            burst_calibration = s1_annotation.BurstCalibration.from_calibration_annotation(calibration_annotation, sensing_start)
+            bursts_noise = s1_annotation.BurstNoise()
+            bursts_noise.from_noise_annotation(noise_annotation,sensing_start,i*n_lines,(i+1)*n_lines-1,ipf_version)
+        else:
+            burst_calibration = None
+            bursts_noise = None
 
         bursts[i] = Sentinel1BurstSlc(ipf_version, sensing_start, radar_freq, wavelength,
                                       azimuth_steer_rate, azimuth_time_interval,
@@ -501,14 +527,13 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
                                       range_sampling_rate, range_pxl_spacing,
                                       (n_lines, n_samples), az_fm_rate, doppler,
                                       rng_processing_bandwidth, pol, burst_id,
-                                      platform_id, center_pts[i],
+                                      platform_id, file_id, center_pts[i],
                                       boundary_pts[i], orbit, orbit_direction, orbit_number,
                                       tiff_path, i, first_valid_sample,
                                       last_sample, first_valid_line, last_line,
                                       range_window_type, range_window_coeff,
                                       rank, prf_raw_data, range_chirp_ramp_rate,
                                       burst_calibration, bursts_noise, None)
-
 
     return bursts
 
