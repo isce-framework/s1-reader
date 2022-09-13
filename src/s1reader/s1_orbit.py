@@ -15,7 +15,7 @@ scihub_user = 'gnssguest'
 scihub_password = 'gnssguest'
 
 
-def download_orbit(safe_file, orbit_dir):
+def download_orbit(safe_file: str, orbit_dir: str):
     '''
     Download orbits for S1-A/B SAFE "safe_file"
 
@@ -25,6 +25,11 @@ def download_orbit(safe_file, orbit_dir):
         File path to SAFE file for which download the orbits
     orbit_dir: str
         File path to directory where to store downloaded orbits
+
+    Returns:
+    --------
+    orbit_file : str
+        Path to the orbit file.
     '''
 
     # Create output directory & check internet connection
@@ -42,9 +47,11 @@ def download_orbit(safe_file, orbit_dir):
         orbit_dict = get_orbit_dict(sensor_id, start_time,
                                     end_time, 'AUX_RESORB')
     # Download orbit file
-    filename = os.path.join(orbit_dir, orbit_dict["orbit_name"])
-    if not os.path.exists(filename):
-       download_orbit_file(orbit_dir, orbit_dict['orbit_url'])
+    orbit_file = os.path.join(orbit_dir, orbit_dict["orbit_name"] + '.EOF')
+    if not os.path.exists(orbit_file):
+        download_orbit_file(orbit_dir, orbit_dict['orbit_url'])
+
+    return orbit_file
 
 
 def check_internet_connection():
@@ -168,15 +175,22 @@ def download_orbit_file(output_folder, orbit_url):
     orbit_url: str
         Remote url of orbit file to download
     '''
-
+    print('downloading URL:', orbit_url)
     response = requests.get(url=orbit_url, auth=(scihub_user, scihub_password))
+
     # Get header and find filename
     header = response.headers['content-disposition']
-    _, header_params = cgi.parse_header(header)
+    header_params = cgi.parse_header(header)[1]
     # construct orbit filename
-    orbit_filename = os.path.join(output_folder, header_params['filename'])
+    orbit_file = os.path.join(output_folder, header_params['filename'])
+
     # Save orbits
-    open(orbit_filename, 'wb').write(response.content)
+    with open(orbit_file, 'wb') as f:
+        for chunk in response.iter_content(chunk_size=1024):
+            if chunk:
+                f.write(chunk)
+                f.flush()
+    return orbit_file
 
 
 def get_file_name_tokens(zip_path: str) -> [str, list[datetime.datetime]]:
@@ -204,35 +218,43 @@ def get_file_name_tokens(zip_path: str) -> [str, list[datetime.datetime]]:
 # lambda to check if file exists if desired sat_id in basename
 item_valid = lambda item, sat_id: os.path.isfile(item) and sat_id in os.path.basename(item)
 
-
-def get_orbit_file_from_list(zip_path: str, orbit_file_list: list[str]) -> str:
+def get_orbit_file_from_dir(zip_path: str, orbit_dir: str, auto_download: bool=False) -> str:
     '''Get orbit state vector list for a given swath.
 
     Parameters:
     -----------
     zip_path : string
-        Path to Sentinel1 SAFE zip file. File names required to adhere to the
+        Path to Sentinel1 SAFE zip file. Base names required to adhere to the
         format described here:
         https://sentinel.esa.int/web/sentinel/user-guides/sentinel-1-sar/naming-conventions
-    orbit_file_list: list[str]
-        List containing orbit files paths. Orbit files required to adhere to
-        naming convention found here:
+    orbit_dir : string
+        Path to directory containing orbit files. Orbit files required to adhere
+        to naming convention found here:
         https://s1qc.asf.alaska.edu/aux_poeorb/
+    auto_download : bool
+        Automatically download the orbit file if not exist in the orbit_dir.
 
     Returns:
     --------
-    orbit_path : str
-        Path the orbit file.
+    orbit_file : str
+        Path to the orbit file.
     '''
+
+    # check the existence of input file path and directory
     if not os.path.exists(zip_path):
         raise FileNotFoundError(f"{zip_path} does not exist")
 
-    if not orbit_file_list:
-        raise ValueError("no orbit paths provided")
+    if not os.path.isdir(orbit_dir):
+        raise NotADirectoryError(f"{orbit_dir} not found")
 
     # extract platform id, start and end times from swath file name
     platform_id, t_swath_start_stop = get_file_name_tokens(zip_path)
 
+    # initiate output
+    orbit_file = ''
+
+    # search for orbit file
+    orbit_file_list = glob.glob(os.path.join(orbit_dir, 'S1*.EOF'))
     for orbit_file in orbit_file_list:
         # check if file validity
         if not item_valid(orbit_file, platform_id):
@@ -245,50 +267,23 @@ def get_orbit_file_from_list(zip_path: str, orbit_file_list: list[str]) -> str:
         t_orbit_start = datetime.datetime.strptime(t_orbit_start[1:], FMT)
 
         # string '.EOF' from end of end time string
-        t_orbit_end = datetime.datetime.strptime(t_orbit_end[:-4], FMT)
+        t_orbit_stop = datetime.datetime.strptime(t_orbit_end[:-4], FMT)
 
         # check if:
         # 1. swath start and stop time > orbit file start time
         # 2. swath start and stop time < orbit file stop time
-        if all([t > t_orbit_start for t in t_swath_start_stop]) and \
-                all([t < t_orbit_end for t in t_swath_start_stop]):
-            return orbit_file
+        if all([t_orbit_start < t < t_orbit_stop for t in t_swath_start_stop]):
+            break
+        else:
+            orbit_file = ''
 
-    msg = f'No orbit file found for {os.path.basename(zip_path)}!'
-    msg += f'\nOrbit directory: {os.path.dirname(orbit_file_list[0])}'
-    warnings.warn(msg)
+    if not orbit_file:
+        if auto_download:
+            orbit_file = download_orbit(zip_path, orbit_dir)
 
-    return ''
+        else:
+            msg = f'No orbit file found for {os.path.basename(zip_path)}!'
+            msg += f'\nOrbit directory: {orbit_dir}'
+            warnings.warn(msg)
 
-def get_orbit_file_from_dir(path: str, orbit_dir: str) -> str:
-    '''Get orbit state vector list for a given swath.
-
-    Parameters:
-    -----------
-    path : string
-        Path to Sentinel1 SAFE zip file. Base names required to adhere to the
-        format described here:
-        https://sentinel.esa.int/web/sentinel/user-guides/sentinel-1-sar/naming-conventions
-    orbit_dir : string
-        Path to directory containing orbit files. Orbit files required to adhere
-        to naming convention found here:
-        https://s1qc.asf.alaska.edu/aux_poeorb/
-
-    Returns:
-    --------
-    orbit_path : str
-        Path the orbit file.
-    '''
-    if not os.path.exists(path):
-        raise FileNotFoundError(f"{path} does not exist")
-
-    if not os.path.isdir(orbit_dir):
-        raise NotADirectoryError(f"{orbit_dir} not found")
-
-    orbit_file_list = glob.glob(os.path.join(orbit_dir, 'S1*.EOF'))
-    if not orbit_file_list:
-        raise FileNotFoundError(f'No S1*.EOF file found in directory: {orbit_dir}')
-
-    orbit_path = get_orbit_file_from_list(path, orbit_file_list)
-
-    return orbit_path
+    return orbit_file

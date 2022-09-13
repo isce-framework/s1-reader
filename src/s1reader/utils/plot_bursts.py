@@ -18,7 +18,7 @@ from osgeo import osr
 from shapely.geometry import Polygon
 from shapely import wkt
 
-from s1reader.s1_orbit import get_orbit_file_from_list
+from s1reader.s1_orbit import get_orbit_file_from_dir
 from s1reader.s1_reader import load_bursts
 
 
@@ -79,8 +79,7 @@ def burst_map(slc, orbit_dir, x_spacing,
                  'border':[]}
     i_subswath = [1, 2, 3]
     pol = 'vv'
-    orbit_list = glob.glob(f'{orbit_dir}/*EOF')
-    orbit_path = get_orbit_file_from_list(slc, orbit_list)
+    orbit_path = get_orbit_file_from_dir(slc, orbit_dir)
 
     for subswath in i_subswath:
         ref_bursts = load_bursts(slc, orbit_path, subswath, pol)
@@ -116,15 +115,15 @@ def burst_map(slc, orbit_dir, x_spacing,
                 tgt_y.append(dummy_y)
             
             if epsg == 4326:
-              x_min = x_spacing * (min(tgt_x) / x_spacing)
-              y_min = y_spacing * (min(tgt_y) / y_spacing)
-              x_max = x_spacing * (max(tgt_x) / x_spacing)
-              y_max = y_spacing * (max(tgt_y) / y_spacing)
+                x_min = x_spacing * (min(tgt_x) / x_spacing)
+                y_min = y_spacing * (min(tgt_y) / y_spacing)
+                x_max = x_spacing * (max(tgt_x) / x_spacing)
+                y_max = y_spacing * (max(tgt_y) / y_spacing)
             else:
-              x_min = x_spacing * round(min(tgt_x) / x_spacing)
-              y_min = y_spacing * round(min(tgt_y) / y_spacing)
-              x_max = x_spacing * round(max(tgt_x) / x_spacing)
-              y_max = y_spacing * round(max(tgt_y) / y_spacing)
+                x_min = x_spacing * round(min(tgt_x) / x_spacing)
+                y_min = y_spacing * round(min(tgt_y) / y_spacing)
+                x_max = x_spacing * round(max(tgt_x) / x_spacing)
+                y_max = y_spacing * round(max(tgt_y) / y_spacing)
 
             # Allocate coordinates inside the dictionary
             burst_map['min_x'].append(x_min)
@@ -148,7 +147,7 @@ def burst_map(slc, orbit_dir, x_spacing,
     # Save the GeoDataFrame as a kml
     kml_path = f'{output_filename}.kml'
     if os.path.isfile(kml_path):
-      os.remove(kml_path)
+        os.remove(kml_path)
     
     fiona.supported_drivers['KML'] = 'rw'
     gdf.to_file(f'{output_filename}.kml', driver='KML')
