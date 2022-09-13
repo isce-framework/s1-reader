@@ -672,6 +672,9 @@ class BurstEAP:
 
         Code copied from ISCE2.
 
+        The units in this function is based on the reference documentation in the URL below:
+        https://sentinel.esa.int/documents/247904/1653440/Sentinel-1-IPF_EAP_Phase_correction
+
         Parameters
         ----------
         delta_anx: float
@@ -685,17 +688,17 @@ class BurstEAP:
         # Estimate altitude based on time elapsed since ANX
         altitude = self._anx2height(delta_anx)
 
-        # Reference altitude (m)
-        href = 711700.0
+        # Reference altitude (km)
+        href = 711.700
 
         # Reference boresight at reference altitude (degrees)
         boresight_ref = 29.450
 
         # Partial derivative of roll vs altitude (degrees/m)
-        alpha_roll = 0.0566 / 1000.0
+        alpha_roll = 0.0566
 
         # Estimate nominal roll i.e. theta off nadir (degrees)
-        nominal_roll = boresight_ref - alpha_roll * (altitude - href)
+        nominal_roll = boresight_ref - alpha_roll * (altitude/1000.0 - href)
 
         return nominal_roll
 
@@ -722,22 +725,22 @@ class BurstEAP:
 
         '''
 
-        ### Average height
+        # Average height (m)
         h_0 = 707714.8  #;m
 
-        #### Perturbation amplitudes
-        h = np.array([8351.5, 8947.0, 23.32, 11.74]) #;m
+        # Perturbation amplitudes (m)
+        h = np.array([8351.5, 8947.0, 23.32, 11.74])
 
-        #### Perturbation phases
-        phi = np.array([3.1495, -1.5655 , -3.1297, 4.7222]) #;radians
+        # Perturbation phases (radians)
+        phi = np.array([3.1495, -1.5655 , -3.1297, 4.7222])
 
-        ###O rbital time period in seconds
+        # Orbital time period (seconds)
         t_orb = (12*24*60*60) / 175.
 
-        ### Angular velocity
+        # Angular velocity (rad/sec)
         worb = 2*np.pi / t_orb
 
-        #### Evaluation of series
+        # Evaluation of series
         h_t = h_0
         for i, h_i in enumerate(h):
             h_t += h_i * np.sin((i+1) * worb * delta_anx + phi[i])
