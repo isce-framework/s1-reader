@@ -699,8 +699,8 @@ class BurstEAP:
 
         return nominal_roll
 
-
-    def _anx2height(self, delta_anx):
+    @classmethod
+    def _anx2height(cls, delta_anx):
         '''
         Returns the platform nominal height as function of elapse time from
         ascending node crossing time (ANX).
