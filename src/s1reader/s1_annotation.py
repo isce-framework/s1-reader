@@ -14,7 +14,8 @@ import numpy as np
 from scipy.interpolate import InterpolatedUnivariateSpline, interp1d
 from packaging import version
 
-#IPF version from which the NADS has azimuth noise vector annotation
+# Minimum IPF version from which the S1 product's Noise Annotation
+# Data Set (NADS) includes azimuth noise vector annotation
 min_ipf_version_az_noise_vector = version.parse('2.90')
 
 @dataclass
