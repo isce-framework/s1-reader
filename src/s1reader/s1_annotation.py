@@ -4,6 +4,7 @@ To be used for the class "Sentinel1BurstSlc"
 '''
 
 from dataclasses import dataclass
+
 import datetime
 import os
 import xml.etree.ElementTree as ET
@@ -411,6 +412,38 @@ class AuxCal(AnnotationBase):
     absolute_calibration_constant: float
     noise_calibration_factor: float
 
+    @classmethod
+    def get_aux_cal_instrument_config_id(cls, path_aux_cal_zip: str):
+        '''
+        Returns the instrument configuration ID of the input AUX_CAL .zip file
+
+        Parameter:
+        ----------
+        path_aux_cal_zip: str
+            Path to the input aux_cal .zip file
+
+        Return:
+        -------
+        instrument_config_id_aux_cal: int
+            instrument configuration ID of the input AUX_CAL file
+
+        '''
+
+        # Check the instrument ID in the manifest.
+        s1auxsar = '{http://www.esa.int/safe/sentinel-1.0/sentinel-1/auxiliary/sar}'
+        str_safe_aux_cal = os.path.basename(path_aux_cal_zip).replace('.zip','')
+
+        path_config_id = ('metadataSection/metadataObject/metadataWrap/xmlData'
+                        f'/{s1auxsar}standAloneProductInformation'
+                        f'/{s1auxsar}instrumentConfigurationId')
+
+        with zipfile.ZipFile(path_aux_cal_zip, 'r') as zipfile_aux_cal:
+            with zipfile_aux_cal.open(f'{str_safe_aux_cal}/manifest.safe','r') as f_manifest:
+                et_manifest = ET.parse(f_manifest)
+                instrument_config_id_aux_cal = int(et_manifest.find(path_config_id).text)
+
+        return instrument_config_id_aux_cal
+
 
     @classmethod
     def load_from_zip_file(cls, path_aux_cal_zip: str, pol: str, str_swath: str):
@@ -431,6 +464,10 @@ class AuxCal(AnnotationBase):
         cls: AuxCal class populated by et_in in the parameter
 
         '''
+
+        if not path_aux_cal_zip.endswith('.zip'):
+            raise ValueError('Only AUX_CAL files in .zip format are accepted.')
+
         if os.path.exists(path_aux_cal_zip):
             str_safe_aux_cal = os.path.basename(path_aux_cal_zip).replace('.zip','')
         else:
@@ -647,7 +684,6 @@ class BurstNoise:
                                   rg_lut_interpolated[np.newaxis, ...])
 
         return arr_lut_total
-
 
 
 @dataclass
