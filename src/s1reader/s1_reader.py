@@ -296,16 +296,29 @@ def get_path_aux_cal(directory_aux_cal: str, str_platform: str, instrument_cfg_i
     str_platform: str
         'S1A' or 'S1B'
     instrument_cfg_id: int
-        Instrument configuration ID
+        Instrument configuration ID.
 
-    Returns:
+    Return:
     --------
-    path_aux_cal: AUX_CAL file that corresponds to the criteria provided
+    path_aux_cal: str
+        Path to the AUX_CAL file that corresponds to the criteria provided
+        None if the matching AUX_CAL is not found in `directory_aux_cal`
 
     '''
     list_aux_cal = glob.glob(f'{directory_aux_cal}/{str_platform}_AUX_CAL_V*.SAFE.zip')
     list_aux_cal.sort()
+
+    # Initial guess of the matching aux_cal
     path_aux_cal = list_aux_cal[instrument_cfg_id-1]
+
+    if instrument_cfg_id != AuxCal.get_aux_cal_instrument_config_id(path_aux_cal):
+        # Failed to guess the instrument ID based on the files' orders in the list.
+        # Go through the all AUX_CAL files in the list to find the matching file
+        path_aux_cal = None
+        for path_aux_cal in list_aux_cal:
+            if instrument_cfg_id == AuxCal.get_aux_cal_instrument_config_id(path_aux_cal):
+                return path_aux_cal
+
 
     return path_aux_cal
 
@@ -412,11 +425,11 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
     flag_apply_eap = is_eap_correction_necessary(ipf_version)
     if flag_apply_eap.phase_correction:
         path_aux_cals = f'{os.path.dirname(s1_annotation.__file__)}/data/aux_cal'
-        path_aux_cal_zip = get_path_aux_cal(path_aux_cals,
-                                            platform_id,
-                                            product_annotation.inst_config_id)
+        path_aux_cal = get_path_aux_cal(path_aux_cals,
+                                        platform_id,
+                                        product_annotation.inst_config_id)
 
-        aux_cal_subswath = AuxCal.load_from_zip_file(path_aux_cal_zip,
+        aux_cal_subswath = AuxCal.load_from_zip_file(path_aux_cal,
                                                      pol,
                                                      subswath_id)
     else:
