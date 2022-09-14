@@ -148,7 +148,8 @@ class CalibrationAnnotation(AnnotationBase):
 
     @classmethod
     def from_et(cls, et_in: ET, path_annotation: str):
-        '''Extracts the list of calibration informaton from etree from CADS
+        '''Extracts the list of calibration informaton from etree from 
+        the Calibration Annotation Data Set (CADS).
         Parameters:
         -----------
         et_in: ET
