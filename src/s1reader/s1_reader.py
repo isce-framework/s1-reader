@@ -310,7 +310,9 @@ def get_path_aux_cal(directory_aux_cal: str, str_platform: str, instrument_cfg_i
     return path_aux_cal
 
 def is_eap_correction_necessary(ipf_version: version.Version) -> SimpleNamespace :
-    '''Examines if what level of EAP correction is necessary, based on the IPF version.
+    '''
+    Examines if what level of elevation antenna pattern (EAP) correction is necessary.
+    based on the IPF version.
     Based on the comment on PR: https://github.com/opera-adt/s1-reader/pull/48#discussion_r926138372
 
     Parameter
