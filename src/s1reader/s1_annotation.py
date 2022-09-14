@@ -158,7 +158,7 @@ class CalibrationAnnotation(AnnotationBase):
         Returns:
         --------
         cls: CalibrationAnnotation
-            instance from CalibrationAnnotation initialized by the input parameter
+            Instance of CalibrationAnnotation initialized by the input parameter
         '''
 
         cls.xml_et = et_in
