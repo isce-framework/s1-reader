@@ -15,33 +15,13 @@ import shapely
 from nisar.workflows.stage_dem import check_dateline
 
 from s1reader import s1_annotation  # to access __file__
-from s1reader.s1_annotation import ProductAnnotation, NoiseAnnotation,\
-                                   CalibrationAnnotation, AuxCal, \
-                                   BurstCalibration, BurstEAP, BurstNoise
-
+from s1reader.s1_annotation import (ProductAnnotation, CalibrationAnnotation,
+                                   AuxCal, BurstCalibration, BurstEAP)
 from s1reader.s1_burst_slc import Doppler, Sentinel1BurstSlc
-
+from s1reader.s1_noise import BurstNoise, BurstNoiseLoader
+from s1reader.utils.utils import as_datetime
 
 esa_track_burst_id_file = f"{os.path.dirname(os.path.realpath(__file__))}/data/sentinel1_track_burst_id.txt"
-
-# TODO evaluate if it make sense to combine below into a class
-def as_datetime(t_str, fmt = "%Y-%m-%dT%H:%M:%S.%f"):
-    '''Parse given time string to datetime.datetime object.
-
-    Parameters:
-    ----------
-    t_str : string
-        Time string to be parsed. (e.g., "2021-12-10T12:00:0.0")
-    fmt : string
-        Format of string provided. Defaults to az time format found in annotation XML.
-        (e.g., "%Y-%m-%dT%H:%M:%S.%f").
-
-    Returns:
-    ------
-    _ : datetime.datetime
-        datetime.datetime object parsed from given time string.
-    '''
-    return datetime.datetime.strptime(t_str, fmt)
 
 def parse_polynomial_element(elem, poly_name):
     '''Parse azimuth FM (Frequency Modulation) rate element to reference time and poly1d tuples.
@@ -416,10 +396,8 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
 
     # load the Noise annotation
     noise_annotation_path = annotation_path.replace('annotation/', 'annotation/calibration/noise-')
-    with open_method(noise_annotation_path, 'r') as f_nads:
-        tree_nads = ET.parse(f_nads)
-        noise_annotation = NoiseAnnotation.from_et(tree_nads, ipf_version,
-                                                   noise_annotation_path)
+    noise_loader = BurstNoiseLoader.from_file(noise_annotation_path,
+                                              ipf_version)
 
     # load AUX_CAL annotation
     flag_apply_eap = is_eap_correction_necessary(ipf_version)
@@ -557,8 +535,11 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
         #Extract burst-wise information for Calibration, Noise, and EAP correction
         burst_calibration = BurstCalibration.from_calibration_annotation(calibration_annotation,
                                                                          sensing_start)
-        burst_noise = BurstNoise.from_noise_annotation(noise_annotation, sensing_start,
-                                             i*n_lines, (i+1)*n_lines-1, ipf_version)
+
+        burst_noise = noise_loader.get_nearest_noise(sensing_start,
+                                                     i * n_lines,
+                                                     (i + 1) * n_lines - 1)
+
         if flag_apply_eap.phase_correction:
             burst_aux_cal = BurstEAP.from_product_annotation_and_aux_cal(product_annotation,
                                                                          aux_cal_subswath,
