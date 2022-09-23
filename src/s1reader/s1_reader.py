@@ -424,7 +424,9 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
     # load AUX_CAL annotation
     flag_apply_eap = is_eap_correction_necessary(ipf_version)
     if flag_apply_eap.phase_correction:
-        path_aux_cals = f'{os.path.dirname(s1_annotation.__file__)}/data/aux_cal'
+        path_aux_cals = os.path.join(f'{os.path.dirname(s1_annotation.__file__)}',
+                                      'data',
+                                      'aux_cal')
         path_aux_cal = get_path_aux_cal(path_aux_cals,
                                         platform_id,
                                         product_annotation.inst_config_id)
