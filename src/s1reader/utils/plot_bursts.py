@@ -1,8 +1,7 @@
 import argparse
-import glob
-from importlib import import_module
 import os
 import sys
+from importlib import import_module
 
 named_libs = [('fiona', 'fiona'), ('geopandas', 'gpd'), ('pandas', 'pd')]
 
