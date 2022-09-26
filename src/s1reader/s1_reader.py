@@ -307,7 +307,7 @@ def is_eap_correction_necessary(ipf_version: version.Version) -> SimpleNamespace
 
     return eap
 
-def get_track_burst_num(track_burst_num_file: str=esa_track_burst_id_file):
+def get_track_burst_num(track_burst_num_file: str = esa_track_burst_id_file):
     '''Read the start / stop burst number info of each track from ESA.
 
     Parameters:
@@ -559,8 +559,8 @@ def _is_zip_annotation_xml(path: str, id_str: str) -> bool:
         return True
     return False
 
-def load_bursts(path: str, orbit_path: str, swath_num: int, pol: str='vv',
-                burst_ids: list[str]=None):
+def load_bursts(path: str, orbit_path: str, swath_num: int, pol: str = 'vv',
+                burst_ids: list[str] = None):
     '''Find bursts in a Sentinel-1 zip file or a SAFE structured directory.
 
     Parameters:
