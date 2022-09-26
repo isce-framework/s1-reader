@@ -710,8 +710,10 @@ def _burst_from_safe_dir(safe_dir_path: str, id_str: str, orbit_path: str):
                   if 'measurement' in f and id_str in f and 'tiff' in f]
         f_tiff = f'{safe_dir_path}/measurement/{f_tiff[0]}' if f_tiff else ''
     else:
-        warning_str = f'measurement directory not found in {safe_dir_path}'
-        warnings.warn(warning_str)
+        msg = f'measurement directory NOT found in {safe_dir_path}'
+        msg += ', continue with metadata only.'
+        print(msg)
+        #warnings.warn(msg)
         f_tiff = ''
 
     bursts = burst_from_xml(f_annotation, orbit_path, f_tiff, iw2_f_annotation)
