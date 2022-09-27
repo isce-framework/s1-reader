@@ -629,6 +629,7 @@ class Sentinel1BurstSlc:
 
     @property
     def bbox(self):
-        '''Returns the bounding box of the burst.'''
-        # Use the provided shapely function to get the bounding box
+        '''Returns the (west, south, east, north) bounding box of the burst.'''
+        # Uses https://shapely.readthedocs.io/en/stable/manual.html#object.bounds
+        # Returns a tuple of 4 floats representing (west, south, east, north) in degrees.
         return self.border[0].bounds
