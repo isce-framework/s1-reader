@@ -364,7 +364,7 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
 
     _, tail = os.path.split(annotation_path)
     platform_id, swath_name, _, pol = [x.upper() for x in tail.split('-')[:4]]
-    file_id = os.path.basename(annotation_path.split('.SAFE')[0])
+    safe_filename = os.path.basename(annotation_path.split('.SAFE')[0])
 
     # For IW mode, one burst has a duration of ~2.75 seconds and a burst
     # overlap of approximately ~0.4 seconds.
@@ -527,7 +527,7 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
                                       range_sampling_rate, range_pxl_spacing,
                                       (n_lines, n_samples), az_fm_rate, doppler,
                                       rng_processing_bandwidth, pol, burst_id,
-                                      platform_id, file_id, center_pts[i],
+                                      platform_id, safe_filename, center_pts[i],
                                       boundary_pts[i], orbit, orbit_direction, orbit_number,
                                       tiff_path, i, first_valid_sample,
                                       last_sample, first_valid_line, last_line,

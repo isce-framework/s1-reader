@@ -148,7 +148,7 @@ class Sentinel1BurstSlc:
     polarization: str # {VV, VH, HH, HV}
     burst_id: str # t{track_number}_{burst_index}_iw{1,2,3}
     platform_id: str # S1{A,B}
-    file_id: str # SAFE file name
+    safe_filename: str # SAFE file name
     center: tuple # {center lon, center lat} in degrees
     border: list # list of lon, lat coordinate tuples (in degrees) representing burst border
     orbit: isce3.core.Orbit
