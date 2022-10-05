@@ -5,7 +5,6 @@ import os
 
 import numpy as np
 from matplotlib import pyplot as plt
-from scipy.constants import c
 from scipy.interpolate import RectBivariateSpline
 
 try:
