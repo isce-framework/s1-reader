@@ -94,9 +94,9 @@ def get_eta_correction_from_slc_burst(slc_burst, eta_dir, corr_type='sum', inclu
         eta_rg_ax = eta_rg_start + np.arange(eta_burst.samples) * eta_burst.sampling['x']
 
         # calculate SLC grid
-        slc_az_ax = np.arange(slc_burst.length) * slc_burst.azimuth_time_interval
+        slc_az_ax = np.arange(slc_burst.length) * slc_burst.azimuth_time_interval \
                     + (slc_burst.sensing_start - slc_burst.sensing_mid).total_seconds()
-        slc_rg_ax = np.arange(slc_burst.width) / slc_burst.range_sampling_rate
+        slc_rg_ax = np.arange(slc_burst.width) / slc_burst.range_sampling_rate \
                     + slc_burst.slant_range_time
 
     if resample:
