@@ -470,11 +470,22 @@ class AuxCal(AnnotationBase):
 
         if os.path.exists(path_aux_cal_zip):
             str_safe_aux_cal = os.path.basename(path_aux_cal_zip).replace('.zip','')
+            # detect the platform from path_aux_cal_zip
+            str_platform = str_safe_aux_cal.split('_')[0]
         else:
             raise ValueError(f'Cannot find AUX_CAL .zip file: {path_aux_cal_zip}')
 
         with zipfile.ZipFile(path_aux_cal_zip, 'r') as zipfile_aux_cal:
-            with zipfile_aux_cal.open(f'{str_safe_aux_cal}/data/s1a-aux-cal.xml','r') as f_aux_cal:
+            filepath_xml = f'{str_safe_aux_cal}/data/{str_platform.lower()}-aux-cal.xml'
+            # check if the input file has the aux_cal .xml file to load
+            list_files_in_zip = [zf.filename for zf in zipfile_aux_cal.filelist]
+
+            if not filepath_xml in list_files_in_zip:
+                raise ValueError(f'Cannot find {filepath_xml} in '
+                                 f'zip file {path_aux_cal_zip}.\n'
+                                  'Make sure if the legit AUX_CAL .zip file is provided.')
+
+            with zipfile_aux_cal.open(filepath_xml,'r') as f_aux_cal:
                 et_in = ET.parse(f_aux_cal)
 
         calibration_params_list = et_in.find('calibrationParamsList')
