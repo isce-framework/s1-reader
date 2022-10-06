@@ -480,7 +480,7 @@ class AuxCal(AnnotationBase):
             # check if the input file has the aux_cal .xml file to load
             list_files_in_zip = [zf.filename for zf in zipfile_aux_cal.filelist]
 
-            if not filepath_xml in list_files_in_zip:
+            if filepath_xml not in list_files_in_zip:
                 raise ValueError(f'Cannot find {filepath_xml} in '
                                  f'zip file {path_aux_cal_zip}.\n'
                                   'Make sure if the legit AUX_CAL .zip file is provided.')
