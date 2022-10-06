@@ -391,7 +391,7 @@ def is_eap_correction_necessary(ipf_version: version.Version) -> SimpleNamespace
     return eap
 
 def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
-                   iw2_annotation_path: str, open_method=open, flag_apply_eap: bool=True):
+                   iw2_annotation_path: str, open_method=open, flag_apply_eap: bool = True):
     '''Parse bursts in Sentinel-1 annotation XML.
 
     Parameters:
@@ -407,6 +407,8 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
         Path to Sentinel-1 annotation XML file of IW2 subswath.
     open_method : function
         Function used to open annotation file.
+    flag_apply_eqp: bool
+        Flag to turn on/off EAP related functionality
 
     Returns:
     --------
