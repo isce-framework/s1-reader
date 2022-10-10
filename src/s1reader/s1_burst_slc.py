@@ -148,6 +148,7 @@ class Sentinel1BurstSlc:
     polarization: str # {VV, VH, HH, HV}
     burst_id: str # t{track_number}_{burst_index}_iw{1,2,3}
     platform_id: str # S1{A,B}
+    safe_filename: str # SAFE file name
     center: tuple # {center lon, center lat} in degrees
     border: list # list of lon, lat coordinate tuples (in degrees) representing burst border
     orbit: isce3.core.Orbit
@@ -625,7 +626,7 @@ class Sentinel1BurstSlc:
     @property
     def swath_name(self):
         '''Swath name in iw1, iw2, iw3.'''
-        return self.burst_id.split('_')[1]
+        return self.burst_id.split('_')[2]
 
     @property
     def bbox(self):
