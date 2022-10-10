@@ -323,13 +323,11 @@ def get_track_burst_num(track_burst_num_file: str = esa_track_burst_id_file):
     '''
 
     # read the text file to list
-    track_nums = np.loadtxt(track_burst_num_file, dtype=int, usecols=[0])
-    burst_num0s = np.loadtxt(track_burst_num_file, dtype=int, usecols=[1])
-    burst_num1s = np.loadtxt(track_burst_num_file, dtype=int, usecols=[2])
+    track_burst_info = np.loadtxt(track_burst_num_file, dtype=int)
 
     # convert lists into dict
     track_burst_num = dict()
-    for track_num, burst_num0, burst_num1 in zip(track_nums, burst_num0s, burst_num1s):
+    for track_num, burst_num0, burst_num1 in track_burst_info:
         track_burst_num[track_num] = [burst_num0, burst_num1]
 
     return track_burst_num
