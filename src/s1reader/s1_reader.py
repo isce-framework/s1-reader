@@ -511,7 +511,7 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
 
 
         #Extract burst-wise information for Calibration, Noise, and EAP correction
-        if eap.magnitude_correction or eap.magnitude_correction:
+        if eap.magnitude_correction or eap.phase_correction:
             burst_calibration = s1_annotation.BurstCalibration.from_calibration_annotation(calibration_annotation, sensing_start)
             bursts_noise = s1_annotation.BurstNoise()
             bursts_noise.from_noise_annotation(noise_annotation,sensing_start,i*n_lines,(i+1)*n_lines-1,ipf_version)
