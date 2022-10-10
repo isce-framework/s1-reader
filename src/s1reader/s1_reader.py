@@ -383,7 +383,7 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
     #    product_annotation = s1_annotation.ProductAnnotation.from_et(tree_lads)
 
     eap = is_eap_correction_necessary(ipf_version)
-    if eap.magnitude_correction or eap.magnitude_correction:
+    if eap.magnitude_correction or eap.phase_correction:
 
         #load the Calibraton annotation
         calibration_annotation_path = annotation_path.replace('annotation/', 'annotation/calibration/calibration-')
