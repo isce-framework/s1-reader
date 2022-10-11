@@ -364,11 +364,11 @@ def get_path_aux_cal(directory_aux_cal: str, str_annotation: str):
             dt_generation_prev = dt_generation
             continue
 
-        if dt_validation_prev == dt_validation:
-            # Same validity time; Choose the one with latest generation time
-            if dt_generation_prev > dt_generation:
-                id_match = i
-                dt_generation_prev = dt_generation
+        # Same validity time; Choose the one with latest generation time
+        if (dt_validation_prev == dt_validation and
+                dt_generation_prev > dt_generation):
+            id_match = i
+            dt_generation_prev = dt_generation
 
     if id_match is None:
         print('ERROR finding AUX_CAL to use.')
