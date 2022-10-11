@@ -168,10 +168,10 @@ class Sentinel1BurstSlc:
     prf_raw_data: float  # Pulse repetition frequency (PRF) of the raw data [Hz]
     range_chirp_rate: float # Range chirp rate [Hz]
 
-    #Correction information
-    burst_calibration: s1_annotation.BurstCalibration #Radiometric correction
-    burst_noise: s1_annotation.BurstNoise #Thermal noise correction
-    burst_eap: s1_annotation.BurstEAP #EAP correction
+    # Correction information
+    burst_calibration: s1_annotation.BurstCalibration  # Radiometric correction
+    burst_noise: s1_annotation.BurstNoise  # Thermal noise correction
+    burst_eap: s1_annotation.BurstEAP  # EAP correction
 
     def __str__(self):
         return f"Sentinel1BurstSlc: {self.burst_id} at {self.sensing_start}"
@@ -629,6 +629,29 @@ class Sentinel1BurstSlc:
         return self.burst_id.split('_')[2]
 
     @property
+    def thermal_noise_lut(self):
+        '''
+        Returns the LUT for thermal noise correction for the burst
+        '''
+        if self.burst_noise is None:
+            raise ValueError('burst_noise is not defined for this burst.')
+
+        return self.burst_noise.compute_thermal_noise_lut(self.shape)
+
+    @property
+    def eap_compensation_lut(self):
+        '''Returns LUT for EAP compensation.
+
+        Returns:
+        -------
+            _: Interpolated EAP gain for the burst's lines
+
+        '''
+        if self.burst_eap is None:
+            raise ValueError('burst_eap is not defined for this burst.'
+                            f' IPF version = {self.ipf_version}')
+
+        return self.burst_eap.compute_eap_compensation_lut(self.width)
     def bbox(self):
         '''Returns the (west, south, east, north) bounding box of the burst.'''
         # Uses https://shapely.readthedocs.io/en/stable/manual.html#object.bounds
