@@ -688,7 +688,7 @@ def _is_zip_annotation_xml(path: str, id_str: str) -> bool:
     return False
 
 
-def load_bursts(path: str, orbit_path: str, swath_num: int, pol: str='vv',
+def load_bursts(path: str, orbit_path: str, swath_num: int, pol: str = 'vv',
                 burst_ids: list[str] = None,
                 flag_apply_eap: bool = True):
     '''Find bursts in a Sentinel-1 zip file or a SAFE structured directory.
