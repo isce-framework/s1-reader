@@ -514,7 +514,7 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
                                     f'Platform: {platform_id}, inst, '
                                     f'config ID: {product_annotation.inst_config_id}')
 
-
+        subswath_id = os.path.basename(annotation_path).split('-')[1]
         aux_cal_subswath = AuxCal.load_from_zip_file(path_aux_cal,
                                                      pol,
                                                      subswath_id)
