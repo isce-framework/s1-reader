@@ -288,7 +288,14 @@ def get_ipf_version(tree: ET):
 def get_path_aux_cal(directory_aux_cal: str, str_annotation: str):
     '''
     Decide which aux_cal to load
-    Criteria based on ESA document in the link below:
+    Criteria to select an AUX_CAL:
+    1. Select the auxiliary product(s) with a validity start date/time
+       closest to, but not later than, the start of the job order;
+    2. If there is more than one product which meets the first criteria
+       (e.g. two auxiliary files have the same validity date/time),
+       then use the auxiliary product with the latest generation time.
+
+    The criteria above is based on ESA document in the link below:
     https://sentinel.esa.int/documents/247904/1877131/Sentinel-1_IPF_Auxiliary_Product_Specification
 
     Parameters:
@@ -337,25 +344,31 @@ def get_path_aux_cal(directory_aux_cal: str, str_annotation: str):
         dt_validation = int((datetime_sensing_start - datetime_validation).total_seconds())
         dt_generation = int((datetime_sensing_start - datetime_generation).total_seconds())
 
-        if dt_validation>=0:
-            if dt_validation_prev is None:
-                # Initial allocation
-                id_match = i
-                dt_validation_prev = dt_validation
-                dt_generation_prev = dt_generation
-                continue
+        if dt_validation < 0:
+            # Validation date is later than the sensing time;
+            # Move to the next iteration
+            continue
 
-            if dt_validation_prev > dt_validation:
-                id_match = i
-                dt_validation_prev = dt_validation
-                dt_generation_prev = dt_generation
-                continue
+        if dt_validation_prev is None:
+            # Initial allocation
+            id_match = i
+            dt_validation_prev = dt_validation
+            dt_generation_prev = dt_generation
+            continue
 
-            if dt_validation_prev == dt_validation:
-                # Same validity time; Choose the one with latest generation time
-                if dt_generation_prev > dt_generation:
-                    id_match = i
-                    dt_generation_prev = dt_generation
+        if dt_validation_prev > dt_validation:
+            # Better AUX_CAL found;
+            # Replace the candidate to the one in this iteration
+            id_match = i
+            dt_validation_prev = dt_validation
+            dt_generation_prev = dt_generation
+            continue
+
+        if dt_validation_prev == dt_validation:
+            # Same validity time; Choose the one with latest generation time
+            if dt_generation_prev > dt_generation:
+                id_match = i
+                dt_generation_prev = dt_generation
 
     if id_match is None:
         print('ERROR finding AUX_CAL to use.')
