@@ -46,10 +46,9 @@ def get_eta_correction_from_slc_burst(slc_burst, eta_dir, corr_type='sum', inclu
     vprint = print if verbose else lambda *args, **kwargs: None
     if unit not in ['second', 'meter', 'pixel']:
         raise ValueError(f'Un-recognized input unit={unit}!')
-    elif unit == 'meter':
-        meter = True     #read s1etad product in meters
-    else:
-        meter = False    #read s1etad product in seconds [recommended]
+    meter = (unit == 'meter')
+    # When True, read s1etad product in meters
+    # When False, read s1etad product in seconds [recommended]
 
     # locate / read ETA burst
     eta_burst, eta = get_eta_burst_from_slc_burst(slc_burst, eta_dir, verbose=verbose)
