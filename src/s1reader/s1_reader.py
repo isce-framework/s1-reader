@@ -2,7 +2,10 @@ import datetime
 import glob
 import os
 import warnings
-import xml.etree.ElementTree as ET
+try:
+    import lxml.etree as ET
+except ImportError:
+    import xml.etree.ElementTree as ET
 import zipfile
 
 from types import SimpleNamespace
@@ -41,7 +44,7 @@ def as_datetime(t_str, fmt = "%Y-%m-%dT%H:%M:%S.%f"):
     _ : datetime.datetime
         datetime.datetime object parsed from given time string.
     '''
-    return datetime.datetime.strptime(t_str, fmt)
+    return datetime.datetime.fromisoformat(t_str)
 
 def parse_polynomial_element(elem, poly_name):
     '''Parse azimuth FM (Frequency Modulation) rate element to reference time and poly1d tuples.
@@ -139,7 +142,7 @@ def doppler_poly1d_to_lut2d(doppler_poly1d, starting_slant_range,
     az_times = offset_ref_epoch + np.array([0, n_lines * az_time_interval])
 
     # calculate frequency for all slant range
-    freq_1d = np.array([doppler_poly1d.eval(t) for t in slant_ranges])
+    freq_1d = doppler_poly1d.eval(slant_ranges)
 
     # init LUT2d (vstack freq since no az dependency) and return
     return isce3.core.LUT2d(slant_ranges, az_times,
@@ -162,12 +165,11 @@ def get_burst_orbit(sensing_start, sensing_stop, osv_list: ET.Element):
     _ : datetime
         Sensing mid as datetime object.
     '''
-    fmt = "UTC=%Y-%m-%dT%H:%M:%S.%f"
     orbit_sv = []
     # add start & end padding to ensure sufficient number of orbit points
     pad = datetime.timedelta(seconds=60)
     for osv in osv_list:
-        t_orbit = datetime.datetime.strptime(osv[1].text, fmt)
+        t_orbit = as_datetime(osv[1].text[4:])
 
         if t_orbit > sensing_stop + pad:
             break
