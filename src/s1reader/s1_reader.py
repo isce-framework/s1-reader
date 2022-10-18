@@ -2,10 +2,7 @@ import datetime
 import glob
 import os
 import warnings
-try:
-    import lxml.etree as ET
-except ImportError:
-    import xml.etree.ElementTree as ET
+import lxml.etree as ET
 import zipfile
 
 from types import SimpleNamespace
