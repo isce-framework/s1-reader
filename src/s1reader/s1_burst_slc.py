@@ -639,6 +639,16 @@ class Sentinel1BurstSlc:
         return self.burst_noise.compute_thermal_noise_lut(self.shape)
 
     @property
+    def thermal_noise_lut(self):
+        '''
+        Returns the LUT for thermal noise correction for the burst
+        '''
+        if self.burst_noise is None:
+            raise ValueError('burst_noise is not defined for this burst.')
+
+        return self.burst_noise.compute_thermal_noise_lut(self.shape)
+
+    @property
     def eap_compensation_lut(self):
         '''Returns LUT for EAP compensation.
 
