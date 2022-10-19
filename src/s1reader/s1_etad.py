@@ -189,7 +189,7 @@ def get_eta_file_from_slc_burst(slc_burst, eta_dir, verbose=True):
     """Get/locate ETAD file path based on SLC burst."""
 
     # safe filename --> ETA filename pattern
-    fparts = os.path.basename(slc_burst.file_id).split('_')
+    fparts = os.path.basename(slc_burst.safe_filename).split('_')
     eta_fbase = f'{fparts[0]}_IW_ETA__*_{fparts[5]}_{fparts[6]}_{fparts[7]}_{fparts[8]}_*.SAFE'
 
     # search the ETA filename pattern
