@@ -632,7 +632,7 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
                           last_valid_samples[last_line])
 
 
-        burst_id = f't{track_number:03d}_{burst_num}_{swath_name.lower()}'
+        burst_id = f't{track_number:03d}_{burst_num:06d}_{swath_name.lower()}'
 
 
         # Extract burst-wise information for Calibration, Noise, and EAP correction
