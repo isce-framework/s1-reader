@@ -39,7 +39,7 @@ def get_eta_correction_from_slc_burst(slc_burst, eta_dir, corr_type='sum', inclu
     Returns:
     ----------
     slc_rg_corr: np.ndarray in float32 in size of (lines, samples)
-        S1 ETAD correction in range   direction in the unit of meter or second
+        S1 ETAD correction in range direction in the unit of meter or second
     slc_az_corr: np.ndarray in float32 in size of (lines, samples)
         S1 ETAD correction in azimuth direction in the unit of meter or second
     """
