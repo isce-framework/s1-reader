@@ -485,27 +485,33 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
         product_annotation = ProductAnnotation.from_et(tree_lads)
 
     # load the Calibraton annotation
-    calibration_annotation_path =\
-        annotation_path.replace('annotation/', 'annotation/calibration/calibration-')
-    with open_method(calibration_annotation_path, 'r') as f_cads:
-        tree_cads = ET.parse(f_cads)
-        calibration_annotation =\
-            CalibrationAnnotation.from_et(tree_cads,
-                                          calibration_annotation_path)
+    try:
+        calibration_annotation_path =\
+            annotation_path.replace('annotation/', 'annotation/calibration/calibration-')
+        with open_method(calibration_annotation_path, 'r') as f_cads:
+            tree_cads = ET.parse(f_cads)
+            calibration_annotation =\
+                CalibrationAnnotation.from_et(tree_cads,
+                                              calibration_annotation_path)
+    except FileNotFoundError:
+        calibration_annotation = None
 
     # load the Noise annotation
-    noise_annotation_path = annotation_path.replace('annotation/', 'annotation/calibration/noise-')
-    with open_method(noise_annotation_path, 'r') as f_nads:
-        tree_nads = ET.parse(f_nads)
-        noise_annotation = NoiseAnnotation.from_et(tree_nads, ipf_version,
-                                                   noise_annotation_path)
+    try:
+        noise_annotation_path = annotation_path.replace('annotation/', 'annotation/calibration/noise-')
+        with open_method(noise_annotation_path, 'r') as f_nads:
+            tree_nads = ET.parse(f_nads)
+            noise_annotation = NoiseAnnotation.from_et(tree_nads, ipf_version,
+                                                       noise_annotation_path)
+    except FileNotFoundError:
+        noise_annotation = None
 
     # load AUX_CAL annotation
     eap_necessity = is_eap_correction_necessary(ipf_version)
     if eap_necessity.phase_correction and flag_apply_eap:
         path_aux_cals = os.path.join(f'{os.path.dirname(s1_annotation.__file__)}',
-                                      'data',
-                                      'aux_cal')
+                                     'data',
+                                     'aux_cal')
         path_aux_cal = get_path_aux_cal(path_aux_cals, annotation_path)
 
         # Raise error flag when AUX_CAL file cannot be found
@@ -577,8 +583,11 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
         iw2_mid_range = iw2_starting_range + 0.5 * iw2_n_samples * range_pxl_spacing
 
     # find orbit state vectors in 'Data_Block/List_of_OSVs'
-    orbit_tree = ET.parse(orbit_path)
-    osv_list = orbit_tree.find('Data_Block/List_of_OSVs')
+    if orbit_path:
+        orbit_tree = ET.parse(orbit_path)
+        osv_list = orbit_tree.find('Data_Block/List_of_OSVs')
+    else:
+        osv_list = []
 
     # load individual burst
     burst_list_elements = tree.find('swathTiming/burstList')
@@ -611,11 +620,14 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
                                         azimuth_time_interval)
         doppler = Doppler(poly1d, lut2d)
 
-        # get orbit from state vector list/element tree
-        sensing_duration = datetime.timedelta(
-            seconds=n_lines * azimuth_time_interval)
-        orbit = get_burst_orbit(sensing_start, sensing_start + sensing_duration,
-                                osv_list)
+        if len(osv_list) > 0:
+            # get orbit from state vector list/element tree
+            sensing_duration = datetime.timedelta(
+                seconds=n_lines * azimuth_time_interval)
+            orbit = get_burst_orbit(sensing_start, sensing_start + sensing_duration,
+                                    osv_list)
+        else:
+            orbit = None
 
         # determine burst offset and dimensions
         # TODO move to own method
@@ -634,12 +646,17 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
 
         burst_id = f't{track_number:03d}_{burst_num}_{swath_name.lower()}'
 
-
         # Extract burst-wise information for Calibration, Noise, and EAP correction
-        burst_calibration = BurstCalibration.from_calibration_annotation(calibration_annotation,
-                                                                         sensing_start)
-        burst_noise = BurstNoise.from_noise_annotation(noise_annotation, sensing_start,
-                                             i*n_lines, (i+1)*n_lines-1, ipf_version)
+        if calibration_annotation is None:
+            burst_calibration = None
+        else:
+            burst_calibration = BurstCalibration.from_calibration_annotation(calibration_annotation,
+                                                                            sensing_start)
+        if noise_annotation is None:
+            burst_noise = None
+        else:
+            burst_noise = BurstNoise.from_noise_annotation(noise_annotation, sensing_start,
+                                                i*n_lines, (i+1)*n_lines-1, ipf_version)
         if aux_cal_subswath is None:
             # Not applying EAP correction; (IPF high enough or user turned that off)
             # No need to fill in `burst_aux_cal`
