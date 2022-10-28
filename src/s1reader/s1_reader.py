@@ -559,8 +559,8 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
         range_window_coeff = float(rng_processing_element.find('windowCoefficient').text)
 
         orbit_number = int(tree.find('adsHeader/absoluteOrbitNumber').text)
-        orbit_number_offset = 73 if  platform_id == 'S1A' else 202
-        track_number = (orbit_number - orbit_number_offset) % 175 + 1
+        orbit_number_offset = 73 if platform_id == 'S1A' else 202
+        starting_track_number = (orbit_number - orbit_number_offset) % 175 + 1
 
         center_pts, boundary_pts = get_burst_centers_and_boundaries(tree)
 
@@ -584,20 +584,20 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
     burst_list_elements = tree.find('swathTiming/burstList')
     n_bursts = int(burst_list_elements.attrib['count'])
     bursts = [[]] * n_bursts
-    sensing_starts = [[]] * n_bursts
-    sensing_times = [[]] * n_bursts
 
     for i, burst_list_element in enumerate(burst_list_elements):
         # get burst timing
         sensing_start = as_datetime(burst_list_element.find('azimuthTime').text)
-        sensing_starts[i] = sensing_start
-        sensing_times[i] = as_datetime(burst_list_element.find('sensingTime').text)
-        dt = sensing_times[i] - ascending_node_time
-        # local burst_num within one track, starting from 0
-        burst_num = int((dt.seconds + dt.microseconds / 1e6) // burst_interval)
-
-        # convert the local burst_num to the global burst_num, starting from 1
-        burst_num += track_burst_num[track_number][0]
+        sensing_time = as_datetime(burst_list_element.find('sensingTime').text)
+        # Create the burst ID to match the ESA ID scheme
+        esa_burst_id = get_burst_id(
+            sensing_time, ascending_node_time, starting_track_number
+        )
+        track_number = check_for_new_track(
+            esa_burst_id, starting_track_number, track_burst_num
+        )
+        # Form the unique JPL ID by combining track/burst/swath
+        burst_id = f't{track_number:03d}_{esa_burst_id:06d}_{swath_name.lower()}'
 
         # choose nearest azimuth FM rate
         d_seconds = 0.5 * (n_lines - 1) * azimuth_time_interval
@@ -630,10 +630,6 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
                                  first_valid_samples[last_line])
         last_sample = min(last_valid_samples[first_valid_line],
                           last_valid_samples[last_line])
-
-
-        burst_id = f't{track_number:03d}_{burst_num}_{swath_name.lower()}'
-
 
         # Extract burst-wise information for Calibration, Noise, and EAP correction
         burst_calibration = BurstCalibration.from_calibration_annotation(calibration_annotation,
@@ -849,3 +845,79 @@ def _burst_from_safe_dir(safe_dir_path: str, id_str: str, orbit_path: str, flag_
     bursts = burst_from_xml(f_annotation, orbit_path, f_tiff, iw2_f_annotation,
                             flag_apply_eap=flag_apply_eap)
     return bursts
+
+
+def get_burst_id(sensing_time: datetime.datetime, ascending_node_dt: datetime.datetime,
+                 relative_orbit_start: int, track_burst_num: dict) -> int:
+    """Calculate burst ID and current track number of a burst.
+
+    Accounts for equator crossing frames, and uses the ESA convention defined
+    in the Sentinel-1 Level 1 Detailed Algorithm Definition
+
+    Parameters
+    ----------
+    sensing_time : datetime
+        Mid-burst sensing time.
+    ascending_node_dt : datetime
+        Time of the ascending node prior to the start of the scene.
+    relative_orbit_start : int
+        Relative orbit number (track number) at the start of the acquisition,
+        from 1-175. This is the same as the absolute orbit number for the burst
+        if the frame crosses the equator.
+
+    Returns
+    -------
+    relative_orbit : int
+        Relative orbit number (track number) at the current burst.
+    burst_id : int
+        The burst ID matching ESA's relative numbering scheme.
+
+    References
+    ----------
+    ESA Sentinel-1 Level 1 Detailed Algorithm Definition
+    https://sentinels.copernicus.eu/documents/247904/1877131/S1-TN-MDA-52-7445_Sentinel-1+Level+1+Detailed+Algorithm+Definition_v2-4.pdf/83624863-6429-cfb8-2371-5c5ca82907b8
+    """
+    # Constants in Table 9.7
+    T_beam = 2.758273  # interval of one burst [s]
+    T_pre = 2.299849   # Preamble time interval [s]
+    T_orb = 12 * 24 * 3600 / 175  # Nominal orbit period [s]
+
+    # Eq. 9-89: ∆tb = tb − t_anx + (r - 1)T_orb
+    # tb: mid-burst sensing time
+    # t_anx: ascending node time
+    # r: relative orbit number
+    tb = sensing_time
+    t_anx = ascending_node_dt
+    r = relative_orbit_start
+
+    dt_b = (tb - t_anx).total_seconds() + (r - 1) * T_orb
+    # burstId = 1 + floor((∆tb − T_pre) / T_beam )
+    burst_id_esa = 1 + int(np.floor((dt_b - T_pre) / T_beam))
+    return burst_id_esa
+
+
+def check_for_new_track(burst_id: int, track_start: int, track_burst_num: dict) -> int:
+    """Check if the burst is in a new track.
+
+    Parameters
+    ----------
+    burst_id : int
+        The burst ID matching ESA's relative numbering scheme.
+    track_burst_num : dict
+        Dictionary of track number to burst number.
+
+    This accounts for a new ascending node crossing mid-frame.
+    The dictionary `track_burst_num` gives the last burst number for each track.
+    If the computed burst number is larger this fixed cap, that means a new
+    ascending node crossing occurred and the burst started a new relative orbit.
+
+    Returns
+    -------
+    track_num : int
+        The track number of the burst.
+    """
+    first_burst, last_burst = track_burst_num[track_start]
+    if burst_id > last_burst:
+        return track_start + 1
+    else:
+        return track_start
