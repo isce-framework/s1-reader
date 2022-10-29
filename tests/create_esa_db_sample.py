@@ -33,7 +33,6 @@ def make_sample_db(out_name="data/esa_burst_db_sample.csv"):
                 continue
 
     all_bids = [b.burst_id for b in all_bursts]
-    all_bids[:3]
     matching_rows = df_db.burst_id_jpl.str.contains(f"{'|'.join(all_bids)}")
     assert matching_rows.sum() == len(all_bids)
 

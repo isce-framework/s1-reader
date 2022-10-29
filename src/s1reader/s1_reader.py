@@ -916,7 +916,7 @@ def check_for_new_track(burst_id: int, track_start: int, track_burst_num: dict) 
     track_num : int
         The track number of the burst.
     """
-    first_burst, last_burst = track_burst_num[track_start]
+    _, last_burst = track_burst_num[track_start]
     if burst_id > last_burst:
         return track_start + 1
     else:
