@@ -9,8 +9,9 @@ from s1reader.s1_orbit import get_orbit_file_from_dir
 BURST_ID_PAT = r"t(?P<track>\d{3})_(?P<burst_id>\d{6})_iw(?P<subswath_num>[1-3])"
 
 
-def test_burst_from_zip(bursts):
+def test_burst_from_zip(bursts, esa_burst_db):
     assert len(bursts) == 9
+    _compare_bursts_geometry_to_esa(bursts, esa_burst_db)
 
 
 def test_burst_ids(test_paths, esa_burst_db):
@@ -26,6 +27,10 @@ def test_burst_ids(test_paths, esa_burst_db):
     s1_burst_ids = [int(b.burst_id.split("_")[1]) for b in bursts]
     assert esa_burst_ids == s1_burst_ids
 
+    _compare_bursts_geometry_to_esa(bursts, esa_burst_db)
+
+
+def _compare_bursts_geometry_to_esa(bursts, esa_burst_db):
     # Check that all the geometries match roughly to the ESA burst database
     s1_geometries = [MultiPolygon(b.border) for b in bursts]
     esa_geometries = [esa_burst_db[b.burst_id]["geometry"] for b in bursts]
@@ -35,7 +40,7 @@ def test_burst_ids(test_paths, esa_burst_db):
         assert iou(s1_geom, esa_geom) > 0.75
 
 
-def test_anx_crossing(test_paths):
+def test_anx_crossing(test_paths, esa_burst_db):
     """Check on a frame that crosses the equator mid frame."""
     zip_path = test_paths.data_dir / "S1A_IW_SLC__1SDV_20221024T184148_20221024T184218_045587_05735F_D6E2.zip"
     orbit_file = get_orbit_file_from_dir(zip_path, test_paths.orbit_dir)
@@ -55,6 +60,8 @@ def test_anx_crossing(test_paths):
     match = re.match(BURST_ID_PAT, bursts[-1].burst_id)
     assert match
     assert int(match.group("track")) == end_track
+
+    _compare_bursts_geometry_to_esa(bursts, esa_burst_db)
 
 
 def _get_safe_et(zip_path, file_pattern):
