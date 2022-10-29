@@ -1,6 +1,7 @@
 import re
-import zipfile
 from lxml import etree as ET
+from shapely.geometry import MultiPolygon
+import zipfile
 
 from s1reader import load_bursts
 from s1reader.s1_orbit import get_orbit_file_from_dir
@@ -12,7 +13,7 @@ def test_burst_from_zip(bursts):
     assert len(bursts) == 9
 
 
-def test_burst_ids(test_paths):
+def test_burst_ids(test_paths, esa_burst_db):
     """Check that the burst IDs match ESA using a recent acquisition containing labels."""
     # Hawaii dataset
     zip_path = test_paths.data_dir / "S1A_IW_SLC__1SDV_20220828T042306_20220828T042335_044748_0557C6_F396.zip"
@@ -24,6 +25,16 @@ def test_burst_ids(test_paths):
     esa_burst_ids = _get_esa_burst_ids(zip_path)
     s1_burst_ids = [int(b.burst_id.split("_")[1]) for b in bursts]
     assert esa_burst_ids == s1_burst_ids
+
+    # Check that all the geometries match roughly to the ESA burst database
+    s1_geometries = [MultiPolygon(b.border) for b in bursts]
+    jpl_ids = [b.burst_id for b in bursts]
+    matching_rows = esa_burst_db.burst_id_jpl.str.contains(f"{'|'.join(jpl_ids)}")
+    esa_geometries = esa_burst_db.geometry[matching_rows]
+
+    for s1_geom, esa_geom in zip(s1_geometries, esa_geometries):
+        # Check that the intersection over union is > 0.75
+        assert iou(s1_geom, esa_geom) > 0.75
 
 
 def test_anx_crossing(test_paths):
@@ -67,3 +78,8 @@ def _get_start_end_track(zip_path):
     rel_orbit_paths = xml_meta_path + f'/{esa_http}orbitReference' + f'/{esa_http}relativeOrbitNumber'
     elem_start, elem_end = tree.findall(rel_orbit_paths)
     return int(elem_start.text), int(elem_end.text)
+
+
+def iou(geom1, geom2):
+    """Calculate the intersection over union of two polygons."""
+    return geom1.intersection(geom2).area / geom1.union(geom2).area

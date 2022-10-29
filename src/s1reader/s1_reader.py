@@ -848,7 +848,7 @@ def _burst_from_safe_dir(safe_dir_path: str, id_str: str, orbit_path: str, flag_
 
 
 def get_burst_id(sensing_time: datetime.datetime, ascending_node_dt: datetime.datetime,
-                 relative_orbit_start: int, track_burst_num: dict) -> int:
+                 relative_orbit_start: int) -> int:
     """Calculate burst ID and current track number of a burst.
 
     Accounts for equator crossing frames, and uses the ESA convention defined

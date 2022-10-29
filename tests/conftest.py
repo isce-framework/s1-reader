@@ -1,6 +1,9 @@
 import pathlib
-import pytest
 import types
+
+import pandas as pd
+import pytest
+from shapely import wkt
 
 from s1reader import s1_reader
 
@@ -21,9 +24,18 @@ def test_paths():
 @pytest.fixture(scope="session")
 def bursts(test_paths):
     i_subswath = 3
-    pol = 'vv'
+    pol = "vv"
 
-    orbit_path = f'{test_paths.orbit_dir}/{test_paths.orbit_file}'
+    orbit_path = f"{test_paths.orbit_dir}/{test_paths.orbit_file}"
     bursts = s1_reader.load_bursts(test_paths.safe, orbit_path, i_subswath, pol)
 
     return bursts
+
+
+@pytest.fixture(scope="session")
+def esa_burst_db(test_paths):
+    """Load the sample of the ESA burst database."""
+    db_path = test_paths.data_dir / "esa_burst_db_sample.csv"
+    df = pd.read_csv(db_path)
+    df["geometry"] = df.geometry.apply(wkt.loads)
+    return df
