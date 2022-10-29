@@ -28,9 +28,7 @@ def test_burst_ids(test_paths, esa_burst_db):
 
     # Check that all the geometries match roughly to the ESA burst database
     s1_geometries = [MultiPolygon(b.border) for b in bursts]
-    jpl_ids = [b.burst_id for b in bursts]
-    matching_rows = esa_burst_db.burst_id_jpl.str.contains(f"{'|'.join(jpl_ids)}")
-    esa_geometries = esa_burst_db.geometry[matching_rows]
+    esa_geometries = [esa_burst_db[b.burst_id]["geometry"] for b in bursts]
 
     for s1_geom, esa_geom in zip(s1_geometries, esa_geometries):
         # Check that the intersection over union is > 0.75

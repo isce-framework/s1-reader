@@ -1,7 +1,7 @@
+import csv
 import pathlib
 import types
 
-import pandas as pd
 import pytest
 from shapely import wkt
 
@@ -36,6 +36,10 @@ def bursts(test_paths):
 def esa_burst_db(test_paths):
     """Load the sample of the ESA burst database."""
     db_path = test_paths.data_dir / "esa_burst_db_sample.csv"
-    df = pd.read_csv(db_path)
-    df["geometry"] = df.geometry.apply(wkt.loads)
-    return df
+    out_dict = {}
+    with open(db_path) as f:
+        reader = csv.reader(f)
+        columns = next(reader)
+        for row in reader:
+            out_dict[row[0]] = {columns[1]: row[1], columns[2]: wkt.loads(row[2])}
+    return out_dict
