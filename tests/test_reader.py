@@ -28,13 +28,13 @@ def _compare_bursts_to_esa(zip_name, test_paths, esa_burst_db):
     zip_path = test_paths.data_dir / zip_name
     orbit_file = get_orbit_file_from_dir(zip_path, test_paths.orbit_dir)
     bursts = load_bursts(zip_path, orbit_file, 2, pol="vv")
-    assert len(bursts) == 9
 
-    # Compare with ESA burst IDs that are available in the annotation files for
-    # IPF >= 3.40
+    # Compare with ESA burst IDs that are available in the annotation files
     esa_burst_ids = _get_esa_burst_ids(zip_path)
-    s1_burst_ids = [int(b.burst_id.split("_")[1]) for b in bursts]
-    assert esa_burst_ids == s1_burst_ids
+    if esa_burst_ids:
+        # only available for IPF >= 3.40
+        s1_burst_ids = [int(b.burst_id.split("_")[1]) for b in bursts]
+        assert esa_burst_ids == s1_burst_ids
 
     _compare_bursts_geometry_to_esa(bursts, esa_burst_db)
 

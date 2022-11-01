@@ -29,7 +29,8 @@ def make_sample_db(out_name="data/esa_burst_db_sample.csv"):
         for i in [1, 2, 3]:
             try:
                 all_bursts.extend(s1reader.load_bursts(f, orbf, i))
-            except ValueError:
+            except ValueError as e:
+                print(f"Error loading {f} subswath {i}: {e}")
                 continue
 
     all_bids = [b.burst_id for b in all_bursts]
