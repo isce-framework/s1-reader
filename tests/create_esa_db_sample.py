@@ -28,7 +28,7 @@ def make_sample_db(out_name="data/esa_burst_db_sample.csv"):
         orbf = s1reader.get_orbit_file_from_dir(f, Path(f).parent / "orbits")
         for i in [1, 2, 3]:
             try:
-                all_bursts.extend(s1reader.load_bursts(f, orbf, i))
+                all_bursts.extend(s1reader.load_bursts(f, orbf, i, pol="vv", flag_apply_eap=False))
             except ValueError as e:
                 print(f"Error loading {f} subswath {i}: {e}")
                 continue

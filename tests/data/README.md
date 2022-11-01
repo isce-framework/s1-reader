@@ -5,17 +5,15 @@ Example:
 ```bash
 ./make_empty_safe.sh /home/staniewi/dev/hawaii/S1A_IW_SLC__1SDV_20220828T042306_20220828T042335_044748_0557C6_F396.SAFE
 ```
+Orbit files are truncated using `download_data.shrink_orbit`
 
 Example datasets:
 
 - S1A_IW_SLC__1SDV_20220828T042306_20220828T042335_044748_0557C6_F396.zip
   - Hawaii ascending pass, was an exmaple area experience the off-by-one burst_id label error
-  - orbit file was downloaded and OSV list truncated for space
-  - Added by Scott Staniewicz
 
 - S1A_IW_SLC__1SDV_20221024T184148_20221024T184218_045587_05735F_D6E2.zip
   - Equator ascending data which contains a node crossing. The final bursts are a different track than initial bursts.
-  - orbit file was downloaded and OSV list truncated for space
   - This one was created using `asfsmd`:
 ```bash
 asfsmd S1A_IW_SLC__1SDV_20221024T184148_20221024T184218_045587_05735F_D6E2 --do-noise --do-cal -iw 2
