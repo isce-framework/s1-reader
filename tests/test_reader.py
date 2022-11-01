@@ -10,6 +10,7 @@ from s1reader.s1_orbit import get_orbit_file_from_dir
 from s1reader.s1_reader import get_start_end_track
 
 BURST_ID_PAT = r"t(?P<track>\d{3})_(?P<burst_id>\d{6})_iw(?P<subswath_num>[1-3])"
+# Test cases where the normal relative orbit calculation fails
 ORBIT_EXCEPTIONS = [
     "S1A_IW_SLC__1SDV_20141004T031312_20141004T031339_002674_002FB6_07B5.zip",
 ]
@@ -28,7 +29,7 @@ def test_all_files(test_paths, esa_burst_db):
 
 def test_orbit_exception(test_paths):
     """Check the 2014 test case where the track number is different.
-    
+
     See https://forum.step.esa.int/t/sentinel-1-relative-orbit-from-filename/7042/11
     """
     zip_path = test_paths.data_dir / ORBIT_EXCEPTIONS[0]

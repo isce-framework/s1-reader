@@ -16,10 +16,7 @@ Example datasets:
 - S1A_IW_SLC__1SDV_20221024T184148_20221024T184218_045587_05735F_D6E2.zip
   - Equator ascending data which contains a node crossing. The final bursts are a different track than initial bursts.
   - orbit file was downloaded and OSV list truncated for space
-  - Added by Scott Staniewicz
-
-This one was created using `asfsmd`:
-
+  - This one was created using `asfsmd`:
 ```bash
 asfsmd S1A_IW_SLC__1SDV_20221024T184148_20221024T184218_045587_05735F_D6E2 --do-noise --do-cal -iw 2
 ```

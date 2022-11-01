@@ -170,11 +170,58 @@ def run_asfsmd(safe_list, pol="vv", out_name="sentinel1_boundaries_asfsmd.csv"):
                 )
                 out_dict["safe_path"].append(safe_path)
     df = pd.DataFrame(out_dict)
+    df = df.sort_values("burst_id").reset_index(drop=True)
     if out_name:
         df.to_csv(out_name, index=False)
     df["boundary"] = df["boundary_wkt"].apply(shapely.wkt.loads)
-    return df, processed_safes
+    return df
 
+
+def run_asfsmd_parallel(safe_list, pol="vv", out_name="sentinel1_boundaries_asfsmd.csv"):
+    # out_dict = {"burst_id": [], "boundary_wkt": [], "safe_path": []}
+    from concurrent.futures import ProcessPoolExecutor, as_completed
+    all_results = []
+    with ProcessPoolExecutor(max_workers=10) as exc:
+        futures = [
+            exc.submit(_run_safe, safe_name, pol) for safe_name in safe_list
+        ]
+        for fut in as_completed(futures):
+            all_results.extend(fut.result())
+    
+    df = pd.DataFrame(all_results, columns=["burst_id", "boundary_wkt", "safe_path"])
+    df = df.sort_values("burst_id").reset_index(drop=True)
+    if out_name:
+        df.to_csv(out_name, index=False)
+    df["boundary"] = df["boundary_wkt"].apply(shapely.wkt.loads)
+    return df
+
+
+def _run_safe(safe_path, pol="vv"):
+    safe_path = os.path.abspath(safe_path)
+    try:
+        bursts = [
+            load_bursts(
+                safe_path,
+                orbit_path=None,
+                swath_num=i,
+                pol=pol,
+                flag_apply_eap=False,
+            )
+            for i in [1, 2, 3]
+        ]
+    except Exception as e:
+        print(f"Failed to load {safe_path}: {e}")
+        return []
+
+    out = []
+    for iw_bs in bursts:
+        for b in iw_bs:
+            out.append((
+                b.burst_id, 
+                shapely.wkt.dumps(MultiPolygon(b.border)),
+                safe_path
+            ))
+    return out
 
 def as_datetime(t_str):
     """Parse given time string to datetime.datetime object.
@@ -334,15 +381,25 @@ import sqlite3
 
 def compare_boundaries(df, db_path=None):
     results = []
+    failed_idxs = []
     if db_path is None:
         db_path = "/home/staniewi/dev/burst_map_margin4000.sqlite3"
     query = "SELECT epsg, asbinary(geometry) FROM burst_id_map WHERE burst_id_jpl = ?"
     with sqlite3.connect(db_path) as con:
         con.enable_load_extension(True)
         con.load_extension("mod_spatialite")
-        for bid in df.burst_id:
+        for idx, bid in enumerate(df.burst_id):
             cur = con.execute(query, (bid,))
-            results.append(cur.fetchone())
+            r = cur.fetchone()
+            if r is None:
+                failed_idxs.append(idx)
+            else:
+                results.append(r)
+
+    bad_df = df.index.isin(failed_idxs)
+    df_failed = df.loc[bad_df].copy()
+    print(f"Failed to find {len(df_failed)} bursts")
+    df = df.loc[~bad_df]
 
     epsgs, db_geoms_wkb = zip(*results)
     df["db_boundary"] = [shapely.wkb.loads(g) for g in db_geoms_wkb]
@@ -368,7 +425,9 @@ def compare_boundaries(df, db_path=None):
     df["ymaxs"] = bounds_db[:, 3] - bounds_actual[:, 3]
     df = df.drop(["boundary_wkt"], axis=1, errors="ignore")
     df["iou"] = df.apply(lambda row: iou(row.boundary_utm, row.db_boundary_utm), axis=1)
-    return df
+    mismatches = df["iou"] < 0.60
+    print(f"Found {mismatches.sum()} mismatches")
+    return df, df_failed.reset_index()
 
 
 def iou(geom1, geom2):

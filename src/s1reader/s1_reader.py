@@ -268,30 +268,31 @@ def get_ipf_version(tree: ET):
     '''Extract the IPF version from the ET of manifest.safe
     '''
     # get version from software element
-    search_term = _get_manifest_pattern(tree, ['processing', 'facility', 'software'])
-    software_elem = tree.find(search_term)
+    search_term, nsmap = _get_manifest_pattern(tree, ['processing', 'facility', 'software'])
+    software_elem = tree.find(search_term, nsmap)
     ipf_version = version.parse(software_elem.attrib['version'])
 
     return ipf_version
 
-def get_start_end_track(manifest_tree: ET):
+def get_start_end_track(tree: ET):
     '''Extract the start/end relative orbits from manifest.safe file'''
-    search_term = _get_manifest_pattern(manifest_tree, ['orbitReference', 'relativeOrbitNumber'])
-    elem_start, elem_end = manifest_tree.findall(search_term)
+    search_term, nsmap = _get_manifest_pattern(tree, ['orbitReference', 'relativeOrbitNumber'])
+    elem_start, elem_end = tree.findall(search_term, nsmap)
     return int(elem_start.text), int(elem_end.text)
 
 
 def _get_manifest_pattern(tree: ET, keys: list):
-    '''Extract data from the ET of manifest.safe'''
+    '''Get the search path to extract data from the ET of manifest.safe'''
+    # Get the namespace from the root element to avoid full urls
+    try:
+        nsmap = tree.nsmap
+    except AttributeError:
+        nsmap = tree.getroot().nsmap
     # path to xmlData in manifest
     xml_meta_path = 'metadataSection/metadataObject/metadataWrap/xmlData'
+    safe_terms = "/".join([f'safe:{key}' for key in keys])
+    return f'{xml_meta_path}/{safe_terms}', nsmap
 
-    # piecemeal build path to nested data
-    esa_http = '{http://www.esa.int/safe/sentinel-1.0}'
-    search_term = xml_meta_path
-    for k in keys:
-        search_term += f'/{esa_http}{k}'
-    return search_term
 
 def get_path_aux_cal(directory_aux_cal: str, str_annotation: str):
     '''
@@ -890,7 +891,16 @@ def get_burst_id(sensing_time: datetime.datetime, ascending_node_dt: datetime.da
     has_anx_crossing = end_track == (start_track % 175) + 1
     time_since_anx = (sensing_time - ascending_node_dt).total_seconds()
 
-    if (time_since_anx - T_orb) > T_beam:
+    # Note on adjacent burst times:
+    # IW1 -> IW2 takes ~0.83220 seconds
+    # IW2 -> IW3 takes ~1.07803 seconds
+    # IW3 -> IW1 takes ~0.84803 seconds
+    # cumulative_burst_time = np.cumsum([0, 0.832, 1.078, 0.848])[:3]
+    swath_num = int(subswath_name[-1])
+    cumulative_burst_time = [0.0, 0.832, 1.91]
+    max_time_past_anx = cumulative_burst_time[swath_num - 1]
+
+    if (time_since_anx - T_orb) > max_time_past_anx:
         if not has_anx_crossing:
             # Additional exception for scenes which have an ascending node
             # provided that's more than 1 orbit in the past
@@ -904,3 +914,4 @@ def get_burst_id(sensing_time: datetime.datetime, ascending_node_dt: datetime.da
     esa_burst_id = 1 + int(np.floor((dt_b - T_pre) / T_beam))
     # Form the unique JPL ID by combining track/burst/swath
     return f't{track_number:03d}_{esa_burst_id:06d}_{subswath_name.lower()}'
+
