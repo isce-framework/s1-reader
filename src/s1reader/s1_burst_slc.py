@@ -652,8 +652,9 @@ class Sentinel1BurstSlc:
                             f' IPF version = {self.ipf_version}')
 
         return self.burst_eap.compute_eap_compensation_lut(self.width)
-    def bbox(self):
-        '''Returns the (west, south, east, north) bounding box of the burst.'''
-        # Uses https://shapely.readthedocs.io/en/stable/manual.html#object.bounds
-        # Returns a tuple of 4 floats representing (west, south, east, north) in degrees.
-        return self.border[0].bounds
+
+    @property
+    def relative_orbit_number(self):
+        '''Returns the relative orbit number of the burst.'''
+        orbit_number_offset = 73 if self.platform_id == 'S1A' else 202
+        return (self.abs_orbit_number - orbit_number_offset) % 175 + 1
