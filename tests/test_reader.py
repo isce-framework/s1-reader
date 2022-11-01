@@ -1,25 +1,34 @@
 import re
+import zipfile
+from pathlib import Path
+
 from lxml import etree as ET
 from shapely.geometry import MultiPolygon
-import zipfile
 
 from s1reader import load_bursts
 from s1reader.s1_orbit import get_orbit_file_from_dir
+from s1reader.s1_reader import get_start_end_track
 
 BURST_ID_PAT = r"t(?P<track>\d{3})_(?P<burst_id>\d{6})_iw(?P<subswath_num>[1-3])"
 
 
-def test_burst_from_zip(bursts, esa_burst_db):
-    assert len(bursts) == 9
-    _compare_bursts_geometry_to_esa(bursts, esa_burst_db)
-
-
-def test_burst_ids(test_paths, esa_burst_db):
-    """Check that the burst IDs match ESA using a recent acquisition containing labels."""
+def test_all_files(test_paths, esa_burst_db):
     # Hawaii dataset
-    zip_path = test_paths.data_dir / "S1A_IW_SLC__1SDV_20220828T042306_20220828T042335_044748_0557C6_F396.zip"
+
+    # "S1A_IW_SLC__1SDV_20220828T042306_20220828T042335_044748_0557C6_F396.zip"
+    files = Path(test_paths.data_dir).glob("S1*.zip")
+    for f in files:
+        _compare_bursts_to_esa(
+            f, test_paths, esa_burst_db
+        )
+
+
+def _compare_bursts_to_esa(zip_name, test_paths, esa_burst_db):
+    """Check that the burst IDs and computed geometries match ESA's."""
+    zip_path = test_paths.data_dir / zip_name
     orbit_file = get_orbit_file_from_dir(zip_path, test_paths.orbit_dir)
     bursts = load_bursts(zip_path, orbit_file, 2, pol="vv")
+    assert len(bursts) == 9
 
     # Compare with ESA burst IDs that are available in the annotation files for
     # IPF >= 3.40
@@ -47,7 +56,8 @@ def test_anx_crossing(test_paths, esa_burst_db):
     bursts = load_bursts(zip_path, orbit_file, 2, pol="vv")
 
     # get the start/end track from manifest.safe file
-    start_track, end_track = _get_start_end_track(zip_path)
+    tree = _get_safe_et(zip_path, "manifest.safe")
+    start_track, end_track = get_start_end_track(tree)
 
     # t015_032217_iw2
     match = re.match(BURST_ID_PAT, bursts[0].burst_id)
@@ -63,7 +73,6 @@ def test_anx_crossing(test_paths, esa_burst_db):
 
     _compare_bursts_geometry_to_esa(bursts, esa_burst_db)
 
-
 def _get_safe_et(zip_path, file_pattern):
     with zipfile.ZipFile(zip_path) as zf:
         for fn in zf.namelist():
@@ -74,15 +83,6 @@ def _get_safe_et(zip_path, file_pattern):
 def _get_esa_burst_ids(zip_path):
     tree = _get_safe_et(zip_path, "annotation/s1")
     return [int(b.text) for b in tree.findall("swathTiming/burstList/burst/burstId")]
-
-
-def _get_start_end_track(zip_path):
-    tree = _get_safe_et(zip_path, "manifest.safe")
-    xml_meta_path = 'metadataSection/metadataObject/metadataWrap/xmlData'
-    esa_http = '{http://www.esa.int/safe/sentinel-1.0}'
-    rel_orbit_paths = xml_meta_path + f'/{esa_http}orbitReference' + f'/{esa_http}relativeOrbitNumber'
-    elem_start, elem_end = tree.findall(rel_orbit_paths)
-    return int(elem_start.text), int(elem_end.text)
 
 
 def iou(geom1, geom2):

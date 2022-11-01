@@ -14,8 +14,9 @@ def test_paths():
 
     test_paths = types.SimpleNamespace()
     test_paths.data_dir = data_dir
-    test_paths.safe = data_dir / "S1A_IW_SLC__1SDV_20200511T135117_20200511T135144_032518_03C421_7768.zip"  # noqa
     test_paths.orbit_dir = data_dir / "orbits"
+    # One example to check each part of the loading process
+    test_paths.safe = data_dir / "S1A_IW_SLC__1SDV_20200511T135117_20200511T135144_032518_03C421_7768.zip"  # noqa
     test_paths.orbit_file = "S1A_OPER_AUX_POEORB_OPOD_20210318T120818_V20200510T225942_20200512T005942.EOF"  # noqa
 
     return test_paths
