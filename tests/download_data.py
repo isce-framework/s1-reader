@@ -52,7 +52,7 @@ def shrink_orbit(safe_file, orbit_dir="orbits", overwrite=True, outname=None):
 
         if end_idx is None and t_orbit > end_dt:
             end_idx = idx
-    
+
     # Now splice in the sublist
     cut_osv_list = deepcopy(osv_list_elem[start_idx:end_idx])
     ET.strip_elements(tree, "OSV")

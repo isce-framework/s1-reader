@@ -56,4 +56,4 @@ zip -r "${NEWSAFE%.SAFE}.zip" "$NEWSAFE"
 
 # PLEASE manually remove so I dont put rm -rf in here
 # rm -rf "$NEWSAFE"
-echo "Created ${NEWSAFE%.SAFE}.zip, please remove "$NEWSAFE""
+echo "Created ${NEWSAFE%.SAFE}.zip, please remove $NEWSAFE"

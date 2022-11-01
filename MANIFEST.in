@@ -1,1 +1,1 @@
-include src/s1reader/data/sentinel1_track_burst_id.txt
+recursive-include src/s1reader/data/
