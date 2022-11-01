@@ -3,13 +3,13 @@
 set -e
 
 INDIR=$1
-echo $INDIR
+echo "$INDIR"
 
 mkdir -p out
 
-SAFENAME=$(basename $INDIR)
+SAFENAME=$(basename "$INDIR")
 
-cp -r $INDIR out/
+cp -r "$INDIR" out/
 
 
 NEWSAFE=out/$SAFENAME 

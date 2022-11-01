@@ -1,1 +1,1 @@
-recursive-include src/s1reader/data/
+recursive-include src/s1reader/data/ *

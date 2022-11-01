@@ -332,8 +332,7 @@ def get_path_aux_cal(directory_aux_cal: str, str_annotation: str):
     list_aux_cal = glob.glob(f'{directory_aux_cal}/{str_platform}_AUX_CAL_V*.SAFE.zip')
 
     if len(list_aux_cal) == 0:
-        raise ValueError( 'Cannot find AUX_CAL files from directory: '
-                                f'{directory_aux_cal}')
+        raise ValueError(f'Cannot find AUX_CAL files from {directory_aux_cal} .')
 
     format_datetime = '%Y%m%dT%H%M%S'
 
