@@ -10,21 +10,41 @@ from s1reader.s1_orbit import get_orbit_file_from_dir
 from s1reader.s1_reader import get_start_end_track
 
 BURST_ID_PAT = r"t(?P<track>\d{3})_(?P<burst_id>\d{6})_iw(?P<subswath_num>[1-3])"
+ORBIT_EXCEPTIONS = [
+    "S1A_IW_SLC__1SDV_20141004T031312_20141004T031339_002674_002FB6_07B5.zip",
+]
 
 
 def test_all_files(test_paths, esa_burst_db):
-    # Hawaii dataset
-
-    # "S1A_IW_SLC__1SDV_20220828T042306_20220828T042335_044748_0557C6_F396.zip"
+    """Check each test case for the correct burst IDs and geometries."""
     files = Path(test_paths.data_dir).glob("S1*.zip")
     for f in files:
+        if f.name in ORBIT_EXCEPTIONS:
+            continue
         _compare_bursts_to_esa(
             f, test_paths, esa_burst_db
         )
 
 
+def test_orbit_exception(test_paths):
+    """Check the 2014 test case where the track number is different.
+    
+    See https://forum.step.esa.int/t/sentinel-1-relative-orbit-from-filename/7042/11
+    """
+    zip_path = test_paths.data_dir / ORBIT_EXCEPTIONS[0]
+    orbit_file = get_orbit_file_from_dir(zip_path, test_paths.orbit_dir)
+    bursts = load_bursts(zip_path, orbit_file, 2, pol="vv")
+    assert bursts[0].relative_orbit_number == 152
+
+    # get the start/end track from manifest.safe file
+    tree = _get_safe_et(zip_path, "manifest.safe")
+    start_track, end_track = get_start_end_track(tree)
+    # They do not match the formula before the final orbit of Sentinel started
+    assert start_track == end_track == 154
+
+
 def _compare_bursts_to_esa(zip_name, test_paths, esa_burst_db):
-    """Check that the burst IDs and computed geometries match ESA's."""
+    """Check that one zip file's burst IDs and computed geometries match ESA's."""
     zip_path = test_paths.data_dir / zip_name
     orbit_file = get_orbit_file_from_dir(zip_path, test_paths.orbit_dir)
     bursts = load_bursts(zip_path, orbit_file, 2, pol="vv")

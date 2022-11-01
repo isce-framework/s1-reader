@@ -894,7 +894,7 @@ def get_burst_id(sensing_time: datetime.datetime, ascending_node_dt: datetime.da
         if not has_anx_crossing:
             # Additional exception for scenes which have an ascending node
             # provided that's more than 1 orbit in the past
-            time_since_anx = time_since_anx - T_orb + T_pre
+            time_since_anx = time_since_anx - T_orb
         track_number = end_track
     else:
         track_number = start_track
