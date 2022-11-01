@@ -22,9 +22,8 @@ def test_all_files(test_paths, esa_burst_db):
     for f in files:
         if f.name in ORBIT_EXCEPTIONS:
             continue
-        _compare_bursts_to_esa(
-            f, test_paths, esa_burst_db
-        )
+        for subswath in [1, 2, 3]:
+            _compare_bursts_to_esa(f, test_paths, esa_burst_db, subswath)
 
 
 def test_orbit_exception(test_paths):
@@ -44,14 +43,14 @@ def test_orbit_exception(test_paths):
     assert start_track == end_track == 154
 
 
-def _compare_bursts_to_esa(zip_name, test_paths, esa_burst_db):
+def _compare_bursts_to_esa(zip_name, test_paths, esa_burst_db, subswath):
     """Check that one zip file's burst IDs and computed geometries match ESA's."""
     zip_path = test_paths.data_dir / zip_name
     orbit_file = get_orbit_file_from_dir(zip_path, test_paths.orbit_dir)
-    bursts = load_bursts(zip_path, orbit_file, 2, pol="vv")
+    bursts = load_bursts(zip_path, orbit_file, subswath, pol="vv")
 
     # Compare with ESA burst IDs that are available in the annotation files
-    esa_burst_ids = _get_esa_burst_ids(zip_path)
+    esa_burst_ids = _get_esa_burst_ids(zip_path, subswath)
     if esa_burst_ids:
         # only available for IPF >= 3.40
         s1_burst_ids = [int(b.burst_id.split("_")[1]) for b in bursts]
@@ -94,15 +93,17 @@ def test_anx_crossing(test_paths, esa_burst_db):
 
     _compare_bursts_geometry_to_esa(bursts, esa_burst_db)
 
-def _get_safe_et(zip_path, file_pattern):
+
+def _get_safe_et(zip_path, file_pattern, subswath=None):
+    subswath_pat = f"iw{subswath}" if subswath else ""
     with zipfile.ZipFile(zip_path) as zf:
         for fn in zf.namelist():
-            if file_pattern in fn:
+            if file_pattern in fn and subswath_pat in fn:
                 return ET.fromstring(zf.read(fn))
 
 
-def _get_esa_burst_ids(zip_path):
-    tree = _get_safe_et(zip_path, "annotation/s1")
+def _get_esa_burst_ids(zip_path, subswath):
+    tree = _get_safe_et(zip_path, "annotation/s1", subswath)
     return [int(b.text) for b in tree.findall("swathTiming/burstList/burst/burstId")]
 
 
