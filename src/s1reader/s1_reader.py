@@ -493,7 +493,7 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
             calibration_annotation =\
                 CalibrationAnnotation.from_et(tree_cads,
                                               calibration_annotation_path)
-    except FileNotFoundError:
+    except (FileNotFoundError, KeyError):
         calibration_annotation = None
 
     # load the Noise annotation
@@ -503,7 +503,7 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
             tree_nads = ET.parse(f_nads)
             noise_annotation = NoiseAnnotation.from_et(tree_nads, ipf_version,
                                                        noise_annotation_path)
-    except FileNotFoundError:
+    except (FileNotFoundError, KeyError):
         noise_annotation = None
 
     # load AUX_CAL annotation
