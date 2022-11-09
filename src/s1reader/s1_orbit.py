@@ -218,8 +218,10 @@ def get_file_name_tokens(zip_path: str) -> [str, list[datetime.datetime]]:
 # lambda to check if file exists if desired sat_id in basename
 item_valid = lambda item, sat_id: os.path.isfile(item) and sat_id in os.path.basename(item)
 
-def get_orbit_file_from_dir(zip_path: str, orbit_dir: str, auto_download: bool = False) -> str:
-    '''Get orbit state vector list for a given swath.
+def get_orbit_file(zip_path: str, orbit_source, auto_download: bool = False) -> str:
+    '''
+    Get orbit file path from `orbit_source` that covers
+    DAQ period of `zip_path`.
 
     Parameters:
     -----------
@@ -227,10 +229,16 @@ def get_orbit_file_from_dir(zip_path: str, orbit_dir: str, auto_download: bool =
         Path to Sentinel1 SAFE zip file. Base names required to adhere to the
         format described here:
         https://sentinel.esa.int/web/sentinel/user-guides/sentinel-1-sar/naming-conventions
-    orbit_dir : string
-        Path to directory containing orbit files. Orbit files required to adhere
-        to naming convention found here:
+
+    orbit_source : string or list[str]
+        One of the belows:
+        - Path to directory containing orbit files (str)
+        - List of orbit files as (list[str])
+        - List of orbit directories as (list[str])
+
+        Orbit files required to adhere to naming convention found here:
         https://s1qc.asf.alaska.edu/aux_poeorb/
+
     auto_download : bool
         Automatically download the orbit file if not exist in the orbit_dir.
 
@@ -240,12 +248,78 @@ def get_orbit_file_from_dir(zip_path: str, orbit_dir: str, auto_download: bool =
         Path to the orbit file.
     '''
 
-    # check the existence of input file path and directory
-    if not os.path.exists(zip_path):
-        raise FileNotFoundError(f"{zip_path} does not exist")
+    if isinstance(orbit_source, str):
+        list_orbit_source = [orbit_source]
+    elif isinstance(orbit_source, list):
+        list_orbit_source = orbit_source
+    else:
+        raise ValueError(f'Data type of {str(type(orbit_source))} is '
+                          'not supported.')
 
-    if not os.path.isdir(orbit_dir):
-        raise NotADirectoryError(f"{orbit_dir} not found")
+    # type theck: all file or all directories
+    list_flag_type = [os.path.isdir(orbit_src) for orbit_src in list_orbit_source]
+    flag_all_directory = sum(list_flag_type) == len(list_flag_type)
+    flag_all_files = sum(list_flag_type) == 0
+
+    if not (flag_all_directory or flag_all_files):
+        raise ValueError(
+            'Mixture of (orbit) file and directory is not allowed.')
+
+    list_valid_orbit_files = []
+    for path_or_dir in list_orbit_source:
+        if os.path.isfile(path_or_dir):
+            list_valid_orbit_files.append(path_or_dir)
+            continue
+
+        if os.path.isdir(path_or_dir):
+            orbit_files_in_dir = glob.glob(f'{path_or_dir}/S1*.EOF')
+            list_valid_orbit_files += orbit_files_in_dir
+            continue
+
+    orbit_file = get_orbit_file_from_list(zip_path, list_valid_orbit_files)
+
+    if not orbit_file:
+        orbit_dir = os.path.dirname(list_orbit_source[0])
+        if not orbit_dir:
+            orbit_dir = os.getcwd()
+
+        if auto_download:
+            orbit_file = download_orbit(zip_path, orbit_dir)
+        else:
+            msg = (f'No orbit file found for {os.path.basename(zip_path)} '
+                    'from the orbit_source provided.')
+            warnings.warn(msg)
+
+    return orbit_file
+
+# For compatibility with legacy code(s)
+get_orbit_file_from_dir = get_orbit_file
+
+
+def get_orbit_file_from_list(zip_path: str, orbit_file_list: list) -> str:
+    '''Get orbit state vector list for a given swath.
+
+    Parameters:
+    -----------
+    zip_path : string
+        Path to Sentinel1 SAFE zip file. Base names required to adhere to the
+        format described here:
+        https://sentinel.esa.int/web/sentinel/user-guides/sentinel-1-sar/naming-conventions
+    orbit_file_list : list
+        List of the orbit files that exists in the system.
+
+    Returns:
+    --------
+    orbit_file : str
+        Path to the orbit file.
+    '''
+
+    # check the existence of input file path and directory
+    #if not os.path.exists(zip_path):
+    #    raise FileNotFoundError(f"{zip_path} does not exist")
+
+    #if not os.path.isdir(orbit_dir):
+    #    raise NotADirectoryError(f"{orbit_dir} not found")
 
     # extract platform id, start and end times from swath file name
     platform_id, t_swath_start_stop = get_file_name_tokens(zip_path)
@@ -254,7 +328,7 @@ def get_orbit_file_from_dir(zip_path: str, orbit_dir: str, auto_download: bool =
     orbit_file = ''
 
     # search for orbit file
-    orbit_file_list = glob.glob(os.path.join(orbit_dir, 'S1*.EOF'))
+    #orbit_file_list = glob.glob(os.path.join(orbit_dir, 'S1*.EOF'))
     for orbit_file in orbit_file_list:
         # check if file validity
         if not item_valid(orbit_file, platform_id):
@@ -278,12 +352,8 @@ def get_orbit_file_from_dir(zip_path: str, orbit_dir: str, auto_download: bool =
             orbit_file = ''
 
     if not orbit_file:
-        if auto_download:
-            orbit_file = download_orbit(zip_path, orbit_dir)
-
-        else:
-            msg = f'No orbit file found for {os.path.basename(zip_path)}!'
-            msg += f'\nOrbit directory: {orbit_dir}'
-            warnings.warn(msg)
+        msg = 'No orbit file found from the file list provided.!'
+        warnings.warn(msg)
 
     return orbit_file
+
