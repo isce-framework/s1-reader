@@ -7,7 +7,7 @@ from dataclasses import dataclass
 
 import datetime
 import os
-import xml.etree.ElementTree as ET
+import lxml.etree as ET
 import zipfile
 
 import numpy as np

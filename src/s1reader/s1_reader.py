@@ -2,7 +2,7 @@ import datetime
 import glob
 import os
 import warnings
-import xml.etree.ElementTree as ET
+import lxml.etree as ET
 import zipfile
 
 from types import SimpleNamespace
@@ -25,7 +25,7 @@ from s1reader.s1_burst_slc import Doppler, Sentinel1BurstSlc
 esa_track_burst_id_file = f"{os.path.dirname(os.path.realpath(__file__))}/data/sentinel1_track_burst_id.txt"
 
 # TODO evaluate if it make sense to combine below into a class
-def as_datetime(t_str, fmt = "%Y-%m-%dT%H:%M:%S.%f"):
+def as_datetime(t_str):
     '''Parse given time string to datetime.datetime object.
 
     Parameters:
@@ -41,7 +41,7 @@ def as_datetime(t_str, fmt = "%Y-%m-%dT%H:%M:%S.%f"):
     _ : datetime.datetime
         datetime.datetime object parsed from given time string.
     '''
-    return datetime.datetime.strptime(t_str, fmt)
+    return datetime.datetime.fromisoformat(t_str)
 
 def parse_polynomial_element(elem, poly_name):
     '''Parse azimuth FM (Frequency Modulation) rate element to reference time and poly1d tuples.
@@ -63,7 +63,7 @@ def parse_polynomial_element(elem, poly_name):
     half_c = 0.5 * isce3.core.speed_of_light
     r0 = half_c * float(elem.find('t0').text)
 
-    # NOTE Format of the Azimith FM rate polynomials has changed when IPF version was somewhere between 2.36 and 2.82
+    # NOTE Format of the azimuth FM rate polynomials has changed when IPF version was somewhere between 2.36 and 2.82
     if elem.find(poly_name) is None:  # before the format change i.e. older IPF
         coeffs = [float(x.text) for x in elem[2:]]
     else:  # after the format change i.e. newer IPF
@@ -114,7 +114,7 @@ def doppler_poly1d_to_lut2d(doppler_poly1d, starting_slant_range,
     Parameters
     ----------
     doppler_poly1d : poly1d
-        Poly1d object to be convereted.
+        Poly1d object to be converted.
     starting_slant_range : float
         Starting slant range of the burst.
     slant_range_res : float
@@ -134,12 +134,13 @@ def doppler_poly1d_to_lut2d(doppler_poly1d, starting_slant_range,
     slant_ranges = starting_slant_range + np.arange(n_samples) * slant_range_res
 
     # no az dependency, but LUT2d required, so ensure all az coords covered
-    # offset by -2 days in seconds (referenece epoch)
+    # offset by -2 days in seconds (reference epoch)
     offset_ref_epoch = 2 * 24 *3600
     az_times = offset_ref_epoch + np.array([0, n_lines * az_time_interval])
 
     # calculate frequency for all slant range
-    freq_1d = np.array([doppler_poly1d.eval(t) for t in slant_ranges])
+    freq_1d = doppler_poly1d.eval(slant_ranges)
+    # freq_1d = np.array([doppler_poly1d.eval(t) for t in slant_ranges])
 
     # init LUT2d (vstack freq since no az dependency) and return
     return isce3.core.LUT2d(slant_ranges, az_times,
@@ -162,12 +163,11 @@ def get_burst_orbit(sensing_start, sensing_stop, osv_list: ET.Element):
     _ : datetime
         Sensing mid as datetime object.
     '''
-    fmt = "UTC=%Y-%m-%dT%H:%M:%S.%f"
     orbit_sv = []
     # add start & end padding to ensure sufficient number of orbit points
     pad = datetime.timedelta(seconds=60)
     for osv in osv_list:
-        t_orbit = datetime.datetime.strptime(osv[1].text, fmt)
+        t_orbit = as_datetime(osv[1].text[4:])
 
         if t_orbit > sensing_stop + pad:
             break
