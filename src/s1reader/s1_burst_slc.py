@@ -173,6 +173,10 @@ class Sentinel1BurstSlc:
     burst_noise: s1_annotation.BurstNoise  # Thermal noise correction
     burst_eap: s1_annotation.BurstEAP  # EAP correction
 
+    # Extended FM rate / Doppler centroid polynomial coefficients
+    # for azimith FM rate mismatch mitigation
+    extended_coeffs_fm_dc: s1_annotation.BurstExtendedCoeffs
+
     def __str__(self):
         return f"Sentinel1BurstSlc: {self.burst_id} at {self.sensing_start}"
 

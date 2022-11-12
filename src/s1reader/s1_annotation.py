@@ -333,6 +333,16 @@ class ProductAnnotation(AnnotationBase):
 
     slant_range_time: float
 
+    
+    vec_aztime_coeff_fm_rate: np.ndarray
+    lut_coeff_fm_rate: np.ndarray
+    vec_tau0_fm_rate:np.ndarray
+
+    vec_aztime_coeff_dc: np.ndarray
+    lut_coeff_dc: np.ndarray
+    vec_tau0_dc: np.ndarray
+
+
     @classmethod
     def from_et(cls, et_in: ET):
         '''
@@ -391,6 +401,50 @@ class ProductAnnotation(AnnotationBase):
             cls._parse_scalar('generalAnnotation/downlinkInformationList/downlinkInformation/'
                               'downlinkValues/instrumentConfigId',
                               'scalar_int')
+
+
+        cls.vec_aztime_coeff_fm_rate = \
+            cls._parse_vectorlist('generalAnnotation/azimuthFmRateList',
+                                  'azimuthTime',
+                                  'datetime')
+
+        if cls.xml_et.find('generalAnnotation/azimuthFmRateList')[0].find('c0') is None:
+            cls.lut_coeff_fm_rate = \
+                np.array(cls._parse_vectorlist('generalAnnotation/azimuthFmRateList',
+                                          'azimuthFmRatePolynomial',
+                                          'vector_float'))
+
+        else:
+            # Old annotation format
+            vec_c0 = cls._parse_vectorlist('generalAnnotation/azimuthFmRateList',
+                                           'c0',
+                                           'scalar_float')
+            vec_c1 = cls._parse_vectorlist('generalAnnotation/azimuthFmRateList',
+                                           'c1',
+                                           'scalar_float')
+            vec_c2 = cls._parse_vectorlist('generalAnnotation/azimuthFmRateList',
+                                           'c2',
+                                           'scalar_float')
+            cls.lut_coeff_fm_rate = np.array([vec_c0, vec_c1, vec_c2]).transpose()
+
+
+
+        cls.vec_tau0_fm_rate = np.array(cls._parse_vectorlist('generalAnnotation/azimuthFmRateList',
+                                                     't0',
+                                                     'scalar_float'))
+
+        cls.vec_aztime_coeff_dc = cls._parse_vectorlist('dopplerCentroid/dcEstimateList',
+                                                    'azimuthTime',
+                                                    'datetime')
+
+        cls.lut_coeff_dc = np.array(cls._parse_vectorlist('dopplerCentroid/dcEstimateList',
+                                                 'dataDcPolynomial',
+                                                 'vector_float'))
+        
+        cls.vec_tau0_dc = np.array(cls._parse_vectorlist('dopplerCentroid/dcEstimateList',
+                                                't0',
+                                                'scalar_float'))
+
 
         return cls
 
@@ -897,3 +951,120 @@ class BurstEAP:
             h_t += h_i * np.sin((i+1) * worb * delta_anx + phi[i])
 
         return h_t
+
+
+@dataclass
+class BurstExtendedCoeffs:
+    '''
+    Time series of FM rate / Doppler centroid coefficient
+    For (linear) interpolation of FM rate / Doppler Centroid along azimuth,
+    which is a required when calculating azimuth FM rate mismatch mitigation
+    '''
+    
+    # FM rate 
+    vec_aztime_coeff_fm_rate: np.ndarray
+    lut_coeff_fm_rate: np.ndarray
+    vec_tau0_fm_rate:np.ndarray
+
+    # Doppler centroid
+    vec_aztime_coeff_dc: np.ndarray
+    lut_coeff_dc: np.ndarray
+    vec_tau0_dc: np.ndarray
+    
+    @classmethod
+    def from_product_annotation_and_burst(cls,
+                                          product_annotation: ProductAnnotation,
+                                          sensing_start: datetime.datetime,
+                                          sensing_end: datetime.datetime):
+        '''
+        Clip the series of coefficients from `product_annotation` that covers
+        the burst whose sensing start / end time is provided in the arguments.
+
+        Parameters:
+        product_annotation: ProductAnnotation
+            Data class from which the coeffieients will be extracted
+        sensing_start: datetime.datetime
+            Azimuth start time of the burst
+        sensing_end: datetime.datetime
+            Azimuth end time of the burst
+        '''
+        
+        # Scan the azimuth time of fm rate
+        id_t0_fm_rate, id_t1_fm_rate = cls._find_t0_t1(product_annotation.vec_aztime_coeff_fm_rate,
+                                           sensing_start, sensing_end)
+        
+        
+        # Scan the azimuth time of doppler centroid
+        id_t0_dc, id_t1_dc = cls._find_t0_t1(product_annotation.vec_aztime_coeff_dc,
+                                           sensing_start, sensing_end)
+
+        
+        vec_aztime_fm_rate_burst = product_annotation.vec_aztime_coeff_fm_rate[id_t0_fm_rate: id_t1_fm_rate+1]
+        lut_coeff_fm_rate_burst = product_annotation.lut_coeff_fm_rate[id_t0_fm_rate:id_t1_fm_rate+1,:]
+        vec_tau0_fm_rate_burst = product_annotation.vec_tau0_fm_rate[id_t0_fm_rate: id_t1_fm_rate+1]
+
+        vec_aztime_dc_burst = product_annotation.vec_aztime_coeff_dc[id_t0_dc: id_t1_dc+1]
+        lut_coeff_dc_burst = product_annotation.lut_coeff_dc[id_t0_dc:id_t1_dc+1,:]
+        vec_tau0_dc_burst = product_annotation.vec_tau0_dc[id_t0_dc: id_t1_dc+1]
+
+        return cls(vec_aztime_fm_rate_burst, lut_coeff_fm_rate_burst, vec_tau0_fm_rate_burst,
+                   vec_aztime_dc_burst, lut_coeff_dc_burst, vec_tau0_dc_burst)
+
+
+    @classmethod
+    def _find_t0_t1(cls, vec_azimuth_time: np.ndarray,
+                   datetime_start: datetime.datetime,
+                   datetime_end: datetime.datetime):
+        '''
+        Scan `vec_azimuth_time` end find indices of the vector
+        that covers the period defined with
+        `datetime_start` and `datetime_end`
+
+        Parameters:
+        -----------
+        vec_azimuth_time: np.ndarray
+            numpy vector of azimuth time
+        datetime_start: datetime.datetime
+            Startime of the period
+        datetime_end: datetime.datetime
+            end time of the period
+
+        Returns:
+        --------
+        (id_t0, id_t1): tuple(int)
+            Indices of the azimuth times in `vec_azimuth_time` that
+            covers the period
+
+        '''
+
+        # initial values
+        id_t0_so_far = 0
+        dt_t0_so_far = float('-inf')
+        id_t1_so_far = len(vec_azimuth_time) - 1
+        dt_t1_so_far = float('inf')
+
+        # NOTE: dt is defined as: [azimuth time] - [start/end time]
+        for id_vec, datetime_vec in enumerate(vec_azimuth_time):
+            
+            dt_t0 = (datetime_vec - datetime_start).total_seconds()
+            if (dt_t0 < 0) and (dt_t0_so_far < dt_t0):
+                id_t0_so_far = id_vec
+                dt_t0_so_far = dt_t0
+                continue
+
+            dt_t1 = (datetime_vec - datetime_end).total_seconds()
+            if (dt_t1 > 0) and (dt_t1_so_far > dt_t1):
+                id_t1_so_far = id_vec
+                dt_t1_so_far = dt_t1
+                continue
+        
+        
+        return (id_t0_so_far, id_t1_so_far)
+            
+
+                
+
+
+
+    
+

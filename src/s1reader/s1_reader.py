@@ -17,7 +17,8 @@ from nisar.workflows.stage_dem import check_dateline
 from s1reader import s1_annotation  # to access __file__
 from s1reader.s1_annotation import ProductAnnotation, NoiseAnnotation,\
                                    CalibrationAnnotation, AuxCal, \
-                                   BurstCalibration, BurstEAP, BurstNoise
+                                   BurstCalibration, BurstEAP, BurstNoise,\
+                                   BurstExtendedCoeffs
 
 from s1reader.s1_burst_slc import Doppler, Sentinel1BurstSlc
 
@@ -649,6 +650,12 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
                                                                          aux_cal_subswath,
                                                                          sensing_start)
 
+        # Extenced FM and DC coefficient information
+        extended_coeffs = \
+            BurstExtendedCoeffs.from_product_annotation_and_burst(product_annotation,
+                                                                  sensing_start,
+                                                                  sensing_start + sensing_duration)
+
         bursts[i] = Sentinel1BurstSlc(ipf_version, sensing_start, radar_freq, wavelength,
                                       azimuth_steer_rate, azimuth_time_interval,
                                       slant_range_time, starting_range, iw2_mid_range,
@@ -661,7 +668,8 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
                                       last_sample, first_valid_line, last_line,
                                       range_window_type, range_window_coeff,
                                       rank, prf_raw_data, range_chirp_ramp_rate,
-                                      burst_calibration, burst_noise, burst_aux_cal)
+                                      burst_calibration, burst_noise, burst_aux_cal,
+                                      extended_coeffs)
 
     return bursts
 
