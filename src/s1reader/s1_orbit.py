@@ -305,7 +305,6 @@ def get_orbit_file_from_list(zip_path: str, orbit_file_list: list) -> str:
     orbit_file = ''
 
     # search for orbit file
-    #orbit_file_list = glob.glob(os.path.join(orbit_dir, 'S1*.EOF'))
     for orbit_file in orbit_file_list:
         # check if file validity
         if not item_valid(orbit_file, platform_id):
