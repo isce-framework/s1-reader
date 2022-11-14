@@ -278,7 +278,7 @@ def get_orbit_file_from_dir(zip_path: str, orbit_dir: str, auto_download: bool =
 
 
 def get_orbit_file_from_list(zip_path: str, orbit_file_list: list) -> str:
-    '''Get orbit state vector list for a given swath.
+    '''Get orbit file for a given S-1 swath from a list of files
 
     Parameters:
     -----------
