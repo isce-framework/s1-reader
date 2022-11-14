@@ -647,6 +647,17 @@ class Sentinel1BurstSlc:
         Parameters:
         -----------
         path_dem: str
+            Path to the DEM to calculate the actual azimuth FM rate
+        path_scratch: str:
+            Path to the scratch directory to store intermediate data
+        custom_radargrid_correction: isce3.product.RadarGridParameters
+            ISCE3 radar grid to define the correction grid
+        
+        Return:
+        -------
+        delta_t_freq_mm: np.ndarray
+            azimuth FM rate mismatch rate in seconds.
+
         '''
         
         os.makedirs(path_scratch, exist_ok=True)
