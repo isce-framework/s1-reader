@@ -585,15 +585,27 @@ class Sentinel1BurstSlc:
 
         return AzimuthCarrierComponents(kt, eta, eta_ref)
 
-
-
-
     def _evaluate_polynomial_array(self, arr_polynomial, grid_tau, vec_tau0):
         '''
         Evaluate the polynomials on the correction grid
-        To be used for azimuth FM mismatch rate 
+        To be used for calculating azimuth FM mismatch rate 
 
+        Parameters:
+        -----------
+        arr_polynomial: np.ndarray
+            coeffieients interpolated to
+            azimuth times in each line in correction grid
+        grid_tau: np.ndarray
+            2d numpy array filled with range time in the correction grid
+        vec_tau0: np.ndarray
+            range start time for each line in the correction grid
+
+        Return:
+        -------
+        eval_out: np.ndarray
+            Evaluated values on the correction grid
         '''
+
         nrow = grid_tau.shape[0]
         ncol = grid_tau.shape[1]
 
@@ -601,20 +613,21 @@ class Sentinel1BurstSlc:
 
         eval_out = np.zeros((nrow, ncol))
         eval_out += arr_polynomial[:,0][...,np.newaxis] \
-                *np.ones(ncol)[np.newaxis, ...]
+                    *np.ones(ncol)[np.newaxis, ...]
         eval_out += (arr_polynomial[:,1][...,np.newaxis] \
-                * np.ones(ncol)[np.newaxis, ...]) * term_tau
+                    * np.ones(ncol)[np.newaxis, ...]) * term_tau
         eval_out += (arr_polynomial[:,2][...,np.newaxis] \
-                * np.ones(ncol)[np.newaxis, ...]) * term_tau**2
+                    * np.ones(ncol)[np.newaxis, ...]) * term_tau**2
 
         return eval_out
 
 
     def _latlon_to_ecef(self, lat, lon, alt, ellipsoid, unit_degree=True):
         '''
-        Docstring here
+        Calculate cartesian coordinates in ECEF from latitude, longitude, and altitude
+        
         '''
-
+        # TODO Replace this function with ISCE3 equivalent
         if unit_degree:
             rad_lat = lat * (np.pi / 180.0)
             rad_lon = lon * (np.pi / 180.0)
@@ -622,11 +635,6 @@ class Sentinel1BurstSlc:
             rad_lat = lat
             rad_lon = lon
 
-
-        #a = ellipsoid_in.a
-        #finv = 298.257223563
-        #f = 1 / finv
-        #e2 = 1 - (1 - f) * (1 - f)
         v = ellipsoid.a / np.sqrt(1 - ellipsoid.e2 * np.sin(rad_lat) * np.sin(rad_lat))
 
         x = (v + alt) * np.cos(rad_lat) * np.cos(rad_lon)
@@ -637,7 +645,7 @@ class Sentinel1BurstSlc:
 
 
     def az_fm_rate_mismatch_mitigation(self, path_dem: str, path_scratch: str,
-                                       custom_radargrid_correction: isce3.product.RadarGridParameters=None):
+            custom_radargrid_correction: isce3.product.RadarGridParameters=None):
         '''
         Calculate azimuth FM rate mismatch mitigation
         Based on ETAD-DLR-DD-0008, Algorithm Technical Baseline Document.
@@ -667,13 +675,16 @@ class Sentinel1BurstSlc:
         else:
             radargrid_correction = custom_radargrid_correction
 
-        # Generate vectors for t and tau for correction grid definition
-        # either from radar grid or from the burst
+        # Define the correction grid from the radargrid
+        # Also define the staggered grid in azimuth to calculate acceeration
         width_grid = radargrid_correction.width
         length_grid = radargrid_correction.length
         intv_t = 1/radargrid_correction.prf
-        intv_tau = radargrid_correction.range_pixel_spacing * 2.0 / isce3.core.speed_of_light
-        delta_sec_from_ref_epoch = (radargrid_correction.ref_epoch - self.orbit.reference_epoch).total_seconds() + radargrid_correction.sensing_start
+        intv_tau = (radargrid_correction.range_pixel_spacing * 2.0
+                    / isce3.core.speed_of_light)
+        delta_sec_from_ref_epoch = ((radargrid_correction.ref_epoch
+                                - self.orbit.reference_epoch).total_seconds()
+                                + radargrid_correction.sensing_start)
         vec_t = np.arange(length_grid) * intv_t + delta_sec_from_ref_epoch
         vec_t_staggered = (np.arange(length_grid+1)
                            * intv_t
@@ -682,6 +693,8 @@ class Sentinel1BurstSlc:
 
         vec_tau = np.arange(width_grid)*intv_tau
 
+        grid_tau, grid_t = np.meshgrid(vec_tau, vec_t)
+
         vec_position_intp = np.zeros((length_grid,3))
         vec_vel_intp = np.zeros((length_grid,3))
         vec_vel_intp_staggered = [None] * (length_grid+1)
@@ -689,19 +702,23 @@ class Sentinel1BurstSlc:
             vec_position_intp[i_azimiuth, :], vec_vel_intp[i_azimiuth, :] = \
                 self.orbit.interpolate(t_azimuth)
 
-        # Calculation on staggered grid - For acceleration calculation
+        # Calculate velocity on staggered grid
+        # to kinematically calculate acceleration
         for i_azimiuth, t_azimuth in enumerate(vec_t_staggered):
             _, vec_vel_intp_staggered[i_azimiuth] = self.orbit.interpolate(t_azimuth)
 
         vec_acceleration_intp = np.diff(vec_vel_intp_staggered, axis=0) / intv_t
 
         # convert azimuth time to seconds from the reference epoch of burst_in.orbit
-        vec_aztime_coeff_fm_rate_sec = np.zeros(self.extended_coeffs_fm_dc.vec_aztime_coeff_fm_rate.shape)
+        vec_aztime_coeff_fm_rate_sec = \
+            np.zeros(self.extended_coeffs_fm_dc.vec_aztime_coeff_fm_rate.shape)
         for i, datetime_vec in enumerate(self.extended_coeffs_fm_dc.vec_aztime_coeff_fm_rate):
             vec_aztime_coeff_fm_rate_sec[i] = (isce3.core.DateTime(datetime_vec)
                                          - self.orbit.reference_epoch).total_seconds()
 
-        vec_aztime_coeff_dc_sec = np.zeros(self.extended_coeffs_fm_dc.vec_aztime_coeff_dc.shape)
+        vec_aztime_coeff_dc_sec = \
+            np.zeros(self.extended_coeffs_fm_dc.vec_aztime_coeff_dc.shape)
+
         for i, datetime_vec in enumerate(self.extended_coeffs_fm_dc.vec_aztime_coeff_dc):
             vec_aztime_coeff_dc_sec[i] = (isce3.core.DateTime(datetime_vec)
                                     - self.orbit.reference_epoch).total_seconds()
@@ -717,20 +734,20 @@ class Sentinel1BurstSlc:
                                                                     k=1)
         tau0_fdc_interp = interpolator_tau0_fdc_interp(vec_t)[..., np.newaxis]
 
-        grid_tau, grid_t = np.meshgrid(vec_tau, vec_t)
-
         # add range time origin to vec_tau
         grid_tau += tau0_ka_interp * np.ones(vec_tau.shape)[np.newaxis, ...]
         
 
-        interpolator_b0 = InterpolatedUnivariateSpline(vec_aztime_coeff_fm_rate_sec,
-                                                       self.extended_coeffs_fm_dc.lut_coeff_fm_rate[:,0],
-                                                       k=1)
+        interpolator_b0 = \
+            InterpolatedUnivariateSpline(vec_aztime_coeff_fm_rate_sec,
+                                         self.extended_coeffs_fm_dc.lut_coeff_fm_rate[:,0],
+                                         k=1)
         b0_interp = interpolator_b0(vec_t)
 
-        interpolator_b1 = InterpolatedUnivariateSpline(vec_aztime_coeff_fm_rate_sec,
-                                                       self.extended_coeffs_fm_dc.lut_coeff_fm_rate[:,1],
-                                                       k=1)
+        interpolator_b1 = \
+            InterpolatedUnivariateSpline(vec_aztime_coeff_fm_rate_sec,
+                                         self.extended_coeffs_fm_dc.lut_coeff_fm_rate[:,1],
+                                         k=1)
         b1_interp = interpolator_b1(vec_t)
 
         interpolator_b2 = InterpolatedUnivariateSpline(vec_aztime_coeff_fm_rate_sec,
@@ -739,6 +756,7 @@ class Sentinel1BurstSlc:
         b2_interp = interpolator_b2(vec_t)
 
         arr_coeff_b = np.array([b0_interp, b1_interp, b2_interp]).transpose()
+
         
         interpolator_a0 = InterpolatedUnivariateSpline(vec_aztime_coeff_dc_sec,
                                                        self.extended_coeffs_fm_dc.lut_coeff_dc[:,0],
@@ -759,8 +777,9 @@ class Sentinel1BurstSlc:
 
 
 
-
         # Run topo on scratch directory
+        # TODO Add parameters (# interation, threshold, etc.) to rdr2geo
+
         dem_raster = isce3.io.Raster(path_dem)
         epsg = dem_raster.get_epsg()
         proj = isce3.core.make_projection(epsg)
@@ -775,6 +794,7 @@ class Sentinel1BurstSlc:
                 ellipsoid,
                 grid_doppler)
 
+        
         str_datetime = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
 
         filename_llh = [f'{path_scratch}/lat_{str_datetime}.rdr',
@@ -810,33 +830,40 @@ class Sentinel1BurstSlc:
                          / isce3.core.speed_of_light *  self.radar_center_frequency
                          * self.azimuth_steer_rate)
 
-        kappa_steer_grid = kappa_steer_vec[...,np.newaxis] * \
-                           np.ones(grid_tau.shape[1])[np.newaxis,...]
+        kappa_steer_grid = kappa_steer_vec[..., np.newaxis] * \
+                           np.ones(grid_tau.shape[1])[np.newaxis, ...]
 
-        t_burst = (grid_t[0, 0] + grid_t[-1,0]) / 2.0
-        index_mid_burst_t = int(grid_t.shape[0]/2 +0.5)
-        tau_burst = (grid_tau[index_mid_burst_t,0] + grid_tau[index_mid_burst_t,-1]) / 2.0
+        t_burst = (grid_t[0, 0] + grid_t[-1, 0]) / 2.0
+        index_mid_burst_t = int(grid_t.shape[0] / 2 +0.5)
+        tau_burst = (grid_tau[index_mid_burst_t, 0] + grid_tau[index_mid_burst_t, -1]) / 2.0
         tau0_fdc_burst =  tau0_fdc_interp[index_mid_burst_t]
         tau0_fm_rate_burst =  tau0_ka_interp[index_mid_burst_t]
 
-        a0_burst, a1_burst, a2_burst = arr_coeff_a[index_mid_burst_t,:]
-        b0_burst, b1_burst, b2_burst = arr_coeff_b[index_mid_burst_t,:]
+        a0_burst, a1_burst, a2_burst = arr_coeff_a[index_mid_burst_t, :]
+        b0_burst, b1_burst, b2_burst = arr_coeff_b[index_mid_burst_t, :]
 
         kappa_annotation_burst = (b0_burst
-                                + b1_burst*(tau_burst-tau0_fm_rate_burst)
-                                + b2_burst*(tau_burst-tau0_fm_rate_burst)**2)
+                                + b1_burst * (tau_burst-tau0_fm_rate_burst)
+                                + b2_burst * (tau_burst-tau0_fm_rate_burst)**2)
 
         kappa_annotation_grid = self._evaluate_polynomial_array(arr_coeff_b,
-                                                          grid_tau,
-                                                          tau0_ka_interp)
+                                                                grid_tau,
+                                                                tau0_ka_interp)
 
-        grid_kappa_t = (kappa_annotation_grid * kappa_steer_grid) / (kappa_annotation_grid - kappa_steer_grid)
-        freq_dcg_burst = a0_burst + a1_burst*(tau_burst-tau0_fdc_burst) + a2_burst*(tau_burst-tau0_fdc_burst)**2
+        grid_kappa_t = (  (kappa_annotation_grid * kappa_steer_grid)
+                        / (kappa_annotation_grid - kappa_steer_grid))
+        freq_dcg_burst = (  a0_burst
+                          + a1_burst*(tau_burst-tau0_fdc_burst)
+                          + a2_burst*(tau_burst-tau0_fdc_burst)**2)
+
         grid_freq_dcg = self._evaluate_polynomial_array(arr_coeff_a,
-                                                  grid_tau,
-                                                  tau0_fdc_interp)
+                                                        grid_tau,
+                                                        tau0_fdc_interp)
 
-        grid_freq_dc = grid_freq_dcg + grid_kappa_t * ( (grid_t - t_burst) + ( freq_dcg_burst / kappa_annotation_burst - grid_freq_dcg / kappa_annotation_grid))
+        grid_freq_dc = (  grid_freq_dcg
+                        + grid_kappa_t * (  (grid_t - t_burst)
+                                          + (  freq_dcg_burst / kappa_annotation_burst
+                                             - grid_freq_dcg / kappa_annotation_grid)))
 
         #print('Calculating XYZ in ECEF')
         raster_lat = gdal.Open(filename_llh[0], gdal.GA_ReadOnly)
@@ -847,22 +874,31 @@ class Sentinel1BurstSlc:
         lon_map = raster_lon.ReadAsArray()
         hgt_map = raster_hgt.ReadAsArray()
 
-        x_ecef, y_ecef, z_ecef = self._latlon_to_ecef(lat_map, lon_map, hgt_map, ellipsoid)
+        x_ecef, y_ecef, z_ecef = \
+            self._latlon_to_ecef(lat_map, lon_map, hgt_map, ellipsoid)
 
         #print('Calculating True FM rate')
 
-        x_s = vec_position_intp[:,0][..., np.newaxis] * np.ones(grid_tau.shape[1])[np.newaxis, ...]
-        y_s = vec_position_intp[:,1][..., np.newaxis] * np.ones(grid_tau.shape[1])[np.newaxis, ...]
-        z_s = vec_position_intp[:,2][..., np.newaxis] * np.ones(grid_tau.shape[1])[np.newaxis, ...]
+        x_s = (  vec_position_intp[:, 0][..., np.newaxis]
+               * np.ones(grid_tau.shape[1])[np.newaxis, ...])
+        y_s = (  vec_position_intp[:, 1][..., np.newaxis]
+               * np.ones(grid_tau.shape[1])[np.newaxis, ...])
+        z_s = (  vec_position_intp[:, 2][..., np.newaxis]
+               * np.ones(grid_tau.shape[1])[np.newaxis, ...])
 
-        vx_s = vec_vel_intp[:,0][..., np.newaxis] * np.ones(grid_tau.shape[1])[np.newaxis, ...]
-        vy_s = vec_vel_intp[:,1][..., np.newaxis] * np.ones(grid_tau.shape[1])[np.newaxis, ...]
-        vz_s = vec_vel_intp[:,2][..., np.newaxis] * np.ones(grid_tau.shape[1])[np.newaxis, ...]
+        vx_s = (  vec_vel_intp[:, 0][..., np.newaxis]
+                * np.ones(grid_tau.shape[1])[np.newaxis, ...])
+        vy_s = (  vec_vel_intp[:, 1][..., np.newaxis]
+                * np.ones(grid_tau.shape[1])[np.newaxis, ...])
+        vz_s = (  vec_vel_intp[:, 2][..., np.newaxis]
+                * np.ones(grid_tau.shape[1])[np.newaxis, ...])
 
-        ax_s = vec_acceleration_intp[:,0][..., np.newaxis] * np.ones(grid_tau.shape[1])[np.newaxis, ...]
-        ay_s = vec_acceleration_intp[:,1][..., np.newaxis] * np.ones(grid_tau.shape[1])[np.newaxis, ...]
-        az_s = vec_acceleration_intp[:,2][..., np.newaxis] * np.ones(grid_tau.shape[1])[np.newaxis, ...]
-
+        ax_s = (  vec_acceleration_intp[:, 0][..., np.newaxis]
+                * np.ones(grid_tau.shape[1])[np.newaxis, ...])
+        ay_s = (  vec_acceleration_intp[:, 1][..., np.newaxis]
+                * np.ones(grid_tau.shape[1])[np.newaxis, ...])
+        az_s = (  vec_acceleration_intp[:, 2][..., np.newaxis]
+                * np.ones(grid_tau.shape[1])[np.newaxis, ...])
 
         mag_xs_xg = np.sqrt((x_s - x_ecef)**2 + (y_s - y_ecef)**2 + (z_s - z_ecef)**2)
 
@@ -872,17 +908,10 @@ class Sentinel1BurstSlc:
                                  / (isce3.core.speed_of_light * mag_xs_xg)
                                  * (dotp_dxsg_acc + (vx_s**2 + vy_s**2 + vz_s**2)))
 
-        delta_t_freq_mm = grid_freq_dc * (-1/kappa_annotation_grid + 1/kappa_annotation_true)
+        delta_t_freq_mm = (  grid_freq_dc
+                           * (-1/kappa_annotation_grid + 1/kappa_annotation_true))
         
         return delta_t_freq_mm
-
-
-
-
-
-
-
-
 
 
     @property
