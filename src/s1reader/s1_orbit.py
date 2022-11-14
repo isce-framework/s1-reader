@@ -245,7 +245,7 @@ def get_orbit_file_from_dir(zip_path: str, orbit_dir: str, auto_download: bool =
     # check the existence of input file path and directory
     if not os.path.exists(zip_path):
         raise FileNotFoundError(f"{zip_path} does not exist")
-
+        
     if not os.path.isdir(orbit_dir):
         raise NotADirectoryError(f"{orbit_dir} not found")
 
@@ -262,17 +262,15 @@ def get_orbit_file_from_dir(zip_path: str, orbit_dir: str, auto_download: bool =
 
     if orbit_file:
         return orbit_file
+
     if not auto_download:
         msg = (f'No orbit file was found for {os.path.basename(zip_path)} '
                 f'from the directory provided: {orbit_dir}')
         warnings.warn(msg)
         return
-        orbit_dir = os.path.dirname(orbit_dir)
-        if not orbit_dir:
-            orbit_dir = os.getcwd()
 
+    # Attempt auto download
     orbit_file = download_orbit(zip_path, orbit_dir)
-
     return orbit_file
 
 
@@ -296,14 +294,14 @@ def get_orbit_file_from_list(zip_path: str, orbit_file_list: list) -> str:
     '''
 
     # check the existence of input file path and directory
-    #if not os.path.exists(zip_path):
-    #    raise FileNotFoundError(f"{zip_path} does not exist")
-
+    if not os.path.exists(zip_path):
+        raise FileNotFoundError(f"{zip_path} does not exist")
+        
     # extract platform id, start and end times from swath file name
     platform_id, t_swath_start_stop = get_file_name_tokens(zip_path)
 
     # initiate output
-    orbit_file = ''
+    orbit_file_final = ''
 
     # search for orbit file
     for orbit_file in orbit_file_list:
@@ -324,13 +322,12 @@ def get_orbit_file_from_list(zip_path: str, orbit_file_list: list) -> str:
         # 1. swath start and stop time > orbit file start time
         # 2. swath start and stop time < orbit file stop time
         if all([t_orbit_start < t < t_orbit_stop for t in t_swath_start_stop]):
+            orbit_file_final = orbit_file
             break
-        else:
-            orbit_file = ''
-
-    if not orbit_file:
+        
+    if not orbit_file_final:
         msg = 'No orbit file was found in the file list provided.'
         warnings.warn(msg)
 
-    return orbit_file
+    return orbit_file_final
 
