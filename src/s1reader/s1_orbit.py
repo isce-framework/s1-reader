@@ -298,9 +298,6 @@ def get_orbit_file_from_list(zip_path: str, orbit_file_list: list) -> str:
     #if not os.path.exists(zip_path):
     #    raise FileNotFoundError(f"{zip_path} does not exist")
 
-    #if not os.path.isdir(orbit_dir):
-    #    raise NotADirectoryError(f"{orbit_dir} not found")
-
     # extract platform id, start and end times from swath file name
     platform_id, t_swath_start_stop = get_file_name_tokens(zip_path)
 
