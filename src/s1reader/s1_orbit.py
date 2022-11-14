@@ -324,7 +324,7 @@ def get_orbit_file_from_list(zip_path: str, orbit_file_list: list) -> str:
         if all([t_orbit_start < t < t_orbit_stop for t in t_swath_start_stop]):
             orbit_file_final = orbit_file
             break
-        
+
     if not orbit_file_final:
         msg = 'No orbit file was found in the file list provided.'
         warnings.warn(msg)
