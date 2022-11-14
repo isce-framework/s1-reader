@@ -265,12 +265,7 @@ def get_orbit_file_from_dir(zip_path: str, orbit_dir: str, auto_download: bool =
         if not orbit_dir:
             orbit_dir = os.getcwd()
 
-        if auto_download:
-            orbit_file = download_orbit(zip_path, orbit_dir)
-        else:
-            msg = (f'No orbit file found for {os.path.basename(zip_path)} '
-                    'from the orbit_source provided.')
-            warnings.warn(msg)
+    orbit_file = download_orbit(zip_path, orbit_dir)
 
     return orbit_file
 
