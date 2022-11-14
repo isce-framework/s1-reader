@@ -328,7 +328,7 @@ def get_orbit_file_from_list(zip_path: str, orbit_file_list: list) -> str:
             orbit_file = ''
 
     if not orbit_file:
-        msg = 'No orbit file found from the file list provided.!'
+        msg = 'No orbit file was found in the file list provided.'
         warnings.warn(msg)
 
     return orbit_file
