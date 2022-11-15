@@ -404,7 +404,7 @@ class Sentinel1BurstSlc:
             self_as_dict[key] = val
         return self_as_dict
 
-    def bistatic_delay(self, xstep=1, ystep=1):
+    def bistatic_delay(self, xstep=1, ystep=1, use_radar_coords=True):
         '''Computes the bistatic delay correction in azimuth direction
         due to the movement of the platform between pulse transmission and echo reception
         as described in equation (21) in Gisinger et al. (2021, TGRS).
@@ -423,15 +423,18 @@ class Sentinel1BurstSlc:
         -------
         xstep : int
            spacing along x direction (range direction) in units of pixels
-
         ystep : int
            spacing along y direction (azimuth direction) in units of pixels
+        use_radar_coords : bool
+            flag to construct correction as a function of azimuth time and
+            slant range
 
         Returns
         -------
            LUT2D object of bistatic delay correction in seconds as a function
-           of the range and zimuth indices. This correction needs to be added
-           to the SLC tagged azimuth time to get the corrected azimuth times.
+           of the azimuth time and slant range, or range and azimuth indices.
+           This correction needs to be added to the SLC tagged azimuth time to
+           get the corrected azimuth times.
         '''
 
         pri = 1.0 / self.prf_raw_data
@@ -455,6 +458,11 @@ class Sentinel1BurstSlc:
         # can revise when we hear back from ESA folks.
         bistatic_correction_vec = tau_mid / 2 + tau / 2 - tau0
         bistatic_correction = np.tile(bistatic_correction_vec.reshape(1,-1), (ny,1))
+
+        if use_radar_coords:
+            rdrgrid = self.as_isce3_radargrid()
+            x = x * self.azimuth_time_interval + rdrgrid.sensing_start
+            y = y * self.range_pixel_spacing + self.starting_range
 
         return isce3.core.LUT2d(x, y, bistatic_correction)
 
@@ -498,7 +506,8 @@ class Sentinel1BurstSlc:
 
         return x, y, total_doppler
 
-    def doppler_induced_range_shift(self, xstep=500, ystep=50):
+    def doppler_induced_range_shift(self, xstep=500, ystep=50,
+                                    use_radar_coords=True):
         """
         Computes the range delay caused by the Doppler shift as described
         by Gisinger et al 2021
@@ -509,18 +518,26 @@ class Sentinel1BurstSlc:
             Spacing along x direction [pixels]
         ystep: int
             Spacing along y direction [pixels]
+        use_radar_coords : bool
+            Flag to construct correction as a function of azimuth time and
+            slant range.
 
         Returns
         -------
         isce3.core.LUT2d:
            LUT2D object of range delay correction [seconds] as a function
-           of the x and y indices.
+           of the azimuth time and slant range, or x and y indices.
 
         """
 
         x, y, doppler_shift = self.geometrical_and_steering_doppler(
                                                     xstep=xstep, ystep=ystep)
         tau_corr = doppler_shift / self.range_chirp_rate
+
+        if use_radar_coords:
+            rdrgrid = self.as_isce3_radargrid()
+            x = x * self.azimuth_time_interval + rdrgrid.sensing_start
+            y = y * self.range_pixel_spacing + self.starting_range
 
         return isce3.core.LUT2d(x, y, tau_corr)
 
