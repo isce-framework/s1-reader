@@ -461,8 +461,8 @@ class Sentinel1BurstSlc:
 
         if use_radar_coords:
             rdrgrid = self.as_isce3_radargrid()
-            x = x * self.azimuth_time_interval + rdrgrid.sensing_start
-            y = y * self.range_pixel_spacing + self.starting_range
+            x = x * self.range_pixel_spacing + self.starting_range
+            y = y * self.azimuth_time_interval + rdrgrid.sensing_start
 
         return isce3.core.LUT2d(x, y, bistatic_correction)
 
@@ -483,13 +483,10 @@ class Sentinel1BurstSlc:
 
         Returns
         -------
-        x : int
-           The index of samples in range direction as an 1D array
-        y : int
-           The index of samples in azimuth direction as an 1D array
-        total_doppler : float
-           Total Doppler which is the sum of the geometrical Doppler and
-           beam steering induced Doppler [Hz] as a 2D array
+           LUT2D object of total doppler in Hz as a function of the azimuth
+           time and slant range, or range and azimuth indices.
+           This correction needs to be added to the SLC tagged azimuth time to
+           get the corrected azimuth times.
         """
 
         x = np.arange(0, self.width, xstep, dtype=int)
@@ -504,7 +501,12 @@ class Sentinel1BurstSlc:
 
         total_doppler = az_carr_comp.antenna_steering_doppler + geometrical_doppler
 
-        return x, y, total_doppler
+        if use_radar_coords:
+            rdrgrid = self.as_isce3_radargrid()
+            x = x * self.range_pixel_spacing + self.starting_range
+            y = y * self.azimuth_time_interval + rdrgrid.sensing_start
+
+        return isce3.core.LUT2d(x, y, total_doppler)
 
     def doppler_induced_range_shift(self, xstep=500, ystep=50,
                                     use_radar_coords=True):
@@ -530,14 +532,14 @@ class Sentinel1BurstSlc:
 
         """
 
-        x, y, doppler_shift = self.geometrical_and_steering_doppler(
-                                                    xstep=xstep, ystep=ystep)
-        tau_corr = doppler_shift / self.range_chirp_rate
+        doppler_shift = self.geometrical_and_steering_doppler(xstep=xstep,
+                                                              ystep=ystep)
+        tau_corr = doppler_shift.data / self.range_chirp_rate
 
         if use_radar_coords:
             rdrgrid = self.as_isce3_radargrid()
-            x = x * self.azimuth_time_interval + rdrgrid.sensing_start
-            y = y * self.range_pixel_spacing + self.starting_range
+            x = x * self.range_pixel_spacing + self.starting_range
+            y = y * self.azimuth_time_interval + rdrgrid.sensing_start
 
         return isce3.core.LUT2d(x, y, tau_corr)
 
