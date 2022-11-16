@@ -75,6 +75,7 @@ def _plot_bursts(safe_path, output_filename=None):
     epsg = 4326
     if not output_filename:
         output_filename = "burst_map_{}.gpkg".format(safe_path.stem)
+        print(f"Output filename: {output_filename}")
 
     plot_bursts.burst_map(safe_path, orbit_dir, xs, ys, epsg, output_filename)
 
