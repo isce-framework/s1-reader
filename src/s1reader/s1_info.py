@@ -2,22 +2,21 @@
 import argparse
 from itertools import chain
 from pathlib import Path
-from typing import Dict, Optional, Union
+from typing import List, Optional, Union
 import warnings
 
-from s1reader import load_bursts
+import s1reader
 
 
 def get_bursts(
     filename: Union[Path, str], pol: str = "vv", iw: Optional[int] = None
-) -> Dict[int, list]:
-
+) -> List[s1reader.Sentinel1BurstSlc]:
     if iw is not None:
         iws = [iw]
     else:
         iws = [1, 2, 3]
     burst_nested_list = [
-        load_bursts(filename, None, iw, pol, flag_apply_eap=False) for iw in iws
+        s1reader.load_bursts(filename, None, iw, pol, flag_apply_eap=False) for iw in iws
     ]
     return list(chain.from_iterable(burst_nested_list))
 
@@ -95,12 +94,12 @@ def main():
             warnings.warn(f"{path} is not a file or directory. Skipping.")
 
     for path in all_files:
-        print(f"Bursts in {path}:")
-        print("-" * 80)
-        # Do we want to pretty-print this with rich?
         if args.plot:
             _plot_bursts(path)
             continue
+        print(f"Bursts in {path}:")
+        print("-" * 80)
+        # Do we want to pretty-print this with rich?
         for burst in get_bursts(path, args.pol, args.iw):
             if args.burst_id:
                 print(burst.burst_id)
