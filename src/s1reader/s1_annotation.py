@@ -334,11 +334,11 @@ class ProductAnnotation(AnnotationBase):
     slant_range_time: float
 
     
-    vec_aztime_coeff_fm_rate: np.ndarray
+    vec_aztime_fm_rate: np.ndarray
     lut_coeff_fm_rate: np.ndarray
     vec_tau0_fm_rate:np.ndarray
 
-    vec_aztime_coeff_dc: np.ndarray
+    vec_aztime_dc: np.ndarray
     lut_coeff_dc: np.ndarray
     vec_tau0_dc: np.ndarray
 
@@ -403,7 +403,7 @@ class ProductAnnotation(AnnotationBase):
                               'scalar_int')
 
 
-        cls.vec_aztime_coeff_fm_rate = \
+        cls.vec_aztime_fm_rate = \
             cls._parse_vectorlist('generalAnnotation/azimuthFmRateList',
                                   'azimuthTime',
                                   'datetime')
@@ -433,7 +433,7 @@ class ProductAnnotation(AnnotationBase):
                                                      't0',
                                                      'scalar_float'))
 
-        cls.vec_aztime_coeff_dc = cls._parse_vectorlist('dopplerCentroid/dcEstimateList',
+        cls.vec_aztime_dc = cls._parse_vectorlist('dopplerCentroid/dcEstimateList',
                                                     'azimuthTime',
                                                     'datetime')
 
@@ -956,18 +956,18 @@ class BurstEAP:
 @dataclass
 class BurstExtendedCoeffs:
     '''
-    Time series of FM rate / Doppler centroid coefficient
-    For (linear) interpolation of FM rate / Doppler Centroid along azimuth,
-    which is a required when calculating azimuth FM rate mismatch mitigation
+    Segments ofFM rate / Doppler centroid coefficients.
+    For (linear) interpolation of FM rate / Doppler Centroid along azimuth.
+    To be used for calculating azimuth FM rate mismatch mitigation
     '''
     
     # FM rate 
-    vec_aztime_coeff_fm_rate: np.ndarray
+    vec_aztime_fm_rate: np.ndarray
     lut_coeff_fm_rate: np.ndarray
     vec_tau0_fm_rate:np.ndarray
 
     # Doppler centroid
-    vec_aztime_coeff_dc: np.ndarray
+    vec_aztime_dc: np.ndarray
     lut_coeff_dc: np.ndarray
     vec_tau0_dc: np.ndarray
     
@@ -990,22 +990,27 @@ class BurstExtendedCoeffs:
         '''
         
         # Scan the azimuth time of fm rate
-        id_t0_fm_rate, id_t1_fm_rate = cls._find_t0_t1(product_annotation.vec_aztime_coeff_fm_rate,
-                                           sensing_start, sensing_end)
+        id_t0_fm_rate, id_t1_fm_rate = cls._find_t0_t1(product_annotation.vec_aztime_fm_rate,
+                                                       sensing_start,
+                                                       sensing_end)
         
         
         # Scan the azimuth time of doppler centroid
-        id_t0_dc, id_t1_dc = cls._find_t0_t1(product_annotation.vec_aztime_coeff_dc,
-                                           sensing_start, sensing_end)
+        id_t0_dc, id_t1_dc = cls._find_t0_t1(product_annotation.vec_aztime_dc,
+                                             sensing_start, 
+                                             sensing_end)
 
         
-        vec_aztime_fm_rate_burst = product_annotation.vec_aztime_coeff_fm_rate[id_t0_fm_rate: id_t1_fm_rate+1]
-        lut_coeff_fm_rate_burst = product_annotation.lut_coeff_fm_rate[id_t0_fm_rate:id_t1_fm_rate+1,:]
-        vec_tau0_fm_rate_burst = product_annotation.vec_tau0_fm_rate[id_t0_fm_rate: id_t1_fm_rate+1]
+        vec_aztime_fm_rate_burst = (product_annotation
+                                    .vec_aztime_fm_rate[id_t0_fm_rate: id_t1_fm_rate+1])
+        lut_coeff_fm_rate_burst = (product_annotation
+                                   .lut_coeff_fm_rate[id_t0_fm_rate:id_t1_fm_rate + 1, :])
+        vec_tau0_fm_rate_burst = (product_annotation
+                                  .vec_tau0_fm_rate[id_t0_fm_rate: id_t1_fm_rate + 1])
 
-        vec_aztime_dc_burst = product_annotation.vec_aztime_coeff_dc[id_t0_dc: id_t1_dc+1]
-        lut_coeff_dc_burst = product_annotation.lut_coeff_dc[id_t0_dc:id_t1_dc+1,:]
-        vec_tau0_dc_burst = product_annotation.vec_tau0_dc[id_t0_dc: id_t1_dc+1]
+        vec_aztime_dc_burst = product_annotation.vec_aztime_dc[id_t0_dc: id_t1_dc + 1]
+        lut_coeff_dc_burst = product_annotation.lut_coeff_dc[id_t0_dc:id_t1_dc + 1, :]
+        vec_tau0_dc_burst = product_annotation.vec_tau0_dc[id_t0_dc: id_t1_dc + 1]
 
         return cls(vec_aztime_fm_rate_burst, lut_coeff_fm_rate_burst, vec_tau0_fm_rate_burst,
                    vec_aztime_dc_burst, lut_coeff_dc_burst, vec_tau0_dc_burst)
