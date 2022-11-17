@@ -16,14 +16,67 @@ def get_bursts(
     else:
         iws = [1, 2, 3]
     burst_nested_list = [
-        s1reader.load_bursts(filename, None, iw, pol, flag_apply_eap=False) for iw in iws
+        s1reader.load_bursts(filename, None, iw, pol, flag_apply_eap=False)
+        for iw in iws
     ]
     return list(chain.from_iterable(burst_nested_list))
 
 
+def _is_safe_dir(path):
+    # Rather than matching the name, we just check for the existence of the
+    # manifest.safe file and annotation files
+    if not (path / "manifest.safe").is_file():
+        return False
+    annotation_dir = path / "annotation"
+    if not annotation_dir.is_dir():
+        return False
+    if len(list(annotation_dir.glob("*.xml"))) == 0:
+        return False
+    return True
+
+
+def _plot_bursts(safe_path, output_dir="burst_maps"):
+    from s1reader.utils import plot_bursts
+
+    orbit_dir = None
+    xs, ys = 5, 10
+    epsg = 4326
+    d = Path(output_dir).resolve()
+    d.mkdir(exist_ok=True, parents=True)
+    print(f"Output directory: {d}")
+    output_filename = d / safe_path.stem
+    plot_bursts.burst_map(safe_path, orbit_dir, xs, ys, epsg, output_filename)
+
+
+EXAMPLE = """
+Example usage:
+
+    # Print all bursts in a Sentinel-1 SLC product
+    s1_info.py S1A_IW_SLC__1SDV_20180601T000000_20180601T000025_021873_025F3D_9E9E.zip
+
+    # Print only the burst IDs
+    s1_info.py S1A_IW_SLC__1SDV_20180601T000000_20180601T000025_021873_025F3D_9E9E.zip --burst-id
+
+    # Print burst ids for all files matching the pattern
+    s1_info.py -b S1A_IW_SLC__1SDV_2018*
+
+    # Print only from subswath IW1, and "vv" polarization
+    s1_info.py -b S1A_IW_SLC__1SDV_2018* --iw 1 --pol vv
+
+    # Get info for all products in the 'data/' directory
+    s1_info.py data/
+ 
+    # Plot the burst map, saving files into the 'burst_maps/' directory
+    s1_info.py S1A_IW_SLC__1SDV_20180601T000000_20180601T000025_021873_025F3D_9E9E.zip --plot
+    s1_info.py S1A_IW_SLC__1SDV_20180601T000000_20180601T000025_021873_025F3D_9E9E.zip -p -o my_burst_maps
+"""
+
+
 def get_cli_args():
     parser = argparse.ArgumentParser(
-        description="Extract the burst ID information from a Sentinel-1 SLC product."
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description="Extract the burst ID information from a Sentinel-1 SLC product.",
+        epilog=EXAMPLE,
     )
     parser.add_argument(
         "paths",
@@ -57,26 +110,14 @@ def get_cli_args():
     )
     parser.add_argument(
         "-o",
-        "--output-filename",
+        "--output-dir",
+        default="burst_maps",
         help=(
-            "Name of the output file for the burst map."
-            " Defaults to 'burst_map_<SAFE_ID>.gpkg'."
+            "Name of the output directory for the burst maps (if plotting),"
+            " with files named for each S1 product (default= %(default)s)."
         ),
     )
     return parser.parse_args()
-
-
-def _plot_bursts(safe_path, output_filename=None):
-    from s1reader.utils import plot_bursts
-
-    orbit_dir = None
-    xs, ys = 5, 10
-    epsg = 4326
-    if not output_filename:
-        output_filename = "burst_map_{}.gpkg".format(safe_path.stem)
-        print(f"Output filename: {output_filename}")
-
-    plot_bursts.burst_map(safe_path, orbit_dir, xs, ys, epsg, output_filename)
 
 
 def main():
@@ -84,15 +125,16 @@ def main():
     paths = [Path(p) for p in args.paths]
     all_files = []
     for path in paths:
-        if path.is_dir():
+        if path.is_file() or _is_safe_dir(path):
+            all_files.append(path)
+        elif path.is_dir():
             # Get all matching files within the directory
             files = path.glob("S1[AB]_IW*")
             all_files.extend(list(sorted(files)))
-        elif path.is_file():
-            all_files.append(path)
         else:
             warnings.warn(f"{path} is not a file or directory. Skipping.")
 
+    print(f"Found {len(all_files)} Sentinel-1 SLC products.")
     for path in all_files:
         if args.plot:
             _plot_bursts(path)
