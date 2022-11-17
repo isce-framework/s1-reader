@@ -55,7 +55,7 @@ Example usage:
     s1_info.py S1A_IW_SLC__1SDV_20180601T000000_20180601T000025_021873_025F3D_9E9E.zip
 
     # Print only the burst IDs
-    s1_info.py S1A_IW_SLC__1SDV_20180601T000000_20180601T000025_021873_025F3D_9E9E.zip --burst-id
+    s1_info.py S1A_IW_SLC__1SDV_20180601T000000_20180601T000025_021873_025F3D_9E9E.SAFE --burst-id
 
     # Print burst ids for all files matching the pattern
     s1_info.py -b S1A_IW_SLC__1SDV_2018*
@@ -67,7 +67,7 @@ Example usage:
     s1_info.py data/
  
     # Plot the burst map, saving files into the 'burst_maps/' directory
-    s1_info.py S1A_IW_SLC__1SDV_20180601T000000_20180601T000025_021873_025F3D_9E9E.zip --plot
+    s1_info.py S1A_IW_SLC__1SDV_20180601T000000_20180601T000025_021873_025F3D_9E9E.SAFE/ --plot
     s1_info.py S1A_IW_SLC__1SDV_20180601T000000_20180601T000025_021873_025F3D_9E9E.zip -p -o my_burst_maps
 """
 
