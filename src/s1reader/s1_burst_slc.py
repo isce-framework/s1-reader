@@ -750,7 +750,7 @@ class Sentinel1BurstSlc:
 
         # add range time origin to vec_tau
         grid_tau += tau0_ka_interp * np.ones(vec_tau.shape)[np.newaxis, ...]
-        
+
 
         # Interpolate the DC and fm rate coeffs along azimuth time
         list_a_interp = [] # Doppler centroid
@@ -827,8 +827,8 @@ class Sentinel1BurstSlc:
         b0_burst, b1_burst, b2_burst = arr_coeff_b[index_mid_burst_t, :]
 
         kappa_annotation_burst = (b0_burst
-                                + b1_burst * (tau_burst - tau0_fm_rate_burst)
-                                + b2_burst * (tau_burst - tau0_fm_rate_burst)**2)
+                                 + b1_burst * (tau_burst - tau0_fm_rate_burst)
+                                 + b2_burst * (tau_burst - tau0_fm_rate_burst)**2)
 
         kappa_annotation_grid = self._evaluate_polynomial_array(arr_coeff_b,
                                                                 grid_tau,
@@ -849,18 +849,18 @@ class Sentinel1BurstSlc:
                                           + (freq_dcg_burst / kappa_annotation_burst
                                           - grid_freq_dcg / kappa_annotation_grid)))
 
-        raster_lat = gdal.Open(list_filename_llh[0], gdal.GA_ReadOnly)
-        raster_lon = gdal.Open(list_filename_llh[1], gdal.GA_ReadOnly)
-        raster_hgt = gdal.Open(list_filename_llh[2], gdal.GA_ReadOnly)
-        lat_map = raster_lat.ReadAsArray()
-        lon_map = raster_lon.ReadAsArray()
-        hgt_map = raster_hgt.ReadAsArray()
+        with (gdal.Open(list_filename_llh[0], gdal.GA_ReadOnly) as raster_lat,
+              gdal.Open(list_filename_llh[1], gdal.GA_ReadOnly) as raster_lon,
+              gdal.Open(list_filename_llh[2], gdal.GA_ReadOnly) as raster_hgt):
+            lat_map = raster_lat.ReadAsArray()
+            lon_map = raster_lon.ReadAsArray()
+            hgt_map = raster_hgt.ReadAsArray()
 
-        x_ecef, y_ecef, z_ecef = \
-            self._llh_to_ecef(lat_map, lon_map, hgt_map, ellipsoid)
-        # TODO Try to find a ISCE3 equivalent for this conversion
+        x_ecef, y_ecef, z_ecef = self._llh_to_ecef(lat_map,
+                                                   lon_map,
+                                                   hgt_map,
+                                                   ellipsoid)
 
-        
         # Populate the position, velocity, and
         # acceleration of the satellite to the correction grid
         list_pos_satellite = []
@@ -887,14 +887,14 @@ class Sentinel1BurstSlc:
                          + (y_s - y_ecef)*ay_s
                          + (z_s - z_ecef)*az_s)
 
-        kappa_annotation_true = (-(2 * self.radar_center_frequency)
+        kappa_annotation_true = ( -(2 * self.radar_center_frequency)
                                  / (isce3.core.speed_of_light * mag_xs_xg)
                                  * (dotp_dxsg_acc + (vx_s**2 + vy_s**2 + vz_s**2)))
 
         delta_t_freq_mm = (grid_freq_dc
                            * (-1 / kappa_annotation_grid
-                              + 1 / kappa_annotation_true))
-        
+                             + 1 / kappa_annotation_true))
+
         return delta_t_freq_mm
 
 
