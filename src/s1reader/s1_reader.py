@@ -307,7 +307,10 @@ def _get_manifest_pattern(tree: ET, keys: list):
         Search path to extract from the ET of the manifest.safe XML.
 
     '''
+    # https://lxml.de/tutorial.html#namespaces
     # Get the namespace from the root element to avoid full urls
+    # This is a dictionary with a short name containing the labels in the
+    # XML tree, and the fully qualified URL as the value.
     try:
         nsmap = tree.nsmap
     except AttributeError:
@@ -953,9 +956,8 @@ def get_burst_id(
     start_iw1_to_mid_iw2 = burst_times[0] + burst_times[1] / 2
     mid_iw2 = start_iw1 + datetime.timedelta(seconds=start_iw1_to_mid_iw2)
 
-    has_anx_crossing = (end_track == start_track + 1) or (
-        end_track == 1 and start_track == 175
-    )
+    has_anx_crossing = (end_track == (start_track + 1) % 175)
+
     time_since_anx_iw1 = (start_iw1 - ascending_node_dt).total_seconds()
     time_since_anx = (mid_iw2 - ascending_node_dt).total_seconds()
 
