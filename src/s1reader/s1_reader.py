@@ -265,7 +265,17 @@ def get_burst_centers_and_boundaries(tree):
     return center_pts, boundary_pts
 
 def get_ipf_version(tree: ET):
-    '''Extract the IPF version from the ET of manifest.safe
+    '''Extract the IPF version from the ET of manifest.safe.
+
+    Parameters
+    ----------
+    tree : xml.etree.ElementTree
+        ElementTree containing the parsed 'manifest.safe' file.
+
+    Returns
+    -------
+    ipf_version : version.Version
+        IPF version of the burst.
     '''
     # get version from software element
     search_term, nsmap = _get_manifest_pattern(tree, ['processing', 'facility', 'software'])
@@ -282,7 +292,21 @@ def get_start_end_track(tree: ET):
 
 
 def _get_manifest_pattern(tree: ET, keys: list):
-    '''Get the search path to extract data from the ET of manifest.safe'''
+    '''Get the search path to extract data from the ET of manifest.safe.
+
+    Parameters
+    ----------
+    tree : xml.etree.ElementTree
+        ElementTree containing the parsed 'manifest.safe' file.
+    keys : list
+        List of keys to search for in the manifest file.
+
+    Returns
+    -------
+    str
+        Search path to extract from the ET of the manifest.safe XML.
+
+    '''
     # Get the namespace from the root element to avoid full urls
     try:
         nsmap = tree.nsmap
@@ -474,6 +498,8 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
     with open_method(manifest_path, 'r') as f_manifest:
         tree_manifest = ET.parse(f_manifest)
         ipf_version = get_ipf_version(tree_manifest)
+        # Parse out the start/end track to determine if we have an
+        # equator crossing (for the burst_id calculation).
         start_track, end_track = get_start_end_track(tree_manifest)
 
     # Load the Product annotation - for EAP calibration
@@ -850,7 +876,7 @@ def _burst_from_safe_dir(safe_dir_path: str, id_str: str, orbit_path: str, flag_
     else:
         msg = f'measurement directory NOT found in {safe_dir_path}'
         msg += ', continue with metadata only.'
-        # print(msg)
+        print(msg)
         f_tiff = ''
 
     bursts = burst_from_xml(f_annotation, orbit_path, f_tiff, iw2_f_annotation,
