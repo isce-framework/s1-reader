@@ -908,7 +908,7 @@ def get_burst_id(
     end_track : int
         Relative orbit number at the end of the acquisition.
     subswath_name : str, {'IW1', 'IW2', 'IW3'}
-        Name of the subswath of the burst.
+        Name of the subswath of the burst (not case sensitive).
 
     Returns
     -------
