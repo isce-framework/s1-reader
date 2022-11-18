@@ -79,14 +79,12 @@ def polyfit(xin, yin, zin, azimuth_order, range_order,
         A = A / snr[:, None]
         z = z / snr
 
-    return_val = True
-    val, res, _, eigs = np.linalg.lstsq(A, z, rcond=cond)
+    val, res, _, _ = np.linalg.lstsq(A, z, rcond=cond)
     if len(res) > 0:
         print('Chi squared: %f' % (np.sqrt(res / (1.0 * len(z)))))
     else:
         print('No chi squared value....')
         print('Try reducing rank of polynomial.')
-        return_val = False
 
     coeffs = []
     count = 0
@@ -252,7 +250,7 @@ class Sentinel1BurstSlc:
             Path of output VRT file.
         '''
         if not self.tiff_path:
-            warn_str = f'Unable write SLC to file. Burst does not contain image data; only metadata.'
+            warn_str = 'Unable write SLC to file. Burst does not contain image data; only metadata.'
             warnings.warn(warn_str)
             return
 
@@ -404,7 +402,42 @@ class Sentinel1BurstSlc:
             self_as_dict[key] = val
         return self_as_dict
 
-    def bistatic_delay(self, xstep=1, ystep=1):
+
+    def _steps_to_vecs(self, range_step, az_step):
+        ''' convert range_step (meters) and az_step (seconds) into aranges to
+        generate LUT2ds
+        '''
+        step_errs = []
+        if range_step <= 0:
+            step_errs.append('range')
+        if az_step <= 0:
+            step_errs.append('azimuth')
+        if step_errs:
+            step_errs = ', '.join(step_errs)
+            err_str = f'Following step size(s) <=0: {step_errs}'
+            raise ValueError(err_str)
+
+        n_range = np.ceil(self.width * self.range_pixel_spacing / range_step).astype(int)
+        range_vec = self.starting_range + np.arange(0, n_range) * range_step
+
+        n_az = np.ceil(self.length * self.azimuth_time_interval / az_step).astype(int)
+        rdrgrid = self.as_isce3_radargrid()
+        az_vec = rdrgrid.sensing_start + np.arange(0, n_az) * az_step
+
+        vec_errs = []
+        if not range_vec:
+            vec_errs.append('range')
+        if not az_vec:
+            vec_errs.append('azimuth')
+        if vec_errs:
+            vec_errs = ', '.join(vec_errs)
+            err_str = f'Cannot build aranges from following step(s): {vec_errs}'
+            raise ValueError(err_str)
+
+        return range_vec, az_vec
+
+
+    def bistatic_delay(self, range_step=1, az_step=1):
         '''Computes the bistatic delay correction in azimuth direction
         due to the movement of the platform between pulse transmission and echo reception
         as described in equation (21) in Gisinger et al. (2021, TGRS).
@@ -421,30 +454,26 @@ class Sentinel1BurstSlc:
 
         Parameters
         -------
-        xstep : int
-           spacing along x direction (range direction) in units of pixels
-
-        ystep : int
-           spacing along y direction (azimuth direction) in units of pixels
+        range_step : int
+            Spacing along x/range direction [meters]
+        az_step : int
+            Spacing along y/azimuth direction [seconds]
 
         Returns
         -------
            LUT2D object of bistatic delay correction in seconds as a function
-           of the range and zimuth indices. This correction needs to be added
-           to the SLC tagged azimuth time to get the corrected azimuth times.
+           of the azimuth time and slant range, or range and azimuth indices.
+           This correction needs to be added to the SLC tagged azimuth time to
+           get the corrected azimuth times.
         '''
 
         pri = 1.0 / self.prf_raw_data
         tau0 = self.rank * pri
         tau_mid = self.iw2_mid_range * 2.0 / isce3.core.speed_of_light
 
-        nx = np.ceil(self.width / xstep).astype(int)
-        ny = np.ceil(self.length / ystep).astype(int)
-        x = np.arange(0, nx*xstep, xstep, dtype=int)
-        y = np.arange(0, ny*ystep, ystep, dtype=int)
+        slant_vec, az_vec = self._steps_to_vecs(range_step, az_step)
 
-        slant_range = self.starting_range + x * self.range_pixel_spacing
-        tau = slant_range * 2.0 / isce3.core.speed_of_light
+        tau = slant_vec * 2.0 / isce3.core.speed_of_light
 
         # the first term (tau_mid/2) is the bulk bistatic delay which was
         # removed from the orginial azimuth time by the ESA IPF. Based on
@@ -454,11 +483,13 @@ class Sentinel1BurstSlc:
         # This implementation follows the Gisinger et al. (2021) for now, we
         # can revise when we hear back from ESA folks.
         bistatic_correction_vec = tau_mid / 2 + tau / 2 - tau0
-        bistatic_correction = np.tile(bistatic_correction_vec.reshape(1,-1), (ny,1))
+        ny = az_vec.size
+        bistatic_correction = np.tile(bistatic_correction_vec.reshape(1,-1),
+                                      (ny,1))
 
-        return isce3.core.LUT2d(x, y, bistatic_correction)
+        return isce3.core.LUT2d(slant_vec, az_vec, bistatic_correction)
 
-    def geometrical_and_steering_doppler(self, xstep=500, ystep=50):
+    def geometrical_and_steering_doppler(self, range_step=500, az_step=50):
         """
         Compute total Doppler which is the sum of two components:
         (1) the geometrical Doppler induced by the relative movement
@@ -468,61 +499,65 @@ class Sentinel1BurstSlc:
         with azimuth time.
         Parameters
         ----------
-        xstep: int
-            Spacing along x direction [pixels]
-        ystep: int
-            Spacing along y direction [pixels]
+        range_step: int
+            Spacing along x/range direction [meters]
+        az_step: int
+            Spacing along y/azimuth direction [seconds]
 
         Returns
         -------
-        x : int
-           The index of samples in range direction as an 1D array
-        y : int
-           The index of samples in azimuth direction as an 1D array
-        total_doppler : float
-           Total Doppler which is the sum of the geometrical Doppler and
-           beam steering induced Doppler [Hz] as a 2D array
+           LUT2D object of total doppler in Hz as a function of the azimuth
+           time and slant range, or range and azimuth indices.
+           This correction needs to be added to the SLC tagged azimuth time to
+           get the corrected azimuth times.
         """
+        range_vec, az_vec = self._steps_to_vecs(range_step, az_step)
 
-        x = np.arange(0, self.width, xstep, dtype=int)
-        y = np.arange(0, self.length, ystep, dtype=int)
-        x_mesh, y_mesh = np.meshgrid(x, y)
+        # convert from meters to pixels
+        x_vec = (range_vec - self.starting_range) / self.range_pixel_spacing
+
+        # convert from seconds to pixels
+        rdrgrid = self.as_isce3_radargrid()
+        y_vec = (az_vec - rdrgrid.sensing_start) / self.azimuth_time_interval
+
+        # compute az carrier components with pixels
+        x_mesh, y_mesh = np.meshgrid(x_vec, y_vec)
         az_carr_comp = self.az_carrier_components(
                                         offset=0.0,
                                         position=(y_mesh, x_mesh))
 
-        slant_range = self.starting_range + x * self.range_pixel_spacing
-        geometrical_doppler = self.doppler.poly1d.eval(slant_range)
+        geometrical_doppler = self.doppler.poly1d.eval(range_vec)
 
         total_doppler = az_carr_comp.antenna_steering_doppler + geometrical_doppler
 
-        return x, y, total_doppler
+        return isce3.core.LUT2d(range_vec, az_vec, total_doppler)
 
-    def doppler_induced_range_shift(self, xstep=500, ystep=50):
+    def doppler_induced_range_shift(self, range_step=500, az_step=50):
         """
         Computes the range delay caused by the Doppler shift as described
         by Gisinger et al 2021
 
         Parameters
         ----------
-        xstep: int
-            Spacing along x direction [pixels]
-        ystep: int
-            Spacing along y direction [pixels]
+        range_step: int
+            Spacing along x/range direction [meters]
+        az_step: int
+            Spacing along y/azimuth direction [seconds]
 
         Returns
         -------
         isce3.core.LUT2d:
            LUT2D object of range delay correction [seconds] as a function
-           of the x and y indices.
+           of the azimuth time and slant range, or x and y indices.
 
         """
+        range_vec, az_vec = self._steps_to_vecs(range_step, az_step)
 
-        x, y, doppler_shift = self.geometrical_and_steering_doppler(
-                                                    xstep=xstep, ystep=ystep)
-        tau_corr = doppler_shift / self.range_chirp_rate
+        doppler_shift = self.geometrical_and_steering_doppler(range_step=range_step,
+                                                              az_step=az_step)
+        tau_corr = doppler_shift.data / self.range_chirp_rate
 
-        return isce3.core.LUT2d(x, y, tau_corr)
+        return isce3.core.LUT2d(range_vec, az_vec, tau_corr)
 
     def az_carrier_components(self, offset, position):
         '''
@@ -534,7 +569,7 @@ class Sentinel1BurstSlc:
         offset: float
            Offset between reference and secondary burst
         position: tuple
-           Tuple of locations along y and x directions
+           Tuple of locations along y and x directions in pixels
 
         Returns
         -------
@@ -575,7 +610,6 @@ class Sentinel1BurstSlc:
             self.starting_range) / self.azimuth_fm_rate.eval(
             self.starting_range)) - (f_etac / ka)
         kt = ks / (1.0 - ks / ka)
-
 
         return AzimuthCarrierComponents(kt, eta, eta_ref)
 
