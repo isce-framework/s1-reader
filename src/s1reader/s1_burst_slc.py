@@ -659,6 +659,8 @@ class Sentinel1BurstSlc:
         return (x, y, z)
 
     def az_fm_rate_mismatch_mitigation(self, path_dem: str, path_scratch: str,
+            threshold_rdr2geo = 1e-8,
+            numiter_rdr2geo = 25,
             custom_radargrid: isce3.product.RadarGridParameters=None):
         '''
         Calculate azimuth FM rate mismatch mitigation
@@ -670,8 +672,12 @@ class Sentinel1BurstSlc:
         -----------
         path_dem: str
             Path to the DEM to calculate the actual azimuth FM rate
-        path_scratch: str:
+        path_scratch: str
             Path to the scratch directory to store intermediate data
+        threshold_rdr2geo: int
+            Threshold of the iteration for rdr2geo
+        numiter_rdr2geo: int
+            Maximum number of iteration for rdr2geo
         custom_radargrid_correction: isce3.product.RadarGridParameters
             ISCE3 radar grid to define the correction grid
         
@@ -785,7 +791,9 @@ class Sentinel1BurstSlc:
                 radargrid_correction,
                 self.orbit,
                 ellipsoid,
-                grid_doppler)
+                grid_doppler,
+                threshold=threshold_rdr2geo,
+                numiter=numiter_rdr2geo)
 
         str_datetime = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
 
