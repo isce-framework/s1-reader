@@ -677,7 +677,7 @@ class Sentinel1BurstSlc:
         
         Return:
         -------
-        delta_t_freq_mm: np.ndarray
+        _: isce3.core.LUT2d
             azimuth FM rate mismatch rate in radar grid in seconds.
 
         '''
@@ -804,7 +804,7 @@ class Sentinel1BurstSlc:
 
         rdr2geo_obj.topo(dem_raster, lon_raster, lat_raster, hgt_raster)
 
-        # make sure that the ISCE3 raster is written out to file system
+        # make sure that the ISCE3 rasters are written out to file system
         lat_raster.close_dataset()
         lon_raster.close_dataset()
         hgt_raster.close_dataset()
@@ -819,7 +819,8 @@ class Sentinel1BurstSlc:
 
         t_burst = (grid_t[0, 0] + grid_t[-1, 0]) / 2.0
         index_mid_burst_t = int(grid_t.shape[0] / 2 + 0.5)
-        tau_burst = (grid_tau[index_mid_burst_t, 0] + grid_tau[index_mid_burst_t, -1]) / 2.0
+        tau_burst = (grid_tau[index_mid_burst_t, 0] 
+                     + grid_tau[index_mid_burst_t, -1]) / 2.0
         tau0_fdc_burst =  tau0_fdc_interp[index_mid_burst_t]
         tau0_fm_rate_burst =  tau0_ka_interp[index_mid_burst_t]
 
@@ -883,9 +884,9 @@ class Sentinel1BurstSlc:
                             + (y_s - y_ecef)**2
                             + (z_s - z_ecef)**2)
 
-        dotp_dxsg_acc = (  (x_s - x_ecef)*ax_s
-                         + (y_s - y_ecef)*ay_s
-                         + (z_s - z_ecef)*az_s)
+        dotp_dxsg_acc = (  (x_s - x_ecef) * ax_s
+                         + (y_s - y_ecef) * ay_s
+                         + (z_s - z_ecef) * az_s)
 
         kappa_annotation_true = ( -(2 * self.radar_center_frequency)
                                  / (isce3.core.speed_of_light * mag_xs_xg)
@@ -893,9 +894,14 @@ class Sentinel1BurstSlc:
 
         delta_t_freq_mm = (grid_freq_dc
                            * (-1 / kappa_annotation_grid
-                             + 1 / kappa_annotation_true))
+                              + 1 / kappa_annotation_true))
 
-        return delta_t_freq_mm
+        #return delta_t_freq_mm
+
+        # Prepare to export to LUT2d
+        vec_range = grid_tau(index_mid_burst_t) * isce3.speed_of_light / 2.0
+
+        return isce3.core.LUT2d(vec_range, vec_t, delta_t_freq_mm)
 
 
     @property
