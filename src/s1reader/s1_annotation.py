@@ -333,7 +333,7 @@ class ProductAnnotation(AnnotationBase):
 
     slant_range_time: float
 
-    
+
     vec_aztime_fm_rate: np.ndarray
     lut_coeff_fm_rate: np.ndarray
     vec_tau0_fm_rate:np.ndarray
@@ -961,7 +961,7 @@ class BurstExtendedCoeffs:
     To be used for calculating azimuth FM rate mismatch mitigation
     '''
     
-    # FM rate 
+    # FM rate
     vec_aztime_fm_rate: np.ndarray
     lut_coeff_fm_rate: np.ndarray
     vec_tau0_fm_rate:np.ndarray
@@ -997,7 +997,7 @@ class BurstExtendedCoeffs:
         
         # Scan the azimuth time of doppler centroid
         id_t0_dc, id_t1_dc = cls._find_t0_t1(product_annotation.vec_aztime_dc,
-                                             sensing_start, 
+                                             sensing_start,
                                              sensing_end)
 
         
