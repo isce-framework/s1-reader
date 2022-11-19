@@ -440,7 +440,7 @@ class ProductAnnotation(AnnotationBase):
         cls.lut_coeff_dc = np.array(cls._parse_vectorlist('dopplerCentroid/dcEstimateList',
                                                  'dataDcPolynomial',
                                                  'vector_float'))
-        
+
         cls.vec_tau0_dc = np.array(cls._parse_vectorlist('dopplerCentroid/dcEstimateList',
                                                 't0',
                                                 'scalar_float'))
@@ -960,7 +960,7 @@ class BurstExtendedCoeffs:
     For (linear) interpolation of FM rate / Doppler Centroid along azimuth.
     To be used for calculating azimuth FM rate mismatch mitigation
     '''
-    
+
     # FM rate
     vec_aztime_fm_rate: np.ndarray
     lut_coeff_fm_rate: np.ndarray
@@ -970,7 +970,7 @@ class BurstExtendedCoeffs:
     vec_aztime_dc: np.ndarray
     lut_coeff_dc: np.ndarray
     vec_tau0_dc: np.ndarray
-    
+
     @classmethod
     def from_product_annotation_and_burst(cls,
                                           product_annotation: ProductAnnotation,
@@ -988,19 +988,19 @@ class BurstExtendedCoeffs:
         sensing_end: datetime.datetime
             Azimuth end time of the burst
         '''
-        
+
         # Scan the azimuth time of fm rate
         id_t0_fm_rate, id_t1_fm_rate = cls._find_t0_t1(product_annotation.vec_aztime_fm_rate,
                                                        sensing_start,
                                                        sensing_end)
-        
-        
+
+
         # Scan the azimuth time of doppler centroid
         id_t0_dc, id_t1_dc = cls._find_t0_t1(product_annotation.vec_aztime_dc,
                                              sensing_start,
                                              sensing_end)
 
-        
+
         vec_aztime_fm_rate_burst = (product_annotation
                                     .vec_aztime_fm_rate[id_t0_fm_rate: id_t1_fm_rate+1])
         lut_coeff_fm_rate_burst = (product_annotation
@@ -1039,7 +1039,6 @@ class BurstExtendedCoeffs:
         (id_t0, id_t1): tuple(int)
             Indices of the azimuth times in `vec_azimuth_time` that
             covers the period
-
         '''
 
         # initial values
@@ -1062,14 +1061,5 @@ class BurstExtendedCoeffs:
                 id_t1_so_far = id_vec
                 dt_t1_so_far = dt_t1
                 continue
-        
-        
+
         return (id_t0_so_far, id_t1_so_far)
-            
-
-                
-
-
-
-    
-
