@@ -1049,7 +1049,7 @@ class BurstExtendedCoeffs:
 
         # NOTE: dt is defined as: [azimuth time] - [start/end time]
         for id_vec, datetime_vec in enumerate(vec_azimuth_time):
-            
+
             dt_t0 = (datetime_vec - datetime_start).total_seconds()
             if (dt_t0 < 0) and (dt_t0_so_far < dt_t0):
                 id_t0_so_far = id_vec
