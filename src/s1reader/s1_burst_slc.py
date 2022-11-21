@@ -796,15 +796,15 @@ class Sentinel1BurstSlc:
                 numiter=numiter_rdr2geo)
 
         str_datetime = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
-
+        list_filename_llh = [f'{path_scratch}/{llh}_{str_datetime}.rdr' for llh in ['lat', 'lon', 'hgt'] ]
         lat_raster, lon_raster, hgt_raster = [isce3.io.Raster(
-                                                        f'{path_scratch}/{llh}_{str_datetime}.rdr'],
+                                                        filename_llh,
                                                         radargrid_correction.width,
                                                         radargrid_correction.length,
                                                         1,
                                                         gdal.GDT_Float64,
                                                         'ENVI')
-                                              for llh in ['lat', 'lon', 'hgt']]
+                                              for filename_llh in list_filename_llh]
 
         rdr2geo_obj.topo(dem_raster, lon_raster, lat_raster, hgt_raster)
 
