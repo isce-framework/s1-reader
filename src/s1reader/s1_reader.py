@@ -616,7 +616,7 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
         osv_list = []
 
     # load individual burst
-    d_seconds = 0.5 * (n_lines - 1) * azimuth_time_interval
+    half_burst_in_seconds = 0.5 * (n_lines - 1) * azimuth_time_interval
     burst_list_elements = tree.find('swathTiming/burstList')
     n_bursts = int(burst_list_elements.attrib['count'])
     bursts = [[]] * n_bursts
@@ -624,7 +624,7 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
     for i, burst_list_element in enumerate(burst_list_elements):
         # Zero Doppler azimuth time of the first line of this burst
         sensing_start = as_datetime(burst_list_element.find('azimuthTime').text)
-        azimuth_time_mid = sensing_start + datetime.timedelta(seconds=d_seconds)
+        azimuth_time_mid = sensing_start + datetime.timedelta(seconds=half_burst_in_seconds)
 
         # Sensing time of the first input line of this burst [UTC]
         sensing_time = as_datetime(burst_list_element.find('sensingTime').text)
@@ -781,9 +781,11 @@ def load_bursts(path: str, orbit_path: str, swath_num: int, pol: str = 'vv',
     if burst_ids:
         bursts = [b for b in bursts if b.burst_id in burst_ids]
 
+        # convert S1BurstId to string for consistent object comparison later
         burst_ids_found = set([str(b.burst_id) for b in bursts])
 
         warnings.simplefilter("always")
+        # burst IDs as strings for consistent object comparison
         set_burst_ids = set([str(b) for b in burst_ids])
         if not burst_ids_found:
             warnings.warn("None of provided burst IDs found in sub-swath {swath_num}")
