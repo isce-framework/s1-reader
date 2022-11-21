@@ -333,7 +333,7 @@ class ProductAnnotation(AnnotationBase):
 
     slant_range_time: float
 
-
+    # FM rate parameters for mismatch mitigation
     vec_aztime_fm_rate: np.ndarray
     lut_coeff_fm_rate: np.ndarray
     vec_tau0_fm_rate:np.ndarray
