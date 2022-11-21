@@ -3,6 +3,7 @@ import glob
 import os
 import warnings
 import lxml.etree as ET
+from typing import Union
 import zipfile
 
 from types import SimpleNamespace
@@ -725,7 +726,7 @@ def _is_zip_annotation_xml(path: str, id_str: str) -> bool:
 
 
 def load_bursts(path: str, orbit_path: str, swath_num: int, pol: str = 'vv',
-                burst_ids: list[str] = None,
+                burst_ids: list[Union[str, S1BurstId]] = None,
                 flag_apply_eap: bool = True):
     '''Find bursts in a Sentinel-1 zip file or a SAFE structured directory.
 
@@ -739,11 +740,11 @@ def load_bursts(path: str, orbit_path: str, swath_num: int, pol: str = 'vv',
         Integer of subswath of desired burst. {1, 2, 3}
     pol : str
         Polarization of desired burst. {hh, vv, hv, vh}
-    burst_ids : list[str]
+    burst_ids : list[str] or list[S1BurstId]
         List of burst IDs for which their Sentinel1BurstSlc objects will be
-        returned. Default of None returns all bursts. Empty list returned if
-        none of the burst IDs are found. If not all burst IDs are found, a list
-        containing found bursts will be returned.
+        returned. Default of None returns all bursts.
+        If not all burst IDs are found, a list containing found bursts will be
+        returned (empty list if none are found).
 
     Returns:
     --------
@@ -757,7 +758,7 @@ def load_bursts(path: str, orbit_path: str, swath_num: int, pol: str = 'vv',
         burst_ids = []
 
     # ensure burst IDs is a list
-    if not isinstance(burst_ids, list):
+    if isinstance(burst_ids, (str, S1BurstId)):
         burst_ids = [burst_ids]
 
     # lower case polarity to be consistent with file naming convention
@@ -780,10 +781,10 @@ def load_bursts(path: str, orbit_path: str, swath_num: int, pol: str = 'vv',
     if burst_ids:
         bursts = [b for b in bursts if b.burst_id in burst_ids]
 
-        burst_ids_found = set([b.burst_id for b in bursts])
+        burst_ids_found = set([str(b.burst_id) for b in bursts])
 
         warnings.simplefilter("always")
-        set_burst_ids = set(burst_ids)
+        set_burst_ids = set([str(b) for b in burst_ids])
         if not burst_ids_found:
             warnings.warn("None of provided burst IDs found in sub-swath {swath_num}")
         elif burst_ids_found != set_burst_ids:

@@ -5,7 +5,7 @@ from typing import ClassVar
 import numpy as np
 
 
-@dataclass
+@dataclass(frozen=True)
 class S1BurstId:
     T_beam: ClassVar[float] = 2.758273  # interval of one burst [s]
     T_pre: ClassVar[float] = 2.299849  # Preamble time interval [s]
@@ -136,8 +136,12 @@ class S1BurstId:
     def __str__(self):
         return self.as_str()
 
-    def __hash__(self) -> int:
-        return hash(self.as_str())
-    # TODO: make sure these still work:
-    # bursts = [b for b in bursts if b.burst_id in burst_ids]
-    # burst_ids_found = set([b.burst_id for b in bursts])
+    def __eq__(self, other) -> bool:
+        # Allows for comparison with strings, as well as S1BurstId objects
+        # e.g., you can filter down burst IDs with:
+        # burst_ids = ["t012_024518_iw3", "t012_024519_iw3"]
+        # bursts = [b for b in bursts if b.burst_id in burst_ids]
+        if isinstance(other, str):
+            return self.as_str() == other
+        else:
+            return super().__eq__(other)
