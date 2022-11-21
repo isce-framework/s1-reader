@@ -417,18 +417,22 @@ class Sentinel1BurstSlc:
             err_str = f'Following step size(s) <=0: {step_errs}'
             raise ValueError(err_str)
 
+        # container to store names of axis vectors that are invalid: i.e. size 0
+        vec_errs = []
+
+        # compute range vector
         n_range = np.ceil(self.width * self.range_pixel_spacing / range_step).astype(int)
         range_vec = self.starting_range + np.arange(0, n_range) * range_step
+        if range_vec.size == 0:
+            vec_errs.append('range')
 
+        # compute azimuth vector
         n_az = np.ceil(self.length * self.azimuth_time_interval / az_step).astype(int)
         rdrgrid = self.as_isce3_radargrid()
         az_vec = rdrgrid.sensing_start + np.arange(0, n_az) * az_step
-
-        vec_errs = []
-        if not range_vec:
-            vec_errs.append('range')
-        if not az_vec:
+        if az_vec.size == 0:
             vec_errs.append('azimuth')
+
         if vec_errs:
             vec_errs = ', '.join(vec_errs)
             err_str = f'Cannot build aranges from following step(s): {vec_errs}'
