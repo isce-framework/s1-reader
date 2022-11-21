@@ -904,8 +904,6 @@ class Sentinel1BurstSlc:
                            * (-1 / kappa_annotation_grid
                               + 1 / kappa_annotation_true))
 
-        #return delta_t_freq_mm
-
         # Prepare to export to LUT2d
         vec_range = grid_tau(index_mid_burst_t) * isce3.speed_of_light / 2.0
 
