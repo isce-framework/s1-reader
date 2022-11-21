@@ -405,7 +405,7 @@ class ProductAnnotation(AnnotationBase):
                               'downlinkValues/instrumentConfigId',
                               'scalar_int')
 
-
+        # Extra from ET FM rate parameters for mismatch mitigation
         cls.vec_aztime_fm_rate = \
             cls._parse_vectorlist('generalAnnotation/azimuthFmRateList',
                                   'azimuthTime',
