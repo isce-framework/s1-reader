@@ -333,11 +333,14 @@ class ProductAnnotation(AnnotationBase):
 
     slant_range_time: float
 
-    # FM rate parameters for mismatch mitigation
+    # FM rate parameters for
+    # azimuth FM rate mismatch mitigation
     vec_aztime_fm_rate: np.ndarray
     lut_coeff_fm_rate: np.ndarray
     vec_tau0_fm_rate:np.ndarray
 
+    # Doppler centroid (DC) parameters for
+    # azimuth FM rate mismatch mitigation
     vec_aztime_dc: np.ndarray
     lut_coeff_dc: np.ndarray
     vec_tau0_dc: np.ndarray
