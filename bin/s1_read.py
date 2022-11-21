@@ -23,16 +23,20 @@ if __name__ == "__main__":
     if not os.path.isdir(orbit_dir):
         raise NotADirectoryError(f"{orbit_dir} not found")
     orbit_path = s1reader.get_orbit_file_from_dir(path, orbit_dir)
+    print(orbit_path)
 
     bursts = s1reader.load_bursts(path, orbit_path, i_subswath, pol)
+    import ipdb; ipdb.set_trace()
 
     # print out IDs and lat/lon centers of all bursts
     for i, burst in enumerate(bursts):
         print(burst.burst_id, burst.center)
 
+    '''
     # write to ENVI (default)
     burst.slc_to_file('burst.slc')
     # write to geotiff
     burst.slc_to_file('burst.tif', 'GTiff')
     # write to VRT
     burst.slc_to_file('burst.vrt', 'VRT')
+    '''
