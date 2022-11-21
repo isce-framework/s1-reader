@@ -125,12 +125,9 @@ class S1BurstId:
         esa_burst_id = int(esa_burst_id)
         return cls(track_number, esa_burst_id, subswath.lower())
 
-    def as_str(self):
+    def __str__(self):
         # Form the unique JPL ID by combining track/burst/swath
         return f"t{self.track_number:03d}_{self.esa_burst_id:06d}_{self.subswath.lower()}"
-
-    def __str__(self):
-        return self.as_str()
 
     def __eq__(self, other) -> bool:
         # Allows for comparison with strings, as well as S1BurstId objects
@@ -138,6 +135,6 @@ class S1BurstId:
         # burst_ids = ["t012_024518_iw3", "t012_024519_iw3"]
         # bursts = [b for b in bursts if b.burst_id in burst_ids]
         if isinstance(other, str):
-            return self.as_str() == other
+            return str(self) == other
         else:
             return super().__eq__(other)

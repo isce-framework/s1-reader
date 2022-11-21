@@ -365,6 +365,8 @@ class Sentinel1BurstSlc:
                 temp['std'] = val.std
                 temp['coeffs'] = val.coeffs
                 val = temp
+            elif key == 'burst_id':
+                val = str(val)
             elif key == 'border':
                 val = self.border[0].wkt
             elif key == 'doppler':
