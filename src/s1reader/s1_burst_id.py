@@ -80,7 +80,7 @@ class S1BurstId:
         start_iw1_to_mid_iw2 = burst_times[0] + burst_times[1] / 2
         mid_iw2 = start_iw1 + datetime.timedelta(seconds=start_iw1_to_mid_iw2)
 
-        has_anx_crossing = (end_track == (start_track + 1) % 175)
+        has_anx_crossing = end_track == (start_track + 1) % 175
 
         time_since_anx_iw1 = (start_iw1 - ascending_node_dt).total_seconds()
         time_since_anx = (mid_iw2 - ascending_node_dt).total_seconds()
