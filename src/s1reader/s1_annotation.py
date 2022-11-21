@@ -430,8 +430,6 @@ class ProductAnnotation(AnnotationBase):
                                            'scalar_float')
             cls.lut_coeff_fm_rate = np.array([vec_c0, vec_c1, vec_c2]).transpose()
 
-
-
         cls.vec_tau0_fm_rate = np.array(cls._parse_vectorlist('generalAnnotation/azimuthFmRateList',
                                                      't0',
                                                      'scalar_float'))
