@@ -956,7 +956,7 @@ class BurstEAP:
 @dataclass
 class BurstExtendedCoeffs:
     '''
-    Segments ofFM rate / Doppler centroid coefficients.
+    Segments of FM rate / Doppler centroid polynomial coefficients.
     For (linear) interpolation of FM rate / Doppler Centroid along azimuth.
     To be used for calculating azimuth FM rate mismatch mitigation
     '''
