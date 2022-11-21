@@ -10,6 +10,8 @@ import numpy as np
 from osgeo import gdal
 
 from s1reader import s1_annotation
+from .s1_burst_id import S1BurstId
+
 
 # Other functionalities
 def polyfit(xin, yin, zin, azimuth_order, range_order,
@@ -144,7 +146,7 @@ class Sentinel1BurstSlc:
     doppler: Doppler
     range_bandwidth: float
     polarization: str # {VV, VH, HH, HV}
-    burst_id: str # t{track_number}_{burst_index}_iw{1,2,3}
+    burst_id: S1BurstId
     platform_id: str # S1{A,B}
     safe_filename: str # SAFE file name
     center: tuple # {center lon, center lat} in degrees
@@ -660,7 +662,7 @@ class Sentinel1BurstSlc:
     @property
     def swath_name(self):
         '''Swath name in iw1, iw2, iw3.'''
-        return self.burst_id.split('_')[2]
+        return self.burst_id.swath_name
 
     @property
     def thermal_noise_lut(self):

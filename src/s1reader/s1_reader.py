@@ -20,6 +20,7 @@ from s1reader.s1_annotation import ProductAnnotation, NoiseAnnotation,\
                                    BurstCalibration, BurstEAP, BurstNoise
 
 from s1reader.s1_burst_slc import Doppler, Sentinel1BurstSlc
+from s1reader.s1_burst_id import S1BurstId
 
 
 esa_track_burst_id_file = f"{os.path.dirname(os.path.realpath(__file__))}/data/sentinel1_track_burst_id.txt"
@@ -493,7 +494,7 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
         List of Sentinel1BurstSlc objects found in annotation XML.
     '''
     _, tail = os.path.split(annotation_path)
-    platform_id, swath_name, _, pol = [x.upper() for x in tail.split('-')[:4]]
+    platform_id, subswath, _, pol = [x.upper() for x in tail.split('-')[:4]]
     safe_filename = os.path.basename(annotation_path.split('.SAFE')[0])
 
     # parse manifest.safe to retrieve IPF version
@@ -614,12 +615,12 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
         osv_list = []
 
     # load individual burst
+    d_seconds = 0.5 * (n_lines - 1) * azimuth_time_interval
     burst_list_elements = tree.find('swathTiming/burstList')
     n_bursts = int(burst_list_elements.attrib['count'])
     bursts = [[]] * n_bursts
 
     for i, burst_list_element in enumerate(burst_list_elements):
-        d_seconds = 0.5 * (n_lines - 1) * azimuth_time_interval
         # Zero Doppler azimuth time of the first line of this burst
         sensing_start = as_datetime(burst_list_element.find('azimuthTime').text)
         azimuth_time_mid = sensing_start + datetime.timedelta(seconds=d_seconds)
@@ -627,8 +628,8 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
         # Sensing time of the first input line of this burst [UTC]
         sensing_time = as_datetime(burst_list_element.find('sensingTime').text)
         # Create the burst ID to match the ESA ID scheme
-        burst_id = get_burst_id(
-            sensing_time, ascending_node_time, start_track, end_track, swath_name
+        burst_id = S1BurstId.from_burst_params(
+            sensing_time, ascending_node_time, start_track, end_track, subswath
         )
 
         # choose nearest azimuth FM rate
@@ -885,99 +886,3 @@ def _burst_from_safe_dir(safe_dir_path: str, id_str: str, orbit_path: str, flag_
     bursts = burst_from_xml(f_annotation, orbit_path, f_tiff, iw2_f_annotation,
                             flag_apply_eap=flag_apply_eap)
     return bursts
-
-
-def get_burst_id(
-    sensing_time: datetime.datetime,
-    ascending_node_dt: datetime.datetime,
-    start_track: int,
-    end_track: int,
-    subswath_name: str,
-) -> int:
-    """Calculate burst ID and current track number of a burst.
-
-    Accounts for equator crossing frames, and uses the ESA convention defined
-    in the Sentinel-1 Level 1 Detailed Algorithm Definition
-
-    Parameters
-    ----------
-    sensing_time : datetime
-        Sensing time of the first input line of this burst [UTC]
-        The XML tag is sensingTime in the annotation file.
-    ascending_node_dt : datetime
-        Time of the ascending node prior to the start of the scene.
-    start_track : int
-        Relative orbit number at the start of the acquisition, from 1-175.
-    end_track : int
-        Relative orbit number at the end of the acquisition.
-    subswath_name : str, {'IW1', 'IW2', 'IW3'}
-        Name of the subswath of the burst (not case sensitive).
-
-    Returns
-    -------
-    relative_orbit : int
-        Relative orbit number (track number) at the current burst.
-    burst_id : int
-        The burst ID matching ESA's relative numbering scheme.
-
-    Notes
-    -----
-    The `start_track` and `end_track` parameters are used to determine if the
-    scene crosses the equator. They are the same if the frame does not cross
-    the equator.
-
-    References
-    ----------
-    ESA Sentinel-1 Level 1 Detailed Algorithm Definition
-    https://sentinels.copernicus.eu/documents/247904/1877131/S1-TN-MDA-52-7445_Sentinel-1+Level+1+Detailed+Algorithm+Definition_v2-4.pdf/83624863-6429-cfb8-2371-5c5ca82907b8
-    """
-    # Constants in Table 9-7
-    T_beam = 2.758273  # interval of one burst [s]
-    T_pre = 2.299849  # Preamble time interval [s]
-    T_orb = 12 * 24 * 3600 / 175  # Nominal orbit period [s]
-
-    swath_num = int(subswath_name[-1])
-    # Since we only have access to the current subswath, we need to use the
-    # burst-to-burst times to figure out
-    #   1. if IW1 crossed the equator, and
-    #   2. The mid-burst sensing time for IW2
-    # IW1 -> IW2 takes ~0.83220 seconds
-    # IW2 -> IW3 takes ~1.07803 seconds
-    # IW3 -> IW1 takes ~0.84803 seconds
-    burst_times = np.array([0.832, 1.078, 0.848])
-    iw1_start_offsets = [
-        0,
-        -burst_times[0],
-        -burst_times[0] - burst_times[1],
-    ]
-    offset = iw1_start_offsets[swath_num - 1]
-    start_iw1 = sensing_time + datetime.timedelta(seconds=offset)
-
-    start_iw1_to_mid_iw2 = burst_times[0] + burst_times[1] / 2
-    mid_iw2 = start_iw1 + datetime.timedelta(seconds=start_iw1_to_mid_iw2)
-
-    has_anx_crossing = (end_track == (start_track + 1) % 175)
-
-    time_since_anx_iw1 = (start_iw1 - ascending_node_dt).total_seconds()
-    time_since_anx = (mid_iw2 - ascending_node_dt).total_seconds()
-
-    if (time_since_anx_iw1 - T_orb) < 0:
-        # Less than a full orbit has passed
-        track_number = start_track
-    else:
-        track_number = end_track
-        # Additional check for scenes which have a given ascending node
-        # that's more than 1 orbit in the past
-        if not has_anx_crossing:
-            time_since_anx = time_since_anx - T_orb
-
-    # Eq. 9-89: ∆tb = tb − t_anx + (r - 1)T_orb
-    # tb: mid-burst sensing time (sensing_time)
-    # t_anx: ascending node time (ascending_node_dt)
-    # r: relative orbit number   (relative_orbit_start)
-    dt_b = time_since_anx + (start_track - 1) * T_orb
-
-    # Eq. 9-91 :   1 + floor((∆tb − T_pre) / T_beam )
-    esa_burst_id = 1 + int(np.floor((dt_b - T_pre) / T_beam))
-    # Form the unique JPL ID by combining track/burst/swath
-    return f"t{track_number:03d}_{esa_burst_id:06d}_{subswath_name.lower()}"
