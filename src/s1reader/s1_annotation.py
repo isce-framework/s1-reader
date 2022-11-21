@@ -994,12 +994,10 @@ class BurstExtendedCoeffs:
                                                        sensing_start,
                                                        sensing_end)
 
-
         # Scan the azimuth time of doppler centroid
         id_t0_dc, id_t1_dc = cls._find_t0_t1(product_annotation.vec_aztime_dc,
                                              sensing_start,
                                              sensing_end)
-
 
         vec_aztime_fm_rate_burst = (product_annotation
                                     .vec_aztime_fm_rate[id_t0_fm_rate: id_t1_fm_rate+1])
