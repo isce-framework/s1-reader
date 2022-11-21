@@ -868,21 +868,13 @@ class Sentinel1BurstSlc:
 
         # Populate the position, velocity, and
         # acceleration of the satellite to the correction grid
-        list_pos_satellite = []
-        list_vel_satellite = []
-        list_acc_satellite = []
-
-        for i in range(3):
-            list_pos_satellite.append(vec_position_intp[:, i][..., np.newaxis]
-                                      * np.ones(grid_tau.shape[1])[np.newaxis, ...])
-            list_vel_satellite.append(vec_vel_intp[:, i][..., np.newaxis]
-                                      * np.ones(grid_tau.shape[1])[np.newaxis, ...])
-            list_acc_satellite.append(vec_acceleration_intp[:, i][..., np.newaxis]
-                                      * np.ones(grid_tau.shape[1])[np.newaxis, ...])
-
-        x_s, y_s, z_s = list_pos_satellite
-        vx_s, vy_s, vz_s = list_vel_satellite
-        ax_s, ay_s, az_s = list_acc_satellite
+        tau_ones = np.ones(grid_tau.shape[1])[np.newaxis, ...]
+        x_s, y_s, z_s = [vec_position_intp[:, i][..., np.newaxis] * tau_ones            
+                         for i in range(3)]
+        vx_s, vy_s, vz_s = [vec_vel_intp[:, i][..., np.newaxis] * tau_ones            
+                            for i in range(3)]
+        ax_s, ay_s, az_s = [vec_vel_intp[:, i][..., np.newaxis] * tau_ones            
+                            for i in range(3)]
         
         mag_xs_xg = np.sqrt(  (x_s - x_ecef)**2
                             + (y_s - y_ecef)**2
