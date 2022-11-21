@@ -7,6 +7,7 @@ import numpy as np
 
 @dataclass(frozen=True)
 class S1BurstId:
+    # Constants in Table 9-7 of Sentinel-1 SLC Detailed Algorithm Definition
     T_beam: ClassVar[float] = 2.758273  # interval of one burst [s]
     T_pre: ClassVar[float] = 2.299849  # Preamble time interval [s]
     T_orb: ClassVar[float] = 12 * 24 * 3600 / 175  # Nominal orbit period [s]
@@ -59,11 +60,6 @@ class S1BurstId:
         ESA Sentinel-1 Level 1 Detailed Algorithm Definition
         https://sentinels.copernicus.eu/documents/247904/1877131/S1-TN-MDA-52-7445_Sentinel-1+Level+1+Detailed+Algorithm+Definition_v2-4.pdf/83624863-6429-cfb8-2371-5c5ca82907b8
         """
-        # Constants in Table 9-7
-        T_beam = 2.758273  # interval of one burst [s]
-        T_pre = 2.299849  # Preamble time interval [s]
-        T_orb = 12 * 24 * 3600 / 175  # Nominal orbit period [s]
-
         swath_num = int(subswath[-1])
         # Since we only have access to the current subswath, we need to use the
         # burst-to-burst times to figure out
@@ -89,7 +85,7 @@ class S1BurstId:
         time_since_anx_iw1 = (start_iw1 - ascending_node_dt).total_seconds()
         time_since_anx = (mid_iw2 - ascending_node_dt).total_seconds()
 
-        if (time_since_anx_iw1 - T_orb) < 0:
+        if (time_since_anx_iw1 - cls.T_orb) < 0:
             # Less than a full orbit has passed
             track_number = start_track
         else:
@@ -97,16 +93,16 @@ class S1BurstId:
             # Additional check for scenes which have a given ascending node
             # that's more than 1 orbit in the past
             if not has_anx_crossing:
-                time_since_anx = time_since_anx - T_orb
+                time_since_anx = time_since_anx - cls.T_orb
 
         # Eq. 9-89: ∆tb = tb − t_anx + (r - 1)T_orb
         # tb: mid-burst sensing time (sensing_time)
         # t_anx: ascending node time (ascending_node_dt)
         # r: relative orbit number   (relative_orbit_start)
-        dt_b = time_since_anx + (start_track - 1) * T_orb
+        dt_b = time_since_anx + (start_track - 1) * cls.T_orb
 
         # Eq. 9-91 :   1 + floor((∆tb − T_pre) / T_beam )
-        esa_burst_id = 1 + int(np.floor((dt_b - T_pre) / T_beam))
+        esa_burst_id = 1 + int(np.floor((dt_b - cls.T_pre) / cls.T_beam))
 
         return cls(track_number, esa_burst_id, subswath)
 
