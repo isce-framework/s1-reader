@@ -434,6 +434,7 @@ class ProductAnnotation(AnnotationBase):
                                                      't0',
                                                      'scalar_float'))
 
+        # Extract doppler centroid parameters for mismatch mitigation
         cls.vec_aztime_dc = cls._parse_vectorlist('dopplerCentroid/dcEstimateList',
                                                     'azimuthTime',
                                                     'datetime')
