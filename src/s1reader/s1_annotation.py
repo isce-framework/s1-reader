@@ -979,8 +979,8 @@ class BurstExtendedCoeffs:
                                           sensing_start: datetime.datetime,
                                           sensing_end: datetime.datetime):
         '''
-        Clip the series of coefficients from `product_annotation` that covers
-        the burst whose sensing start / end time is provided in the arguments.
+        Extract coefficients from `product_annotation` that fall within the
+        provided sensing start / end times of a burst.
 
         Parameters:
         product_annotation: ProductAnnotation
