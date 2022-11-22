@@ -1,9 +1,13 @@
 """Extract the burst ID information from a Sentinel-1 SLC product."""
 import argparse
+import sys
+import warnings
 from itertools import chain
 from pathlib import Path
 from typing import List, Optional, Union
-import warnings
+
+import shapely.geometry
+import shapely.ops
 
 import s1reader
 
@@ -22,7 +26,7 @@ def get_bursts(
     return list(chain.from_iterable(burst_nested_list))
 
 
-def _is_safe_dir(path):
+def _is_safe_dir(path: Union[Path, str]) -> bool:
     # Rather than matching the name, we just check for the existence of the
     # manifest.safe file and annotation files
     if not (path / "manifest.safe").is_file():
@@ -35,7 +39,7 @@ def _is_safe_dir(path):
     return True
 
 
-def _plot_bursts(safe_path, output_dir="burst_maps"):
+def _plot_bursts(safe_path: Union[Path, str], output_dir="burst_maps") -> None:
     from s1reader.utils import plot_bursts
 
     orbit_dir = None
@@ -46,6 +50,21 @@ def _plot_bursts(safe_path, output_dir="burst_maps"):
     print(f"Output directory: {d}")
     output_filename = d / safe_path.stem
     plot_bursts.burst_map(safe_path, orbit_dir, xs, ys, epsg, output_filename)
+
+
+def _get_frame_bounds(safe_path: Union[Path, str]) -> List[float]:
+    """Get the bounding box of the frame from the union of all burst bounds.
+
+    bounding box format is [lonmin, latmin, lonmax, latmax]
+    """
+    # Get all the bursts from subswath 1, 2, 3
+    bursts = get_bursts(safe_path)
+    # Convert the border (list of polygons) into a MultiPolygon
+    all_borders = [shapely.geometry.MultiPolygon(b.border) for b in bursts]
+    # Perform a union to get one shape for the entire frame
+    border_geom = shapely.ops.unary_union(all_borders)
+    # grab the bounds and pad as needed
+    return list(border_geom.bounds)
 
 
 EXAMPLE = """
@@ -103,6 +122,11 @@ def get_cli_args():
         help="Print only the burst IDs for all bursts.",
     )
     parser.add_argument(
+        "--bbox",
+        action="store_true",
+        help="Print the bounding box (lonmin, latmin, lonmax, latmax) of the S1 product.",
+    )
+    parser.add_argument(
         "-p",
         "--plot",
         action="store_true",
@@ -134,11 +158,16 @@ def main():
         else:
             warnings.warn(f"{path} is not a file or directory. Skipping.")
 
-    print(f"Found {len(all_files)} Sentinel-1 SLC products.")
+    print(f"Found {len(all_files)} Sentinel-1 SLC products.", file=sys.stderr)
     for path in all_files:
         if args.plot:
             _plot_bursts(path)
             continue
+        elif args.bbox:
+            msg = f"{path}: {_get_frame_bounds(path)}"
+            print(msg)
+            continue
+
         print(f"Bursts in {path}:")
         print("-" * 80)
         # Do we want to pretty-print this with rich?
