@@ -794,7 +794,6 @@ class Sentinel1BurstSlc:
         # add range time origin to vec_tau
         grid_tau += tau0_ka_interp * np.ones(vec_tau.shape)[np.newaxis, ...]
 
-
         # Interpolate the DC and fm rate coeffs along azimuth time
         list_a_interp = [] # Doppler centroid
         list_b_interp = [] # Fm rate
