@@ -728,9 +728,8 @@ class Sentinel1BurstSlc:
         
         os.makedirs(path_scratch, exist_ok=True)
         
-        if custom_radargrid is None:
-            radargrid_correction = self.as_isce3_radargrid()
-        else:
+        radargrid_correction = self.as_isce3_radargrid()
+        if custom_radargrid is not None:
             radargrid_correction = custom_radargrid
 
         # Define the correction grid from the radargrid
