@@ -755,14 +755,14 @@ class Sentinel1BurstSlc:
         vec_position_intp = np.zeros((length_grid,3))
         vec_vel_intp = np.zeros((length_grid,3))
         vec_vel_intp_staggered = [None] * (length_grid+1)
-        for i_azimiuth, t_azimuth in enumerate(vec_t):
-            vec_position_intp[i_azimiuth, :], vec_vel_intp[i_azimiuth, :] = \
+        for i_azimuth, t_azimuth in enumerate(vec_t):
+            vec_position_intp[i_azimuth, :], vec_vel_intp[i_azimuth, :] = \
                 self.orbit.interpolate(t_azimuth)
 
         # Calculate velocity on staggered grid
         # to kinematically calculate acceleration
         for i_azimuth, t_azimuth in enumerate(vec_t_staggered):
-            _, vec_vel_intp_staggered[i_azimiuth] = self.orbit.interpolate(t_azimuth)
+            _, vec_vel_intp_staggered[i_azimuth] = self.orbit.interpolate(t_azimuth)
 
         vec_acceleration_intp = np.diff(vec_vel_intp_staggered, axis=0) / intv_t
 
