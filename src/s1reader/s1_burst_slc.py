@@ -736,7 +736,7 @@ class Sentinel1BurstSlc:
         # Also define the staggered grid in azimuth to calculate acceeration
         width_grid = radargrid_correction.width
         length_grid = radargrid_correction.length
-        intv_t = 1/radargrid_correction.prf
+        intv_t = 1.0 / radargrid_correction.prf
         intv_tau = (radargrid_correction.range_pixel_spacing * 2.0
                     / isce3.core.speed_of_light)
         delta_sec_from_ref_epoch = ((radargrid_correction.ref_epoch
