@@ -873,7 +873,7 @@ class Sentinel1BurstSlc:
                          for i in range(3)]
         vx_s, vy_s, vz_s = [vec_vel_intp[:, i][..., np.newaxis] * tau_ones            
                             for i in range(3)]
-        ax_s, ay_s, az_s = [vec_vel_intp[:, i][..., np.newaxis] * tau_ones            
+        ax_s, ay_s, az_s = [vec_acceleration_intp[:, i][..., np.newaxis] * tau_ones            
                             for i in range(3)]
         
         mag_xs_xg = np.sqrt(  (x_s - x_ecef)**2
