@@ -1,17 +1,14 @@
 import argparse
 import os
-import sys
-from importlib import import_module
+from pathlib import Path
 
-named_libs = [('fiona', 'fiona'), ('geopandas', 'gpd'), ('pandas', 'pd')]
-
-for (name, short) in named_libs:
-    try:
-        lib = import_module(name)
-    except:
-        print(sys.exc_info())
-    else:
-        globals()[short] = lib
+try:
+    import fiona
+    import geopandas as gpd
+    import pandas as pd
+except ImportError:
+    print("ERROR: fiona, geopandas, and pandas are required for this script.")
+    raise
 
 from osgeo import osr
 from shapely.geometry import Polygon
@@ -25,34 +22,27 @@ def command_line_parser():
     '''
     Command line parser
     '''
-    parser = argparse.ArgumentParser(description="""
-                                     Create a burst map for a single slc""",
-                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('-s', '--slc', type=str, action='store',
-                        dest='slc',
-                        help="slc to map")
-    parser.add_argument('-d', '--orbit-dir', type=str, dest='orbit_dir',
-                        help="Directory containing orbit files")
+    parser = argparse.ArgumentParser(
+        description="Create a burst map for a single slc",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
+    parser.add_argument('-s', '--slc', help="Sentinel-1 product to load.")
+    parser.add_argument('-d', '--orbit-dir', help="Directory containing orbit files")
     parser.add_argument('-x', '--x-spacing', type=float, default=5,
-                        dest='x_spacing',
                         help='Spacing of the geogrid in x direction')
     parser.add_argument('-y', '--y-spacing', type=float, default=10,
-                        dest='y_spacing',
                         help='Spacing of the geogrid in y direction')
-    parser.add_argument('-e', '--epsg', type=int, dest='epsg',
-                        help='EPSG for output coordinates')
-    parser.add_argument('-o', '--output', type=str, default='burst_map.gpkg',
-                        dest='output',
+    parser.add_argument('-e', '--epsg', type=int, help='EPSG for output coordinates')
+    parser.add_argument('-o', '--output', default='burst_map.gpkg', dest='output',
                         help='Base filename for all output burst map products')
     return parser.parse_args()
 
 
-def burst_map(slc, orbit_dir, x_spacing,
-              y_spacing, epsg,
-              output_filename):
-    """
-    Create a CSV of SLC metadata and plot bursts
-    Parameters:
+def burst_map(slc, orbit_dir, x_spacing, y_spacing, epsg, output_filename):
+    """Create a CSV of SLC metadata and plot bursts.
+
+    Parameters
+    ----------
     slc: str
       Path to SLC file
     orbit_dir: str
@@ -65,11 +55,11 @@ def burst_map(slc, orbit_dir, x_spacing,
       EPSG code for the output coodrdinates
     output_filename: str
       Filename used for the output CSV, shp, html, and kml files
-    
-    Returns:
+
+    Returns
+    -------
     output_filename.csv, output_filename.shp, output_filename.html, output_filename.kml
     """
-    
     # Initialize dictionary that will contain all the info for geocoding
     burst_map = {'burst_id':[], 'length': [], 'width': [],
                  'spacing_x': [], 'spacing_y':[], 'min_x': [],
@@ -78,7 +68,7 @@ def burst_map(slc, orbit_dir, x_spacing,
                  'border':[]}
     i_subswath = [1, 2, 3]
     pol = 'vv'
-    orbit_path = get_orbit_file_from_dir(slc, orbit_dir)
+    orbit_path = get_orbit_file_from_dir(slc, orbit_dir) if orbit_dir else None
 
     for subswath in i_subswath:
         ref_bursts = load_bursts(slc, orbit_path, subswath, pol)
@@ -93,6 +83,8 @@ def burst_map(slc, orbit_dir, x_spacing,
             burst_map['first_valid_sample'].append(burst.first_valid_sample)
             burst_map['last_valid_sample'].append(burst.last_valid_sample)
 
+            # TODO: this will ignore the other border for bursts on the antimeridian.
+            # Should probably turn into a MultiPolygon
             poly = burst.border[0]
             # Give some margin to the polygon
             margin = 0.001
@@ -113,6 +105,7 @@ def burst_map(slc, orbit_dir, x_spacing,
                 tgt_x.append(dummy_x)
                 tgt_y.append(dummy_y)
             
+            # TODO: Get the min/max from the burst database
             if epsg == 4326:
                 x_min = x_spacing * (min(tgt_x) / x_spacing)
                 y_min = y_spacing * (min(tgt_y) / y_spacing)
@@ -130,28 +123,29 @@ def burst_map(slc, orbit_dir, x_spacing,
             burst_map['max_x'].append(x_max)
             burst_map['max_y'].append(y_max)
 
+    out_path = Path(output_filename)
+
     # Save generated burst map as csv
     data = pd.DataFrame.from_dict(burst_map)
-    data.to_csv(f'{output_filename}.csv')
+    data.to_csv(out_path.with_suffix('.csv'))
 
     # Create GeoDataFrame to plot bursts on a map
     df = data
     df['border'] = df['border'].apply(wkt.loads)
-    gdf = gpd.GeoDataFrame(df, crs='epsg:4326')
-    gdf = gdf.rename(columns={'border': 'geometry'}).set_geometry('geometry')
-    
+    gdf = gpd.GeoDataFrame(df.rename(columns={'border': 'geometry'}), crs='epsg:4326')
+
+    gdf.to_file(out_path.with_suffix('.gpkg'), driver='GPKG')
     # Save the GeoDataFrame as a shapefile (some people may prefer the format)
-    gdf.to_file(f'{output_filename}.shp')
-    
+    gdf.to_file(out_path.with_suffix('.shp'))
+
     # Save the GeoDataFrame as a kml
-    kml_path = f'{output_filename}.kml'
-    if os.path.isfile(kml_path):
-        os.remove(kml_path)
-    
+    kml_path = out_path.with_suffix('.kml')
+    if kml_path.exists():
+        kml_path.unlink()
+
     fiona.supported_drivers['KML'] = 'rw'
-    gdf.to_file(f'{output_filename}.kml', driver='KML')
-    
-    
+    gdf.to_file(kml_path, driver='KML')
+
     # Plot bursts on an interactive map
     m = gdf.explore(
         column="burst_id", # make choropleth based on "Burst ID" column
@@ -162,8 +156,8 @@ def burst_map(slc, orbit_dir, x_spacing,
         style_kwds=dict(color="black") # use black outline
        )
 
-    m.save(f'{output_filename}.html')
-    
+    m.save(out_path.with_suffix('.html'))
+
 
 if __name__ == '__main__':
     cmd = command_line_parser()
