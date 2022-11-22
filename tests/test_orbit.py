@@ -12,6 +12,17 @@ def test_get_orbit_file(test_paths):
     expected_orbit_path = f'{test_paths.orbit_dir}/{test_paths.orbit_file}'
     assert orbit_file == expected_orbit_path
 
+
+def test_get_resorb_file(test_paths):
+    """Check a version with RESORB instead of POEORB"""
+    zip_path = test_paths.data_dir / "S1A_IW_SLC__1SDV_20221024T184148_20221024T184218_045587_05735F_D6E2.zip"
+    orbit_file = get_orbit_file_from_dir(zip_path, test_paths.orbit_dir)
+    orbit_name = "S1A_OPER_AUX_RESORB_OPOD_20221024T205436_V20221024T170308_20221024T202038.EOF"
+    expected_orbit_path = test_paths.orbit_dir / orbit_name
+
+    assert orbit_file == str(expected_orbit_path)
+
+
 def test_orbit_datetime(bursts):
     # pad in seconds used in orbit_reader
     pad = datetime.timedelta(seconds=60)

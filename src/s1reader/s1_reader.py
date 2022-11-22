@@ -32,9 +32,6 @@ def as_datetime(t_str):
     ----------
     t_str : string
         Time string to be parsed. (e.g., "2021-12-10T12:00:0.0")
-    fmt : string
-        Format of string provided. Defaults to az time format found in annotation XML.
-        (e.g., "%Y-%m-%dT%H:%M:%S.%f").
 
     Returns:
     ------
@@ -270,20 +267,32 @@ def get_burst_centers_and_boundaries(tree):
 def get_ipf_version(tree: ET):
     '''Extract the IPF version from the ET of manifest.safe
     '''
-    # path to xmlData in manifest
-    xml_meta_path = 'metadataSection/metadataObject/metadataWrap/xmlData'
-
-    # piecemeal build path to software path to access version attrib
-    esa_http = '{http://www.esa.int/safe/sentinel-1.0}'
-    processing = xml_meta_path + f'/{esa_http}processing'
-    facility = processing + f'/{esa_http}facility'
-    software = facility + f'/{esa_http}software'
-
     # get version from software element
-    software_elem = tree.find(software)
+    search_term, nsmap = _get_manifest_pattern(tree, ['processing', 'facility', 'software'])
+    software_elem = tree.find(search_term, nsmap)
     ipf_version = version.parse(software_elem.attrib['version'])
 
     return ipf_version
+
+def get_start_end_track(tree: ET):
+    '''Extract the start/end relative orbits from manifest.safe file'''
+    search_term, nsmap = _get_manifest_pattern(tree, ['orbitReference', 'relativeOrbitNumber'])
+    elem_start, elem_end = tree.findall(search_term, nsmap)
+    return int(elem_start.text), int(elem_end.text)
+
+
+def _get_manifest_pattern(tree: ET, keys: list):
+    '''Get the search path to extract data from the ET of manifest.safe'''
+    # Get the namespace from the root element to avoid full urls
+    try:
+        nsmap = tree.nsmap
+    except AttributeError:
+        nsmap = tree.getroot().nsmap
+    # path to xmlData in manifest
+    xml_meta_path = 'metadataSection/metadataObject/metadataWrap/xmlData'
+    safe_terms = "/".join([f'safe:{key}' for key in keys])
+    return f'{xml_meta_path}/{safe_terms}', nsmap
+
 
 def get_path_aux_cal(directory_aux_cal: str, str_annotation: str):
     '''
@@ -323,8 +332,7 @@ def get_path_aux_cal(directory_aux_cal: str, str_annotation: str):
     list_aux_cal = glob.glob(f'{directory_aux_cal}/{str_platform}_AUX_CAL_V*.SAFE.zip')
 
     if len(list_aux_cal) == 0:
-        raise ValueError( 'Cannot find AUX_CAL files from directory: '
-                                f'{directory_aux_cal}')
+        raise ValueError(f'Cannot find AUX_CAL files from {directory_aux_cal} .')
 
     format_datetime = '%Y%m%dT%H%M%S'
 
@@ -457,27 +465,16 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
     bursts : list
         List of Sentinel1BurstSlc objects found in annotation XML.
     '''
-
-    # a dict where the key is the track number and the value is a list of
-    # two integers for the start and stop burst number
-    track_burst_num = get_track_burst_num()
-
     _, tail = os.path.split(annotation_path)
     platform_id, swath_name, _, pol = [x.upper() for x in tail.split('-')[:4]]
     safe_filename = os.path.basename(annotation_path.split('.SAFE')[0])
 
-    # For IW mode, one burst has a duration of ~2.75 seconds and a burst
-    # overlap of approximately ~0.4 seconds.
-    # https://sentinels.copernicus.eu/web/sentinel/user-guides/sentinel-1-sar/product-types-processing-levels/level-1
-    # Additional precision calculated from averaging the differences between
-    # burst sensing starts in prototyping test data
-    burst_interval = 2.758277
-
     # parse manifest.safe to retrieve IPF version
     manifest_path = os.path.dirname(annotation_path).replace('annotation','') + 'manifest.safe'
     with open_method(manifest_path, 'r') as f_manifest:
-        tree_manfest = ET.parse(f_manifest)
-        ipf_version = get_ipf_version(tree_manfest)
+        tree_manifest = ET.parse(f_manifest)
+        ipf_version = get_ipf_version(tree_manifest)
+        start_track, end_track = get_start_end_track(tree_manifest)
 
     # Load the Product annotation - for EAP calibration
     with open_method(annotation_path, 'r') as f_lads:
@@ -543,7 +540,7 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
         slant_range_time = float(image_info_element.find('slantRangeTime').text)
         ascending_node_time = as_datetime(image_info_element.find('ascendingNodeTime').text)
 
-        downlink_element =  tree.find('generalAnnotation/downlinkInformationList/downlinkInformation')
+        downlink_element = tree.find('generalAnnotation/downlinkInformationList/downlinkInformation')
         prf_raw_data = float(downlink_element.find('prf').text)
         rank = int(downlink_element.find('downlinkValues/rank').text)
         range_chirp_ramp_rate = float(downlink_element.find('downlinkValues/txPulseRampRate').text)
@@ -565,8 +562,6 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
         range_window_coeff = float(rng_processing_element.find('windowCoefficient').text)
 
         orbit_number = int(tree.find('adsHeader/absoluteOrbitNumber').text)
-        orbit_number_offset = 73 if  platform_id == 'S1A' else 202
-        track_number = (orbit_number - orbit_number_offset) % 175 + 1
 
         center_pts, boundary_pts = get_burst_centers_and_boundaries(tree)
 
@@ -593,28 +588,25 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
     burst_list_elements = tree.find('swathTiming/burstList')
     n_bursts = int(burst_list_elements.attrib['count'])
     bursts = [[]] * n_bursts
-    sensing_starts = [[]] * n_bursts
-    sensing_times = [[]] * n_bursts
 
     for i, burst_list_element in enumerate(burst_list_elements):
-        # get burst timing
+        d_seconds = 0.5 * (n_lines - 1) * azimuth_time_interval
+        # Zero Doppler azimuth time of the first line of this burst
         sensing_start = as_datetime(burst_list_element.find('azimuthTime').text)
-        sensing_starts[i] = sensing_start
-        sensing_times[i] = as_datetime(burst_list_element.find('sensingTime').text)
-        dt = sensing_times[i] - ascending_node_time
-        # local burst_num within one track, starting from 0
-        burst_num = int((dt.seconds + dt.microseconds / 1e6) // burst_interval)
+        azimuth_time_mid = sensing_start + datetime.timedelta(seconds=d_seconds)
 
-        # convert the local burst_num to the global burst_num, starting from 1
-        burst_num += track_burst_num[track_number][0]
+        # Sensing time of the first input line of this burst [UTC]
+        sensing_time = as_datetime(burst_list_element.find('sensingTime').text)
+        # Create the burst ID to match the ESA ID scheme
+        burst_id = get_burst_id(
+            sensing_time, ascending_node_time, start_track, end_track, swath_name
+        )
 
         # choose nearest azimuth FM rate
-        d_seconds = 0.5 * (n_lines - 1) * azimuth_time_interval
-        sensing_mid = sensing_start + datetime.timedelta(seconds=d_seconds)
-        az_fm_rate = get_nearest_polynomial(sensing_mid, az_fm_rate_list)
+        az_fm_rate = get_nearest_polynomial(azimuth_time_mid, az_fm_rate_list)
 
         # choose nearest doppler
-        poly1d = get_nearest_polynomial(sensing_mid, doppler_list)
+        poly1d = get_nearest_polynomial(azimuth_time_mid, doppler_list)
         lut2d = doppler_poly1d_to_lut2d(poly1d, starting_range,
                                         range_pxl_spacing, (n_lines, n_samples),
                                         azimuth_time_interval)
@@ -642,9 +634,6 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
                                  first_valid_samples[last_line])
         last_sample = min(last_valid_samples[first_valid_line],
                           last_valid_samples[last_line])
-
-
-        burst_id = f't{track_number:03d}_{burst_num}_{swath_name.lower()}'
 
         # Extract burst-wise information for Calibration, Noise, and EAP correction
         if calibration_annotation is None:
@@ -785,7 +774,7 @@ def _burst_from_zip(zip_path: str, id_str: str, orbit_path: str, flag_apply_eap:
     path : str
         Path to zip file.
     id_str: str
-        Identifcation of desired burst. Format: iw[swath_num]-slc-[pol]
+        Identification of desired burst. Format: iw[swath_num]-slc-[pol]
     orbit_path : str
         Path the orbit file.
 
@@ -819,6 +808,7 @@ def _burst_from_zip(zip_path: str, id_str: str, orbit_path: str, flag_apply_eap:
                                 flag_apply_eap=flag_apply_eap)
         return bursts
 
+
 def _burst_from_safe_dir(safe_dir_path: str, id_str: str, orbit_path: str, flag_apply_eap: bool):
     '''Find bursts in a Sentinel-1 SAFE structured directory.
 
@@ -827,7 +817,7 @@ def _burst_from_safe_dir(safe_dir_path: str, id_str: str, orbit_path: str, flag_
     path : str
         Path to SAFE directory.
     id_str: str
-        Identifcation of desired burst. Format: iw[swath_num]-slc-[pol]
+        Identification of desired burst. Format: iw[swath_num]-slc-[pol]
     orbit_path : str
         Path the orbit file.
 
@@ -860,9 +850,106 @@ def _burst_from_safe_dir(safe_dir_path: str, id_str: str, orbit_path: str, flag_
     else:
         msg = f'measurement directory NOT found in {safe_dir_path}'
         msg += ', continue with metadata only.'
-        print(msg)
+        # print(msg)
         f_tiff = ''
 
     bursts = burst_from_xml(f_annotation, orbit_path, f_tiff, iw2_f_annotation,
                             flag_apply_eap=flag_apply_eap)
     return bursts
+
+
+def get_burst_id(
+    sensing_time: datetime.datetime,
+    ascending_node_dt: datetime.datetime,
+    start_track: int,
+    end_track: int,
+    subswath_name: str,
+) -> int:
+    """Calculate burst ID and current track number of a burst.
+
+    Accounts for equator crossing frames, and uses the ESA convention defined
+    in the Sentinel-1 Level 1 Detailed Algorithm Definition
+
+    Parameters
+    ----------
+    sensing_time : datetime
+        Sensing time of the first input line of this burst [UTC]
+        The XML tag is sensingTime in the annotation file.
+    ascending_node_dt : datetime
+        Time of the ascending node prior to the start of the scene.
+    start_track : int
+        Relative orbit number at the start of the acquisition, from 1-175.
+    end_track : int
+        Relative orbit number at the end of the acquisition.
+    subswath_name : str, {'IW1', 'IW2', 'IW3'}
+        Name of the subswath of the burst.
+
+    Returns
+    -------
+    relative_orbit : int
+        Relative orbit number (track number) at the current burst.
+    burst_id : int
+        The burst ID matching ESA's relative numbering scheme.
+
+    Notes
+    -----
+    The `start_track` and `end_track` parameters are used to determine if the
+    scene crosses the equator. They are the same if the frame does not cross
+    the equator.
+
+    References
+    ----------
+    ESA Sentinel-1 Level 1 Detailed Algorithm Definition
+    https://sentinels.copernicus.eu/documents/247904/1877131/S1-TN-MDA-52-7445_Sentinel-1+Level+1+Detailed+Algorithm+Definition_v2-4.pdf/83624863-6429-cfb8-2371-5c5ca82907b8
+    """
+    # Constants in Table 9-7
+    T_beam = 2.758273  # interval of one burst [s]
+    T_pre = 2.299849  # Preamble time interval [s]
+    T_orb = 12 * 24 * 3600 / 175  # Nominal orbit period [s]
+
+    swath_num = int(subswath_name[-1])
+    # Since we only have access to the current subswath, we need to use the
+    # burst-to-burst times to figure out
+    #   1. if IW1 crossed the equator, and
+    #   2. The mid-burst sensing time for IW2
+    # IW1 -> IW2 takes ~0.83220 seconds
+    # IW2 -> IW3 takes ~1.07803 seconds
+    # IW3 -> IW1 takes ~0.84803 seconds
+    burst_times = np.array([0.832, 1.078, 0.848])
+    iw1_start_offsets = [
+        0,
+        -burst_times[0],
+        -burst_times[0] - burst_times[1],
+    ]
+    offset = iw1_start_offsets[swath_num - 1]
+    start_iw1 = sensing_time + datetime.timedelta(seconds=offset)
+
+    start_iw1_to_mid_iw2 = burst_times[0] + burst_times[1] / 2
+    mid_iw2 = start_iw1 + datetime.timedelta(seconds=start_iw1_to_mid_iw2)
+
+    has_anx_crossing = (end_track == start_track + 1) or (
+        end_track == 1 and start_track == 175
+    )
+    time_since_anx_iw1 = (start_iw1 - ascending_node_dt).total_seconds()
+    time_since_anx = (mid_iw2 - ascending_node_dt).total_seconds()
+
+    if (time_since_anx_iw1 - T_orb) < 0:
+        # Less than a full orbit has passed
+        track_number = start_track
+    else:
+        track_number = end_track
+        # Additional check for scenes which have a given ascending node
+        # that's more than 1 orbit in the past
+        if not has_anx_crossing:
+            time_since_anx = time_since_anx - T_orb
+
+    # Eq. 9-89: ∆tb = tb − t_anx + (r - 1)T_orb
+    # tb: mid-burst sensing time (sensing_time)
+    # t_anx: ascending node time (ascending_node_dt)
+    # r: relative orbit number   (relative_orbit_start)
+    dt_b = time_since_anx + (start_track - 1) * T_orb
+
+    # Eq. 9-91 :   1 + floor((∆tb − T_pre) / T_beam )
+    esa_burst_id = 1 + int(np.floor((dt_b - T_pre) / T_beam))
+    # Form the unique JPL ID by combining track/burst/swath
+    return f"t{track_number:03d}_{esa_burst_id:06d}_{subswath_name.lower()}"
