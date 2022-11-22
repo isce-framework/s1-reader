@@ -682,8 +682,8 @@ class Sentinel1BurstSlc:
         '''
 
         if unit_degree:
-            rad_lat = lat * (np.pi / 180.0)
-            rad_lon = lon * (np.pi / 180.0)
+            rad_lat = np.radians(lat)
+            rad_lon = np.radians(lon)
         else:
             rad_lat = lat
             rad_lon = lon
