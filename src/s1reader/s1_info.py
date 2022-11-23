@@ -132,23 +132,33 @@ EXAMPLE = """
 Example usage:
 
     # Print all bursts in a Sentinel-1 SLC product
-    s1_info.py S1A_IW_SLC__1SDV_20180601T000000_20180601T000025_021873_025F3D_9E9E.zip
+    s1_info S1A_IW_SLC__1SDV_20180601T000000_20180601T000025_021873_025F3D_9E9E.zip
 
     # Print only the burst IDs
-    s1_info.py S1A_IW_SLC__1SDV_20180601T000000_20180601T000025_021873_025F3D_9E9E.SAFE --burst-id
+    s1_info S1A_IW_SLC__1SDV_20180601T000000_20180601T000025_021873_025F3D_9E9E.SAFE --burst-id
 
     # Print burst ids for all files matching the pattern
-    s1_info.py -b S1A_IW_SLC__1SDV_2018*
+    s1_info -b S1A_IW_SLC__1SDV_2018*
 
     # Print only from subswath IW1, and "vv" polarization
-    s1_info.py -b S1A_IW_SLC__1SDV_2018* --iw 1 --pol vv
+    s1_info -b S1A_IW_SLC__1SDV_2018* --iw 1 --pol vv
 
     # Get info for all products in the 'data/' directory
-    s1_info.py data/
- 
+    s1_info data/
+
+    # Print the bounding box of each frame
+    s1_info --bbox data/
+
+    # Using https://github.com/scottstanie/sardem , create a DEM covering the SLC product
+    s1_info --bbox S1A_IW_SLC__1SDV_20220226T124745_20220226T124812_042084_050378_F69A.zip |
+        cut -d':' -f2 |     # separate the bbox from the label
+        tr -d ',[]'   |     # remove brackets and commas
+        xargs sardem --data cop --bbox     # pass the bbox to sardem as an argument
+
+
     # Plot the burst map, saving files into the 'burst_maps/' directory
-    s1_info.py S1A_IW_SLC__1SDV_20180601T000000_20180601T000025_021873_025F3D_9E9E.SAFE/ --plot
-    s1_info.py S1A_IW_SLC__1SDV_20180601T000000_20180601T000025_021873_025F3D_9E9E.zip -p -o my_burst_maps
+    s1_info S1A_IW_SLC__1SDV_20180601T000000_20180601T000025_021873_025F3D_9E9E.SAFE/ --plot
+    s1_info S1A_IW_SLC__1SDV_20180601T000000_20180601T000025_021873_025F3D_9E9E.zip -p -o my_burst_maps
 """
 
 
