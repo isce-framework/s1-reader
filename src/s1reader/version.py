@@ -14,4 +14,3 @@ release_history = (
 # latest release version number and date
 release_version = release_history[0].version
 release_date = release_history[0].date
-
