@@ -10,6 +10,8 @@ import numpy as np
 from osgeo import gdal
 from scipy.interpolate import InterpolatedUnivariateSpline
 from s1reader import s1_annotation
+from .s1_burst_id import S1BurstId
+
 
 
 # Other functionalities
@@ -145,7 +147,7 @@ class Sentinel1BurstSlc:
     doppler: Doppler
     range_bandwidth: float
     polarization: str # {VV, VH, HH, HV}
-    burst_id: str # t{track_number}_{burst_index}_iw{1,2,3}
+    burst_id: S1BurstId
     platform_id: str # S1{A,B}
     safe_filename: str # SAFE file name
     center: tuple # {center lon, center lat} in degrees
@@ -368,6 +370,8 @@ class Sentinel1BurstSlc:
                 temp['std'] = val.std
                 temp['coeffs'] = val.coeffs
                 val = temp
+            elif key == 'burst_id':
+                val = str(val)
             elif key == 'border':
                 val = self.border[0].wkt
             elif key == 'doppler':
@@ -975,7 +979,7 @@ class Sentinel1BurstSlc:
     @property
     def swath_name(self):
         '''Swath name in iw1, iw2, iw3.'''
-        return self.burst_id.split('_')[2]
+        return self.burst_id.swath_name
 
     @property
     def thermal_noise_lut(self):
@@ -1001,8 +1005,9 @@ class Sentinel1BurstSlc:
                             f' IPF version = {self.ipf_version}')
 
         return self.burst_eap.compute_eap_compensation_lut(self.width)
-    def bbox(self):
-        '''Returns the (west, south, east, north) bounding box of the burst.'''
-        # Uses https://shapely.readthedocs.io/en/stable/manual.html#object.bounds
-        # Returns a tuple of 4 floats representing (west, south, east, north) in degrees.
-        return self.border[0].bounds
+
+    @property
+    def relative_orbit_number(self):
+        '''Returns the relative orbit number of the burst.'''
+        orbit_number_offset = 73 if self.platform_id == 'S1A' else 202
+        return (self.abs_orbit_number - orbit_number_offset) % 175 + 1
