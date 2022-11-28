@@ -8,7 +8,6 @@ from packaging import version
 import isce3
 import numpy as np
 from osgeo import gdal
-
 from scipy.interpolate import InterpolatedUnivariateSpline
 from s1reader import s1_annotation
 
