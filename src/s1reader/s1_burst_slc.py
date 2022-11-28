@@ -819,9 +819,7 @@ class Sentinel1BurstSlc:
         ellipsoid = proj.ellipsoid
         grid_doppler = isce3.core.LUT2d()
 
-        Rdr2Geo = isce3.geometry.Rdr2Geo
-
-        rdr2geo_obj = Rdr2Geo(
+        rdr2geo_obj = isce3.geometry.Rdr2Geo(
                 radargrid_correction,
                 self.orbit,
                 ellipsoid,
