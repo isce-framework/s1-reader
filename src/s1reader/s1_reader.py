@@ -434,7 +434,9 @@ def get_track_burst_num(track_burst_num_file: str = esa_track_burst_id_file):
     return track_burst_num
 
 def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
-                   iw2_annotation_path: str, open_method=open, flag_apply_eap: bool = True):
+                   iw2_annotation_path: str, open_method=open,
+                   flag_apply_eap: bool = True,
+                   flag_az_fmrate_mismatch_mitigation = True):
     '''Parse bursts in Sentinel-1 annotation XML.
 
     Parameters:
@@ -666,13 +668,16 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
             burst_aux_cal = BurstEAP.from_product_annotation_and_aux_cal(product_annotation,
                                                                          aux_cal_subswath,
                                                                          sensing_start)
-
-        # Extenced FM and DC coefficient information
-        extended_coeffs = \
-            BurstExtendedCoeffs.from_polynomial_lists(az_fm_rate_list,
-                                                      doppler_list,
-                                                      sensing_start,
-                                                      sensing_start + sensing_duration)
+        
+        # Extended FM and DC coefficient information
+        if flag_az_fmrate_mismatch_mitigation:
+            extended_coeffs = \
+                BurstExtendedCoeffs.from_polynomial_lists(az_fm_rate_list,
+                                                        doppler_list,
+                                                        sensing_start,
+                                                        sensing_start + sensing_duration)
+        else:
+            extended_coeffs = None
 
         bursts[i] = Sentinel1BurstSlc(ipf_version, sensing_start, radar_freq, wavelength,
                                       azimuth_steer_rate, azimuth_time_interval,
@@ -716,7 +721,8 @@ def _is_zip_annotation_xml(path: str, id_str: str) -> bool:
 
 def load_bursts(path: str, orbit_path: str, swath_num: int, pol: str = 'vv',
                 burst_ids: list[str] = None,
-                flag_apply_eap: bool = True):
+                flag_apply_eap: bool = True,
+                flag_az_fmrate_mismatch_mitigation = True):
     '''Find bursts in a Sentinel-1 zip file or a SAFE structured directory.
 
     Parameters:
@@ -761,9 +767,13 @@ def load_bursts(path: str, orbit_path: str, swath_num: int, pol: str = 'vv',
     if not os.path.exists(path):
         raise FileNotFoundError(f'{path} not found')
     elif os.path.isdir(path):
-        bursts = _burst_from_safe_dir(path, id_str, orbit_path, flag_apply_eap)
+        bursts = _burst_from_safe_dir(path, id_str, orbit_path,
+                                      flag_apply_eap,
+                                      flag_az_fmrate_mismatch_mitigation)
     elif os.path.isfile(path):
-        bursts = _burst_from_zip(path, id_str, orbit_path, flag_apply_eap)
+        bursts = _burst_from_zip(path, id_str, orbit_path,
+                                 flag_apply_eap,
+                                 flag_az_fmrate_mismatch_mitigation)
     else:
         raise ValueError(f'{path} is unsupported')
 
@@ -786,7 +796,9 @@ def load_bursts(path: str, orbit_path: str, swath_num: int, pol: str = 'vv',
     return bursts
 
 
-def _burst_from_zip(zip_path: str, id_str: str, orbit_path: str, flag_apply_eap: bool):
+def _burst_from_zip(zip_path: str, id_str: str, orbit_path: str,
+                    flag_apply_eap: bool,
+                    flag_az_fmrate_mismatch_mitigation: bool):
     '''Find bursts in a Sentinel-1 zip file.
 
     Parameters:
@@ -825,10 +837,13 @@ def _burst_from_zip(zip_path: str, id_str: str, orbit_path: str, flag_apply_eap:
         f_tiff = f'/vsizip/{zip_path}/{f_tiff[0]}' if f_tiff else ''
 
         bursts = burst_from_xml(f_annotation, orbit_path, f_tiff, iw2_f_annotation, z_file.open,
-                                flag_apply_eap=flag_apply_eap)
+                                flag_apply_eap=flag_apply_eap,
+                                flag_az_fmrate_mismatch_mitigation=flag_az_fmrate_mismatch_mitigation)
         return bursts
 
-def _burst_from_safe_dir(safe_dir_path: str, id_str: str, orbit_path: str, flag_apply_eap: bool):
+def _burst_from_safe_dir(safe_dir_path: str, id_str: str, orbit_path: str,
+                         flag_apply_eap: bool,
+                         flag_az_fmrate_mismatch_mitigation: bool):
     '''Find bursts in a Sentinel-1 SAFE structured directory.
 
     Parameters:
@@ -873,5 +888,6 @@ def _burst_from_safe_dir(safe_dir_path: str, id_str: str, orbit_path: str, flag_
         f_tiff = ''
 
     bursts = burst_from_xml(f_annotation, orbit_path, f_tiff, iw2_f_annotation,
-                            flag_apply_eap=flag_apply_eap)
+                            flag_apply_eap=flag_apply_eap,
+                            flag_az_fmrate_mismatch_mitigation=flag_az_fmrate_mismatch_mitigation)
     return bursts
