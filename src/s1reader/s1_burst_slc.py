@@ -821,7 +821,6 @@ class Sentinel1BurstSlc:
 
         Rdr2Geo = isce3.geometry.Rdr2Geo
 
-        # TODO Add parameters (# interation, threshold, etc.) to rdr2geo
         rdr2geo_obj = Rdr2Geo(
                 radargrid_correction,
                 self.orbit,
