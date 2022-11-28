@@ -650,9 +650,9 @@ class Sentinel1BurstSlc:
         ncol = grid_tau.shape[1]
         term_tau = grid_tau - vec_tau0 * np.ones(ncol)[np.newaxis, ...]
 
-        eval_out = (arr_polynomial[:,0][..., np.newaxis] 
+        eval_out = (arr_polynomial[:,0][..., np.newaxis]
                     *np.ones(ncol)[np.newaxis, ...]
-                    + (arr_polynomial[:,1][..., np.newaxis] 
+                    + (arr_polynomial[:,1][..., np.newaxis]
                        * np.ones(ncol)[np.newaxis, ...]) * term_tau
                     + (arr_polynomial[:,2][..., np.newaxis]
                        * np.ones(ncol)[np.newaxis, ...]) * term_tau**2)
@@ -663,7 +663,7 @@ class Sentinel1BurstSlc:
         '''
         Calculate cartesian coordinates in ECEF from
         latitude, longitude, and altitude
-        
+
         Parameters:
         -----------
         lat: np.ndarray
@@ -832,7 +832,9 @@ class Sentinel1BurstSlc:
                 numiter=numiter_rdr2geo)
 
         str_datetime = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
-        list_filename_llh = [f'{path_scratch}/{llh}_{str_datetime}.rdr' for llh in ['lat', 'lon', 'hgt'] ]
+        list_filename_llh = [f'{path_scratch}/{llh}_{str_datetime}.rdr'
+                             for llh
+                             in ['lat', 'lon', 'hgt']]
         lat_raster, lon_raster, hgt_raster = [isce3.io.Raster(
                                                         filename_llh,
                                                         radargrid_correction.width,
@@ -859,7 +861,7 @@ class Sentinel1BurstSlc:
 
         t_burst = (grid_t[0, 0] + grid_t[-1, 0]) / 2.0
         index_mid_burst_t = int(grid_t.shape[0] / 2 + 0.5)
-        tau_burst = (grid_tau[index_mid_burst_t, 0] 
+        tau_burst = (grid_tau[index_mid_burst_t, 0]
                      + grid_tau[index_mid_burst_t, -1]) / 2.0
         tau0_fdc_burst =  tau0_fdc_interp[index_mid_burst_t]
         tau0_fm_rate_burst =  tau0_ka_interp[index_mid_burst_t]
@@ -902,11 +904,11 @@ class Sentinel1BurstSlc:
         # Populate the position, velocity, and
         # acceleration of the satellite to the correction grid
         tau_ones = np.ones(grid_tau.shape[1])[np.newaxis, ...]
-        x_s, y_s, z_s = [vec_position_intp[:, i][..., np.newaxis] * tau_ones            
+        x_s, y_s, z_s = [vec_position_intp[:, i][..., np.newaxis] * tau_ones
                          for i in range(3)]
-        vx_s, vy_s, vz_s = [vec_vel_intp[:, i][..., np.newaxis] * tau_ones            
+        vx_s, vy_s, vz_s = [vec_vel_intp[:, i][..., np.newaxis] * tau_ones
                             for i in range(3)]
-        ax_s, ay_s, az_s = [vec_acceleration_intp[:, i][..., np.newaxis] * tau_ones            
+        ax_s, ay_s, az_s = [vec_acceleration_intp[:, i][..., np.newaxis] * tau_ones
                             for i in range(3)]
         
         mag_xs_xg = np.sqrt(  (x_s - x_ecef)**2

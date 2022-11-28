@@ -688,7 +688,7 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
             burst_aux_cal = BurstEAP.from_product_annotation_and_aux_cal(product_annotation,
                                                                          aux_cal_subswath,
                                                                          sensing_start)
-        
+
         # Extended FM and DC coefficient information
         if flag_az_fmrate_mismatch_mitigation:
             extended_coeffs = \
