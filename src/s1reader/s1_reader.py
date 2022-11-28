@@ -669,9 +669,10 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
 
         # Extenced FM and DC coefficient information
         extended_coeffs = \
-            BurstExtendedCoeffs.from_product_annotation_and_burst(product_annotation,
-                                                                  sensing_start,
-                                                                  sensing_start + sensing_duration)
+            BurstExtendedCoeffs.from_polynomial_lists(az_fm_rate_list,
+                                                      doppler_list,
+                                                      sensing_start,
+                                                      sensing_start + sensing_duration)
 
         bursts[i] = Sentinel1BurstSlc(ipf_version, sensing_start, radar_freq, wavelength,
                                       azimuth_steer_rate, azimuth_time_interval,

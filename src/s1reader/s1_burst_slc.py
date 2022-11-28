@@ -890,12 +890,9 @@ class Sentinel1BurstSlc:
                                           + (freq_dcg_burst / kappa_annotation_burst
                                           - grid_freq_dcg / kappa_annotation_grid)))
 
-        with (gdal.Open(list_filename_llh[0], gdal.GA_ReadOnly) as raster_lat,
-              gdal.Open(list_filename_llh[1], gdal.GA_ReadOnly) as raster_lon,
-              gdal.Open(list_filename_llh[2], gdal.GA_ReadOnly) as raster_hgt):
-            lat_map = raster_lat.ReadAsArray()
-            lon_map = raster_lon.ReadAsArray()
-            hgt_map = raster_hgt.ReadAsArray()
+        lat_map = gdal.Open(list_filename_llh[0], gdal.GA_ReadOnly).ReadAsArray()
+        lon_map = gdal.Open(list_filename_llh[1], gdal.GA_ReadOnly).ReadAsArray()
+        hgt_map = gdal.Open(list_filename_llh[2], gdal.GA_ReadOnly).ReadAsArray()
 
         x_ecef, y_ecef, z_ecef = self._llh_to_ecef(lat_map,
                                                    lon_map,
@@ -929,7 +926,7 @@ class Sentinel1BurstSlc:
                               + 1 / kappa_annotation_true))
 
         # Prepare to export to LUT2d
-        vec_range = grid_tau(index_mid_burst_t) * isce3.speed_of_light / 2.0
+        vec_range = grid_tau[index_mid_burst_t, :] * isce3.core.speed_of_light / 2.0
 
         return isce3.core.LUT2d(vec_range, vec_t, delta_t_freq_mm)
 

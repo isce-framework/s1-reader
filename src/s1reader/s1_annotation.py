@@ -15,6 +15,8 @@ import numpy as np
 from scipy.interpolate import InterpolatedUnivariateSpline, interp1d
 from packaging import version
 
+from isce3.core import speed_of_light
+
 # Minimum IPF version from which the S1 product's Noise Annotation
 # Data Set (NADS) includes azimuth noise vector annotation
 min_ipf_version_az_noise_vector = version.parse('2.90')
@@ -404,49 +406,6 @@ class ProductAnnotation(AnnotationBase):
             cls._parse_scalar('generalAnnotation/downlinkInformationList/downlinkInformation/'
                               'downlinkValues/instrumentConfigId',
                               'scalar_int')
-
-        # Extra from ET FM rate parameters for mismatch mitigation
-        cls.vec_aztime_fm_rate = \
-            cls._parse_vectorlist('generalAnnotation/azimuthFmRateList',
-                                  'azimuthTime',
-                                  'datetime')
-
-        if cls.xml_et.find('generalAnnotation/azimuthFmRateList')[0].find('c0') is None:
-            cls.lut_coeff_fm_rate = \
-                np.array(cls._parse_vectorlist('generalAnnotation/azimuthFmRateList',
-                                          'azimuthFmRatePolynomial',
-                                          'vector_float'))
-
-        else:
-            # Old annotation format
-            vec_c0 = cls._parse_vectorlist('generalAnnotation/azimuthFmRateList',
-                                           'c0',
-                                           'scalar_float')
-            vec_c1 = cls._parse_vectorlist('generalAnnotation/azimuthFmRateList',
-                                           'c1',
-                                           'scalar_float')
-            vec_c2 = cls._parse_vectorlist('generalAnnotation/azimuthFmRateList',
-                                           'c2',
-                                           'scalar_float')
-            cls.lut_coeff_fm_rate = np.array([vec_c0, vec_c1, vec_c2]).transpose()
-
-        cls.vec_tau0_fm_rate = np.array(cls._parse_vectorlist('generalAnnotation/azimuthFmRateList',
-                                                     't0',
-                                                     'scalar_float'))
-
-        # Extract doppler centroid parameters for mismatch mitigation
-        cls.vec_aztime_dc = cls._parse_vectorlist('dopplerCentroid/dcEstimateList',
-                                                    'azimuthTime',
-                                                    'datetime')
-
-        cls.lut_coeff_dc = np.array(cls._parse_vectorlist('dopplerCentroid/dcEstimateList',
-                                                 'dataDcPolynomial',
-                                                 'vector_float'))
-
-        cls.vec_tau0_dc = np.array(cls._parse_vectorlist('dopplerCentroid/dcEstimateList',
-                                                't0',
-                                                'scalar_float'))
-
 
         return cls
 
@@ -974,50 +933,46 @@ class BurstExtendedCoeffs:
     vec_tau0_dc: np.ndarray
 
     @classmethod
-    def from_product_annotation_and_burst(cls,
-                                          product_annotation: ProductAnnotation,
-                                          sensing_start: datetime.datetime,
-                                          sensing_end: datetime.datetime):
+    def from_polynomial_lists(cls,
+                              az_fm_rate_list: list,
+                              doppler_centroid_list: list,
+                              sensing_start: datetime.datetime,
+                              sensing_end: datetime.datetime):
         '''
-        Extract coefficients from `product_annotation` that fall within the
-        provided sensing start / end times of a burst.
+        Extract coefficients from `product_annotation` that fall within
+        the provided sensing start / end times of a burst.
 
         Parameters:
-        product_annotation: ProductAnnotation
-            Data class from which the coeffieients will be extracted
+        -----------
+        az_fm_rate_list: list[isce3.core.Poly1d]
+            List of azimuth FM rate polynomials
+        doppler_centroid_list: list[isce3.core.Poly1d]
+            List of doppler centroid polynimials
         sensing_start: datetime.datetime
             Azimuth start time of the burst
         sensing_end: datetime.datetime
             Azimuth end time of the burst
         '''
 
-        # Scan the azimuth time of fm rate
-        id_t0_fm_rate, id_t1_fm_rate = cls._find_t0_t1(product_annotation.vec_aztime_fm_rate,
-                                                       sensing_start,
-                                                       sensing_end)
+        # Extract polynomial info for azimuth FM rate
+        (vec_aztime_fm_rate_burst,
+         lut_coeff_fm_rate_burst,
+         vec_tau0_fm_rate_burst) = cls.extract_polynomial_sequence(az_fm_rate_list,
+                                                                   sensing_start,
+                                                                   sensing_end)
 
-        # Scan the azimuth time of doppler centroid
-        id_t0_dc, id_t1_dc = cls._find_t0_t1(product_annotation.vec_aztime_dc,
-                                             sensing_start,
-                                             sensing_end)
-
-        vec_aztime_fm_rate_burst = (product_annotation
-                                    .vec_aztime_fm_rate[id_t0_fm_rate: id_t1_fm_rate+1])
-        lut_coeff_fm_rate_burst = (product_annotation
-                                   .lut_coeff_fm_rate[id_t0_fm_rate:id_t1_fm_rate + 1, :])
-        vec_tau0_fm_rate_burst = (product_annotation
-                                  .vec_tau0_fm_rate[id_t0_fm_rate: id_t1_fm_rate + 1])
-
-        vec_aztime_dc_burst = product_annotation.vec_aztime_dc[id_t0_dc: id_t1_dc + 1]
-        lut_coeff_dc_burst = product_annotation.lut_coeff_dc[id_t0_dc:id_t1_dc + 1, :]
-        vec_tau0_dc_burst = product_annotation.vec_tau0_dc[id_t0_dc: id_t1_dc + 1]
+        (vec_aztime_dc_burst,
+         lut_coeff_dc_burst,
+         vec_tau0_dc_burst) = cls.extract_polynomial_sequence(doppler_centroid_list,
+                                                              sensing_start,
+                                                              sensing_end)
 
         return cls(vec_aztime_fm_rate_burst, lut_coeff_fm_rate_burst, vec_tau0_fm_rate_burst,
                    vec_aztime_dc_burst, lut_coeff_dc_burst, vec_tau0_dc_burst)
 
 
     @classmethod
-    def _find_t0_t1(cls, vec_azimuth_time: np.ndarray,
+    def extract_polynomial_sequence(cls, polynomial_list: list,
                    datetime_start: datetime.datetime,
                    datetime_end: datetime.datetime):
         '''
@@ -1027,8 +982,8 @@ class BurstExtendedCoeffs:
 
         Parameters:
         -----------
-        vec_azimuth_time: np.ndarray
-            numpy vector of azimuth time
+        polynomial_list: list
+            list of (azimuth_time, isce3.core.Poly1d)
         datetime_start: datetime.datetime
             Startime of the period
         datetime_end: datetime.datetime
@@ -1036,19 +991,26 @@ class BurstExtendedCoeffs:
 
         Returns:
         --------
-        (id_t0, id_t1): tuple(int)
-            Indices of the azimuth times in `vec_azimuth_time` that
-            covers the period
+        _: tuple()
+            Tuple of (vec_aztime_sequence,
+                      arr_coeff_sequence,
+                      vec_tau0_sequence)
+            as a sequence of polynomial info that covers the period
+            defined in the parameters.
+            vec_aztime_sequence: azimuth time of each sample in the sequence
+            arr_coeff_sequence: N by 3 npy array whose row is coefficients of
+                                each sample in the sequence
+            vec_tau0_sequence: Range start time of each sample in the sequence
         '''
-
         # initial values
         id_t0_so_far = 0
         dt_t0_so_far = float('-inf')
-        id_t1_so_far = len(vec_azimuth_time) - 1
+        id_t1_so_far = len(polynomial_list) - 1
         dt_t1_so_far = float('inf')
 
         # NOTE: dt is defined as: [azimuth time] - [start/end time]
-        for id_vec, datetime_vec in enumerate(vec_azimuth_time):
+        for id_vec, tuple_poly1d in enumerate(polynomial_list):
+            datetime_vec = tuple_poly1d[0]
 
             dt_t0 = (datetime_vec - datetime_start).total_seconds()
             if (dt_t0 < 0) and (dt_t0_so_far < dt_t0):
@@ -1062,4 +1024,18 @@ class BurstExtendedCoeffs:
                 dt_t1_so_far = dt_t1
                 continue
 
-        return (id_t0_so_far, id_t1_so_far)
+        # Done extracting the IDs. Extract the polynomial sequence
+        vec_aztime_sequence = []
+        arr_coeff_sequence = []
+        vec_tau0_sequence = []
+
+        # Scale factor to convert range (in meters) to seconds (tau)
+        range_to_tau = 2.0 / speed_of_light
+        for id_list in range(id_t0_so_far, id_t1_so_far + 1):
+            vec_aztime_sequence.append(polynomial_list[id_list][0])
+            arr_coeff_sequence.append(polynomial_list[id_list][1].coeffs)
+            vec_tau0_sequence.append(polynomial_list[id_list][1].mean * range_to_tau)
+
+        return (np.array(vec_aztime_sequence),
+                np.array(arr_coeff_sequence),
+                np.array(vec_tau0_sequence))
