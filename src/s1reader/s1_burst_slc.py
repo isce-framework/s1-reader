@@ -677,7 +677,7 @@ class Sentinel1BurstSlc:
         unit_degree: bool
             True if the units of lat and lon are degrees.
             False if the units are radian.
-        
+
         Return:
         _: tuple(np.ndarray)
             x, y, and z as a tuple of np.ndarray
@@ -721,16 +721,16 @@ class Sentinel1BurstSlc:
             Maximum number of iteration for rdr2geo
         custom_radargrid_correction: isce3.product.RadarGridParameters
             ISCE3 radar grid to define the correction grid
-        
+
         Return:
         -------
         _: isce3.core.LUT2d
             azimuth FM rate mismatch rate in radar grid in seconds.
 
         '''
-        
+
         os.makedirs(path_scratch, exist_ok=True)
-        
+
         radargrid_correction = self.as_isce3_radargrid()
         if custom_radargrid is not None:
             radargrid_correction = custom_radargrid
@@ -910,7 +910,7 @@ class Sentinel1BurstSlc:
                             for i in range(3)]
         ax_s, ay_s, az_s = [vec_acceleration_intp[:, i][..., np.newaxis] * tau_ones
                             for i in range(3)]
-        
+
         mag_xs_xg = np.sqrt(  (x_s - x_ecef)**2
                             + (y_s - y_ecef)**2
                             + (z_s - z_ecef)**2)
