@@ -1027,7 +1027,7 @@ class Sentinel1BurstSlc:
     @property
     def swath_name(self):
         '''Swath name in iw1, iw2, iw3.'''
-        return self.burst_id.swath_name
+        return self.burst_id.subswath.lower()
 
     @property
     def thermal_noise_lut(self):
