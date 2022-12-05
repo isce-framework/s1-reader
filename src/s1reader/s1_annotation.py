@@ -1026,10 +1026,10 @@ class BurstExtendedCoeffs:
 
         # Scale factor to convert range (in meters) to seconds (tau)
         range_to_tau = 2.0 / speed_of_light
-        for id_list in range(id_t0_so_far, id_t1_so_far + 1):
-            vec_aztime_sequence.append(polynomial_list[id_list][0])
-            arr_coeff_sequence.append(polynomial_list[id_list][1].coeffs)
-            vec_tau0_sequence.append(polynomial_list[id_list][1].mean * range_to_tau)
+        for poly in polynomial_list[index_start:index_end+1]:
+            vec_aztime_sequence.append(poly[0])
+            arr_coeff_sequence.append(poly[1].coeffs)
+            vec_tau0_sequence.append(poly[1].mean * range_to_tau)
 
         return (np.array(vec_aztime_sequence),
                 np.array(arr_coeff_sequence),
