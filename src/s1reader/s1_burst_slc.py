@@ -171,13 +171,13 @@ def _llh_to_ecef(lat, lon, hgt, ellipsoid, unit_degree=True):
         rad_lat = lat
         rad_lon = lon
 
-    v = ellipsoid.a / np.sqrt(1 - ellipsoid.e2 * np.sin(rad_lat) * np.sin(rad_lat))
+    v_ellipsoid = ellipsoid.a / np.sqrt(1 - ellipsoid.e2 * np.sin(rad_lat) * np.sin(rad_lat))
 
-    x = (v + hgt) * np.cos(rad_lat) * np.cos(rad_lon)
-    y = (v + hgt) * np.cos(rad_lat) * np.sin(rad_lon)
-    z = (v * (1 - ellipsoid.e2) + hgt) * np.sin(rad_lat)
+    x_ecef = (v_ellipsoid + hgt) * np.cos(rad_lat) * np.cos(rad_lon)
+    y_ecef = (v_ellipsoid + hgt) * np.cos(rad_lat) * np.sin(rad_lon)
+    z_ecef = (v_ellipsoid * (1 - ellipsoid.e2) + hgt) * np.sin(rad_lat)
 
-    return (x, y, z)
+    return (x_ecef, y_ecef, z_ecef)
 
 
 @dataclass
