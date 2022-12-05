@@ -1002,11 +1002,6 @@ class BurstExtendedCoeffs:
                                 each sample in the sequence
             vec_tau0_sequence: Range start time of each sample in the sequence
         '''
-        # initial values
-        id_t0_so_far = 0
-        dt_t0_so_far = float('-inf')
-        id_t1_so_far = len(polynomial_list) - 1
-        dt_t1_so_far = float('inf')
 
         # NOTE: dt is defined as: [azimuth time] - [start/end time]
         # find index of poly time closest to start time that is less than start time
