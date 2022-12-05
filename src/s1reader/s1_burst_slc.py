@@ -13,7 +13,6 @@ from s1reader import s1_annotation
 from .s1_burst_id import S1BurstId
 
 
-
 # Other functionalities
 def polyfit(xin, yin, zin, azimuth_order, range_order,
             sig=None, snr=None, cond=1.0e-12,
