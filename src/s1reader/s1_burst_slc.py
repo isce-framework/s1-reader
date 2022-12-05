@@ -625,7 +625,7 @@ class Sentinel1BurstSlc:
 
         return AzimuthCarrierComponents(kt, eta, eta_ref)
 
-    def _evaluate_polynomial_array(cls, arr_polynomial, grid_tau, vec_tau0):
+    def _evaluate_polynomial_array(arr_polynomial, grid_tau, vec_tau0):
         '''
         Evaluate the polynomials on the correction grid.
         To be used for calculating azimuth FM mismatch rate.
@@ -658,7 +658,7 @@ class Sentinel1BurstSlc:
 
         return eval_out
 
-    def _llh_to_ecef(cls, lat, lon, hgt, ellipsoid, unit_degree=True):
+    def _llh_to_ecef(lat, lon, hgt, ellipsoid, unit_degree=True):
         '''
         Calculate cartesian coordinates in ECEF from
         latitude, longitude, and altitude
@@ -680,7 +680,7 @@ class Sentinel1BurstSlc:
         Return:
         _: tuple(np.ndarray)
             x, y, and z as a tuple of np.ndarray
-        
+
         '''
 
         if unit_degree:
