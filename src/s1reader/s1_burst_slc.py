@@ -106,6 +106,80 @@ def polyfit(xin, yin, zin, azimuth_order, range_order,
     poly = isce3.core.Poly2d(coeffs, xmin, ymin, xnorm, ynorm)
     return poly
 
+def _evaluate_polynomial_array(arr_polynomial, grid_tau, vec_tau0):
+    '''
+    Evaluate the polynomials on the correction grid.
+    To be used for calculating azimuth FM mismatch rate.
+
+    Parameters:
+    -----------
+    arr_polynomial: np.ndarray
+        coeffieients interpolated to azimuth times in each line
+        in correction grid
+    grid_tau: np.ndarray
+        2d numpy array filled with range time in the correction grid
+    vec_tau0: np.ndarray
+        range start time for each line in the correction grid
+
+    Return:
+    -------
+    eval_out: np.ndarray
+        Evaluated values on the correction grid
+    '''
+
+    ncol = grid_tau.shape[1]
+    term_tau = grid_tau - vec_tau0 * np.ones(ncol)[np.newaxis, ...]
+
+    eval_out = (arr_polynomial[:,0][..., np.newaxis]
+                *np.ones(ncol)[np.newaxis, ...]
+                + (arr_polynomial[:,1][..., np.newaxis]
+                    * np.ones(ncol)[np.newaxis, ...]) * term_tau
+                + (arr_polynomial[:,2][..., np.newaxis]
+                    * np.ones(ncol)[np.newaxis, ...]) * term_tau**2)
+
+    return eval_out
+
+def _llh_to_ecef(lat, lon, hgt, ellipsoid, unit_degree=True):
+    '''
+    Calculate cartesian coordinates in ECEF from
+    latitude, longitude, and altitude
+
+    Parameters:
+    -----------
+    lat: np.ndarray
+        latitude as numpy array
+    lon: np.ndarray
+        longitude as numpy array
+    hgt: np.ndarray
+        height as numpy array
+    ellipsoid: isce3.core.Ellipsoid
+        Definition of Ellipsoid
+    unit_degree: bool
+        True if the units of lat and lon are degrees.
+        False if the units are radian.
+
+    Return:
+    _: tuple(np.ndarray)
+        x, y, and z as a tuple of np.ndarray
+
+    '''
+
+    if unit_degree:
+        rad_lat = np.radians(lat)
+        rad_lon = np.radians(lon)
+    else:
+        rad_lat = lat
+        rad_lon = lon
+
+    v = ellipsoid.a / np.sqrt(1 - ellipsoid.e2 * np.sin(rad_lat) * np.sin(rad_lat))
+
+    x = (v + hgt) * np.cos(rad_lat) * np.cos(rad_lon)
+    y = (v + hgt) * np.cos(rad_lat) * np.sin(rad_lon)
+    z = (v * (1 - ellipsoid.e2) + hgt) * np.sin(rad_lat)
+
+    return (x, y, z)
+
+
 @dataclass
 class AzimuthCarrierComponents:
     kt: np.ndarray
@@ -624,80 +698,7 @@ class Sentinel1BurstSlc:
         kt = ks / (1.0 - ks / ka)
 
         return AzimuthCarrierComponents(kt, eta, eta_ref)
-
-    def _evaluate_polynomial_array(arr_polynomial, grid_tau, vec_tau0):
-        '''
-        Evaluate the polynomials on the correction grid.
-        To be used for calculating azimuth FM mismatch rate.
-
-        Parameters:
-        -----------
-        arr_polynomial: np.ndarray
-            coeffieients interpolated to azimuth times in each line
-            in correction grid
-        grid_tau: np.ndarray
-            2d numpy array filled with range time in the correction grid
-        vec_tau0: np.ndarray
-            range start time for each line in the correction grid
-
-        Return:
-        -------
-        eval_out: np.ndarray
-            Evaluated values on the correction grid
-        '''
-
-        ncol = grid_tau.shape[1]
-        term_tau = grid_tau - vec_tau0 * np.ones(ncol)[np.newaxis, ...]
-
-        eval_out = (arr_polynomial[:,0][..., np.newaxis]
-                    *np.ones(ncol)[np.newaxis, ...]
-                    + (arr_polynomial[:,1][..., np.newaxis]
-                       * np.ones(ncol)[np.newaxis, ...]) * term_tau
-                    + (arr_polynomial[:,2][..., np.newaxis]
-                       * np.ones(ncol)[np.newaxis, ...]) * term_tau**2)
-
-        return eval_out
-
-    def _llh_to_ecef(lat, lon, hgt, ellipsoid, unit_degree=True):
-        '''
-        Calculate cartesian coordinates in ECEF from
-        latitude, longitude, and altitude
-
-        Parameters:
-        -----------
-        lat: np.ndarray
-            latitude as numpy array
-        lon: np.ndarray
-            longitude as numpy array
-        hgt: np.ndarray
-            height as numpy array
-        ellipsoid: isce3.core.Ellipsoid
-            Definition of Ellipsoid
-        unit_degree: bool
-            True if the units of lat and lon are degrees.
-            False if the units are radian.
-
-        Return:
-        _: tuple(np.ndarray)
-            x, y, and z as a tuple of np.ndarray
-
-        '''
-
-        if unit_degree:
-            rad_lat = np.radians(lat)
-            rad_lon = np.radians(lon)
-        else:
-            rad_lat = lat
-            rad_lon = lon
-
-        v = ellipsoid.a / np.sqrt(1 - ellipsoid.e2 * np.sin(rad_lat) * np.sin(rad_lat))
-
-        x = (v + hgt) * np.cos(rad_lat) * np.cos(rad_lon)
-        y = (v + hgt) * np.cos(rad_lat) * np.sin(rad_lon)
-        z = (v * (1 - ellipsoid.e2) + hgt) * np.sin(rad_lat)
-
-        return (x, y, z)
-
+    
     def az_fm_rate_mismatch_mitigation(self, path_dem: str, path_scratch: str,
             threshold_rdr2geo = 1e-8,
             numiter_rdr2geo = 25,
@@ -869,7 +870,7 @@ class Sentinel1BurstSlc:
                                  + b1_burst * (tau_burst - tau0_fm_rate_burst)
                                  + b2_burst * (tau_burst - tau0_fm_rate_burst)**2)
 
-        kappa_annotation_grid = self._evaluate_polynomial_array(fm_rate_coeffs,
+        kappa_annotation_grid = _evaluate_polynomial_array(fm_rate_coeffs,
                                                                 grid_tau,
                                                                 tau0_ka_interp)
 
@@ -879,7 +880,7 @@ class Sentinel1BurstSlc:
                           + a1_burst * (tau_burst - tau0_fdc_burst)
                           + a2_burst * (tau_burst - tau0_fdc_burst)**2)
 
-        grid_freq_dcg = self._evaluate_polynomial_array(dc_coeffs,
+        grid_freq_dcg = _evaluate_polynomial_array(dc_coeffs,
                                                         grid_tau,
                                                         tau0_fdc_interp)
 
@@ -892,7 +893,7 @@ class Sentinel1BurstSlc:
         lon_map = gdal.Open(list_filename_llh[1], gdal.GA_ReadOnly).ReadAsArray()
         hgt_map = gdal.Open(list_filename_llh[2], gdal.GA_ReadOnly).ReadAsArray()
 
-        x_ecef, y_ecef, z_ecef = self._llh_to_ecef(lat_map,
+        x_ecef, y_ecef, z_ecef = _llh_to_ecef(lat_map,
                                                    lon_map,
                                                    hgt_map,
                                                    ellipsoid)
