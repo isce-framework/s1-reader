@@ -754,9 +754,9 @@ class Sentinel1BurstSlc:
 
         grid_tau, grid_t = np.meshgrid(vec_tau, vec_t)
 
-        vec_position_intp = np.zeros((length_grid,3))
-        vec_vel_intp = np.zeros((length_grid,3))
-        vec_vel_intp_staggered = [None] * (length_grid+1)
+        vec_position_intp = np.zeros((length_grid, 3))
+        vec_vel_intp = np.zeros((length_grid, 3))
+        vec_vel_intp_staggered = [None] * (length_grid + 1)
         for i_azimuth, t_azimuth in enumerate(vec_t):
             vec_position_intp[i_azimuth, :], vec_vel_intp[i_azimuth, :] = \
                 self.orbit.interpolate(t_azimuth)
