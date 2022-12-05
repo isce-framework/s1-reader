@@ -774,11 +774,9 @@ class Sentinel1BurstSlc:
             vec_aztime_fm_rate_sec[i] = (isce3.core.DateTime(datetime_vec)
                                          - self.orbit.reference_epoch).total_seconds()
 
-        vec_aztime_dc_sec = np.zeros(self.extended_coeffs.vec_aztime_dc.shape)
-
-        for i, datetime_vec in enumerate(self.extended_coeffs.vec_aztime_dc):
-            vec_aztime_dc_sec[i] = (isce3.core.DateTime(datetime_vec)
-                                    - self.orbit.reference_epoch).total_seconds()
+        vec_aztime_dc_sec = [(isce3.core.DateTime(datetime_vec) \
+                              - self.orbit.reference_epoch).total_seconds()
+                             for datetime_vec in self.extended_coeffs.vec_aztime_dc]
 
         # calculate splined interpolation of the coeffs. and tau_0s
         interpolator_tau0_ka = InterpolatedUnivariateSpline(
