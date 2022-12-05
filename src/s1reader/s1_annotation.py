@@ -1010,12 +1010,12 @@ class BurstExtendedCoeffs:
 
         # NOTE: dt is defined as: [azimuth time] - [start/end time]
         # find index of poly time closest to start time that is less than start time
-        dt_wrt_start = [(poly[0] - datetime_start).total_seconds() for poly in polynomial_list]
+        dt_wrt_start = np.array([(poly[0] - datetime_start).total_seconds() for poly in polynomial_list])
         dt_wrt_start = np.ma.masked_array(dt_wrt_start, mask=dt_wrt_start > 0)
         index_start = np.argmax(dt_wrt_start)
 
         # find index of poly time  closest to end time that is greater than end time
-        dt_wrt_end = [(poly[0] - datetime_end).total_seconds() for poly in polynomial_list]
+        dt_wrt_end = np.array([(poly[0] - datetime_end).total_seconds() for poly in polynomial_list])
         dt_wrt_end = np.ma.masked_array(dt_wrt_end, mask=dt_wrt_end < 0)
         index_end = np.argmin(dt_wrt_end)
 

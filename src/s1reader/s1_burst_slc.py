@@ -805,10 +805,12 @@ class Sentinel1BurstSlc:
             return np.array(interpolated_coeffs).transpose()
 
         dc_coeffs = interp_coeffs(vec_aztime_fm_rate_sec,
-                                  self.extended_coeffs.lut_coeff_dc)
+                                  self.extended_coeffs.lut_coeff_dc,
+                                  vec_t)
 
         fm_rate_coeffs = interp_coeffs(vec_aztime_fm_rate_sec,
-                                       self.extended_coeffs.lut_coeff_fm_rate[:, i])
+                                       self.extended_coeffs.lut_coeff_fm_rate,
+                                       vec_t)
 
         # Run topo on scratch directory
         dem_raster = isce3.io.Raster(path_dem)
@@ -860,14 +862,14 @@ class Sentinel1BurstSlc:
         tau0_fdc_burst =  tau0_fdc_interp[index_mid_burst_t]
         tau0_fm_rate_burst =  tau0_ka_interp[index_mid_burst_t]
 
-        a0_burst, a1_burst, a2_burst = arr_coeff_a[index_mid_burst_t, :]
-        b0_burst, b1_burst, b2_burst = arr_coeff_b[index_mid_burst_t, :]
+        a0_burst, a1_burst, a2_burst = dc_coeffs[index_mid_burst_t, :]
+        b0_burst, b1_burst, b2_burst = fm_rate_coeffs[index_mid_burst_t, :]
 
         kappa_annotation_burst = (b0_burst
                                  + b1_burst * (tau_burst - tau0_fm_rate_burst)
                                  + b2_burst * (tau_burst - tau0_fm_rate_burst)**2)
 
-        kappa_annotation_grid = self._evaluate_polynomial_array(arr_coeff_b,
+        kappa_annotation_grid = self._evaluate_polynomial_array(fm_rate_coeffs,
                                                                 grid_tau,
                                                                 tau0_ka_interp)
 
@@ -877,7 +879,7 @@ class Sentinel1BurstSlc:
                           + a1_burst * (tau_burst - tau0_fdc_burst)
                           + a2_burst * (tau_burst - tau0_fdc_burst)**2)
 
-        grid_freq_dcg = self._evaluate_polynomial_array(arr_coeff_a,
+        grid_freq_dcg = self._evaluate_polynomial_array(dc_coeffs,
                                                         grid_tau,
                                                         tau0_fdc_interp)
 
