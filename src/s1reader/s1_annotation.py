@@ -1009,20 +1009,15 @@ class BurstExtendedCoeffs:
         dt_t1_so_far = float('inf')
 
         # NOTE: dt is defined as: [azimuth time] - [start/end time]
-        for id_vec, tuple_poly1d in enumerate(polynomial_list):
-            datetime_vec = tuple_poly1d[0]
+        # find index of poly time closest to start time that is less than start time
+        dt_wrt_start = [(poly[0] - datetime_start).total_seconds() for poly in polynomial_list]
+        dt_wrt_start = np.ma.masked_array(dt_wrt_start, mask=dt_wrt_start > 0)
+        index_start = np.argmax(dt_wrt_start)
 
-            dt_t0 = (datetime_vec - datetime_start).total_seconds()
-            if (dt_t0 < 0) and (dt_t0_so_far < dt_t0):
-                id_t0_so_far = id_vec
-                dt_t0_so_far = dt_t0
-                continue
-
-            dt_t1 = (datetime_vec - datetime_end).total_seconds()
-            if (dt_t1 > 0) and (dt_t1_so_far > dt_t1):
-                id_t1_so_far = id_vec
-                dt_t1_so_far = dt_t1
-                continue
+        # find index of poly time  closest to end time that is greater than end time
+        dt_wrt_end = [(poly[0] - datetime_end).total_seconds() for poly in polynomial_list]
+        dt_wrt_end = np.ma.masked_array(dt_wrt_end, mask=dt_wrt_end < 0)
+        index_end = np.argmin(dt_wrt_end)
 
         # Done extracting the IDs. Extract the polynomial sequence
         vec_aztime_sequence = []
