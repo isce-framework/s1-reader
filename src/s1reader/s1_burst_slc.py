@@ -718,7 +718,7 @@ class Sentinel1BurstSlc:
             Threshold of the iteration for rdr2geo
         numiter_rdr2geo: int
             Maximum number of iteration for rdr2geo
-        custom_radargrid_correction: isce3.product.RadarGridParameters
+        custom_correction_radargrid: isce3.product.RadarGridParameters
             ISCE3 radar grid to define the correction grid
 
         Return:
@@ -730,20 +730,20 @@ class Sentinel1BurstSlc:
 
         os.makedirs(path_scratch, exist_ok=True)
 
-        radargrid_correction = self.as_isce3_radargrid()
+        correction_radargrid = self.as_isce3_radargrid()
         if custom_radargrid is not None:
-            radargrid_correction = custom_radargrid
+            correction_radargrid = custom_radargrid
 
         # Define the correction grid from the radargrid
         # Also define the staggered grid in azimuth to calculate acceeration
-        width_grid = radargrid_correction.width
-        length_grid = radargrid_correction.length
-        intv_t = 1.0 / radargrid_correction.prf
-        intv_tau = (radargrid_correction.range_pixel_spacing * 2.0
+        width_grid = correction_radargrid.width
+        length_grid = correction_radargrid.length
+        intv_t = 1.0 / correction_radargrid.prf
+        intv_tau = (correction_radargrid.range_pixel_spacing * 2.0
                     / isce3.core.speed_of_light)
-        delta_sec_from_ref_epoch = ((radargrid_correction.ref_epoch
+        delta_sec_from_ref_epoch = ((correction_radargrid.ref_epoch
                                 - self.orbit.reference_epoch).total_seconds()
-                                + radargrid_correction.sensing_start)
+                                + correction_radargrid.sensing_start)
         vec_t = np.arange(length_grid) * intv_t + delta_sec_from_ref_epoch
         vec_t_staggered = (np.arange(length_grid + 1)
                            * intv_t
@@ -820,7 +820,7 @@ class Sentinel1BurstSlc:
         grid_doppler = isce3.core.LUT2d()
 
         rdr2geo_obj = isce3.geometry.Rdr2Geo(
-                radargrid_correction,
+                correction_radargrid,
                 self.orbit,
                 ellipsoid,
                 grid_doppler,
@@ -833,8 +833,8 @@ class Sentinel1BurstSlc:
                              in ['lat', 'lon', 'hgt']]
         lat_raster, lon_raster, hgt_raster = [isce3.io.Raster(
                                                         filename_llh,
-                                                        radargrid_correction.width,
-                                                        radargrid_correction.length,
+                                                        correction_radargrid.width,
+                                                        correction_radargrid.length,
                                                         1,
                                                         gdal.GDT_Float64,
                                                         'ENVI')
