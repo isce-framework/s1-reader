@@ -769,10 +769,9 @@ class Sentinel1BurstSlc:
         vec_acceleration_intp = np.diff(vec_vel_intp_staggered, axis=0) / intv_t
 
         # convert azimuth time to seconds from the reference epoch of burst_in.orbit
-        vec_aztime_fm_rate_sec = np.zeros(self.extended_coeffs.vec_aztime_fm_rate.shape)
-        for i, datetime_vec in enumerate(self.extended_coeffs.vec_aztime_fm_rate):
-            vec_aztime_fm_rate_sec[i] = (isce3.core.DateTime(datetime_vec)
-                                         - self.orbit.reference_epoch).total_seconds()
+        vec_aztime_fm_rate_sec = [(isce3.core.DateTime(datetime_vec) \
+                                   - self.orbit.reference_epoch).total_seconds()
+                                  for datetime_vec in self.extended_coeffs.vec_aztime_fm_rate]
 
         vec_aztime_dc_sec = [(isce3.core.DateTime(datetime_vec) \
                               - self.orbit.reference_epoch).total_seconds()
