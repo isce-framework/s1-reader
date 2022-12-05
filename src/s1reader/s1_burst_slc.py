@@ -797,23 +797,21 @@ class Sentinel1BurstSlc:
         grid_tau += tau0_ka_interp * np.ones(vec_tau.shape)[np.newaxis, ...]
 
         # Interpolate the DC and fm rate coeffs along azimuth time
-        list_a_interp = [] # Doppler centroid
-        list_b_interp = [] # Fm rate
-        for i in range(3):
-            interpolator_coeff_a = InterpolatedUnivariateSpline(
-                                        vec_aztime_dc_sec,
-                                        self.extended_coeffs.lut_coeff_dc[:, i],
-                                        k=1)
-            list_a_interp.append(interpolator_coeff_a(vec_t))
+        def interp_coeffs(az_time, coeffs, az_time_interp):
+            '''Convenience function to interpolate DC and FM rate coeffiicients
+            '''
+            interpolated_coeffs = []
+            for i in range(3):
+                coeff_interpolator = InterpolatedUnivariateSpline(
+                                                az_time, coeffs[:, i], k=1)
+                interpolated_coeffs.append(coeff_interpolator(az_time_interp))
+            return np.array(interpolated_coeffs).transpose()
 
-            interpolator_coeff_b = InterpolatedUnivariateSpline(
-                                        vec_aztime_fm_rate_sec,
-                                        self.extended_coeffs.lut_coeff_fm_rate[:, i],
-                                        k=1)
-            list_b_interp.append(interpolator_coeff_b(vec_t))
+        dc_coeffs = interp_coeffs(vec_aztime_fm_rate_sec,
+                                  self.extended_coeffs.lut_coeff_dc)
 
-        arr_coeff_a = np.array(list_a_interp).transpose()
-        arr_coeff_b = np.array(list_b_interp).transpose()
+        fm_rate_coeffs = interp_coeffs(vec_aztime_fm_rate_sec,
+                                       self.extended_coeffs.lut_coeff_fm_rate[:, i])
 
         # Run topo on scratch directory
         dem_raster = isce3.io.Raster(path_dem)
