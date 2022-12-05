@@ -745,7 +745,7 @@ class Sentinel1BurstSlc:
                                 - self.orbit.reference_epoch).total_seconds()
                                 + radargrid_correction.sensing_start)
         vec_t = np.arange(length_grid) * intv_t + delta_sec_from_ref_epoch
-        vec_t_staggered = (np.arange(length_grid+1)
+        vec_t_staggered = (np.arange(length_grid + 1)
                            * intv_t
                            + delta_sec_from_ref_epoch
                            - intv_t / 2)
