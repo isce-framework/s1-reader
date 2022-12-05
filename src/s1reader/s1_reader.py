@@ -690,7 +690,7 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
                                                                          sensing_start)
 
         # Extended FM and DC coefficient information
-        if flag_az_fmrate_mismatch_mitigation:
+        if mitigate_az_fmrate_mismatch:
             extended_coeffs = \
                 BurstExtendedCoeffs.from_polynomial_lists(az_fm_rate_list,
                                                         doppler_list,
@@ -742,7 +742,7 @@ def _is_zip_annotation_xml(path: str, id_str: str) -> bool:
 def load_bursts(path: str, orbit_path: str, swath_num: int, pol: str = 'vv',
                 burst_ids: list[Union[str, S1BurstId]] = None,
                 flag_apply_eap: bool = True,
-                flag_az_fmrate_mismatch_mitigation = True):
+                mitigate_az_fmrate_mismatch = True):
     '''Find bursts in a Sentinel-1 zip file or a SAFE structured directory.
 
     Parameters:
@@ -789,11 +789,11 @@ def load_bursts(path: str, orbit_path: str, swath_num: int, pol: str = 'vv',
     elif os.path.isdir(path):
         bursts = _burst_from_safe_dir(path, id_str, orbit_path,
                                       flag_apply_eap,
-                                      flag_az_fmrate_mismatch_mitigation)
+                                      mitigate_az_fmrate_mismatch)
     elif os.path.isfile(path):
         bursts = _burst_from_zip(path, id_str, orbit_path,
                                  flag_apply_eap,
-                                 flag_az_fmrate_mismatch_mitigation)
+                                 mitigate_az_fmrate_mismatch)
     else:
         raise ValueError(f'{path} is unsupported')
 
@@ -820,7 +820,7 @@ def load_bursts(path: str, orbit_path: str, swath_num: int, pol: str = 'vv',
 
 def _burst_from_zip(zip_path: str, id_str: str, orbit_path: str,
                     flag_apply_eap: bool,
-                    flag_az_fmrate_mismatch_mitigation: bool):
+                    mitigate_az_fmrate_mismatch: bool):
     '''Find bursts in a Sentinel-1 zip file.
 
     Parameters:
@@ -860,12 +860,12 @@ def _burst_from_zip(zip_path: str, id_str: str, orbit_path: str,
 
         bursts = burst_from_xml(f_annotation, orbit_path, f_tiff, iw2_f_annotation, z_file.open,
                                 flag_apply_eap=flag_apply_eap,
-                                flag_az_fmrate_mismatch_mitigation=flag_az_fmrate_mismatch_mitigation)
+                                mitigate_az_fmrate_mismatch=mitigate_az_fmrate_mismatch)
         return bursts
 
 def _burst_from_safe_dir(safe_dir_path: str, id_str: str, orbit_path: str,
                          flag_apply_eap: bool,
-                         flag_az_fmrate_mismatch_mitigation: bool):
+                         mitigate_az_fmrate_mismatch: bool):
     '''Find bursts in a Sentinel-1 SAFE structured directory.
 
     Parameters:
@@ -911,5 +911,5 @@ def _burst_from_safe_dir(safe_dir_path: str, id_str: str, orbit_path: str,
 
     bursts = burst_from_xml(f_annotation, orbit_path, f_tiff, iw2_f_annotation,
                             flag_apply_eap=flag_apply_eap,
-                            flag_az_fmrate_mismatch_mitigation=flag_az_fmrate_mismatch_mitigation)
+                            mitigate_az_fmrate_mismatch=mitigate_az_fmrate_mismatch)
     return bursts
