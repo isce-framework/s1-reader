@@ -698,7 +698,7 @@ class Sentinel1BurstSlc:
         kt = ks / (1.0 - ks / ka)
 
         return AzimuthCarrierComponents(kt, eta, eta_ref)
-    
+
     def az_fm_rate_mismatch_mitigation(self, path_dem: str, path_scratch: str,
             threshold_rdr2geo = 1e-8,
             numiter_rdr2geo = 25,
