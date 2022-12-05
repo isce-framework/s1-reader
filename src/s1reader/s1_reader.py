@@ -473,7 +473,7 @@ def get_track_burst_num(track_burst_num_file: str = esa_track_burst_id_file):
 def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
                    iw2_annotation_path: str, open_method=open,
                    flag_apply_eap: bool = True,
-                   flag_az_fmrate_mismatch_mitigation = True):
+                   mitigate_az_fmrate_mismatch = True):
     '''Parse bursts in Sentinel-1 annotation XML.
 
     Parameters:
