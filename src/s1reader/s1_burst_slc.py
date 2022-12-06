@@ -699,10 +699,12 @@ class Sentinel1BurstSlc:
 
         return AzimuthCarrierComponents(kt, eta, eta_ref)
 
-    def az_fm_rate_mismatch_mitigation(self, path_dem: str, path_scratch: str,
-            threshold_rdr2geo = 1e-8,
-            numiter_rdr2geo = 25,
-            custom_radargrid = None):
+    def az_fm_rate_mismatch_mitigation(self, path_dem: str, path_scratch: str=None,
+            rg_step=None,
+            az_step=None,
+            threshold_rdr2geo=1e-8,
+            numiter_rdr2geo=25,
+            custom_radargrid=None):
         '''
         Calculate azimuth FM rate mismatch mitigation
         Based on ETAD-DLR-DD-0008, Algorithm Technical Baseline Document.
@@ -730,11 +732,40 @@ class Sentinel1BurstSlc:
 
         '''
 
+        # Create temporary directory for scratch when
+        # `path_scratch` is not provided.
+        if path_scratch is None:
+            temp_dir_obj = tempfile.TemporaryDirectory()
+            path_scratch = temp_dir_obj.name
+        else:
+            temp_dir_obj = None
+
+
         os.makedirs(path_scratch, exist_ok=True)
 
         correction_radargrid = self.as_isce3_radargrid()
         if custom_radargrid is not None:
             correction_radargrid = custom_radargrid
+
+        # Override the radargrid definition if `rg_step` and `az_step` is defined
+        if rg_step and az_step:
+            if custom_radargrid is not None:
+                warnings.warn('rg_step and az_step assigned. '
+                              'Overriding the custom radargrid definition.')
+
+            width_radargrid, length_radargrid = \
+                [vec.size for vec in self._steps_to_vecs(rg_step, az_step)]
+            sensing_start_radargrid = self.as_isce3_radargrid().sensing_start
+            correction_radargrid = isce3.product.RadarGridParameters(
+                                    sensing_start_radargrid,
+                                    self.wavelength,
+                                    1/az_step,
+                                    self.starting_range,
+                                    rg_step,
+                                    isce3.core.LookSide.Right,
+                                    length_radargrid,
+                                    width_radargrid,
+                                    self.as_isce3_radargrid().ref_epoch)
 
         # Define the correction grid from the radargrid
         # Also define the staggered grid in azimuth to calculate acceeration
@@ -893,6 +924,10 @@ class Sentinel1BurstSlc:
         lat_map = gdal.Open(list_filename_llh[0], gdal.GA_ReadOnly).ReadAsArray()
         lon_map = gdal.Open(list_filename_llh[1], gdal.GA_ReadOnly).ReadAsArray()
         hgt_map = gdal.Open(list_filename_llh[2], gdal.GA_ReadOnly).ReadAsArray()
+
+        # Clean up the temporary directory in case it exists.
+        if not temp_dir_obj is None:
+            temp_dir_obj.cleanup()
 
         x_ecef, y_ecef, z_ecef = _llh_to_ecef(lat_map,
                                                    lon_map,
