@@ -831,6 +831,11 @@ def _burst_from_zip(zip_path: str, id_str: str, orbit_path: str,
         Identification of desired burst. Format: iw[swath_num]-slc-[pol]
     orbit_path : str
         Path the orbit file.
+    flag_apply_eap: bool
+        Turn on/off EAP related features (AUX_CAL loader)
+    mitigate_az_fmrate_mismatch:
+        Turn on/off the features related to azimuth FM rate mismatch mitigation
+
 
     Returns:
     --------
