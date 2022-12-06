@@ -720,7 +720,8 @@ class Sentinel1BurstSlc:
         numiter_rdr2geo: int
             Maximum number of iteration for rdr2geo
         custom_radargrid: isce3.product.RadarGridParameters
-            ISCE3 radar grid to define the correction grid
+            ISCE3 radar grid to define the correction grid.
+            If None, the full resolution radargrid of the burst will be used.
 
         Return:
         -------
