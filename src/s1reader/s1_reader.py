@@ -760,6 +760,11 @@ def load_bursts(path: str, orbit_path: str, swath_num: int, pol: str = 'vv',
         returned. Default of None returns all bursts.
         If not all burst IDs are found, a list containing found bursts will be
         returned (empty list if none are found).
+    flag_apply_eap: bool
+        Turn on/off EAP related features (AUX_CAL loader)
+    mitigate_az_fmrate_mismatch:
+        Turn on/off the features related to azimuth FM rate mismatch mitigation
+
 
     Returns:
     --------
