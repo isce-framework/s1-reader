@@ -719,7 +719,7 @@ class Sentinel1BurstSlc:
             Threshold of the iteration for rdr2geo
         numiter_rdr2geo: int
             Maximum number of iteration for rdr2geo
-        custom_correction_radargrid: isce3.product.RadarGridParameters
+        custom_radargrid: isce3.product.RadarGridParameters
             ISCE3 radar grid to define the correction grid
 
         Return:
