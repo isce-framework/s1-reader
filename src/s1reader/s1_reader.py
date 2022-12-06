@@ -472,8 +472,8 @@ def get_track_burst_num(track_burst_num_file: str = esa_track_burst_id_file):
 
 def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
                    iw2_annotation_path: str, open_method=open,
-                   flag_apply_eap: bool = True,
-                   mitigate_az_fmrate_mismatch = True):
+                   flag_apply_eap: bool=True,
+                   mitigate_az_fmrate_mismatch: bool=True):
     '''Parse bursts in Sentinel-1 annotation XML.
 
     Parameters:
@@ -491,6 +491,8 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
         Function used to open annotation file.
     flag_apply_eqp: bool
         Flag to turn on/off EAP related functionality
+    mitigate_az_fmrate_mismatch:
+        Turn on/off the features related to azimuth FM rate mismatch mitigation
 
     Returns:
     --------
