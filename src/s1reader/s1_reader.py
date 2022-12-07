@@ -876,10 +876,7 @@ def _burst_from_safe_dir(safe_dir_path: str, id_str: str, orbit_path: str, flag_
 
     # find tiff file if measurement directory found
     if os.path.isdir(f'{safe_dir_path}/measurement'):
-        measurement_list = os.listdir(f'{safe_dir_path}/measurement')
-        f_tiff = [f for f in measurement_list
-                  if 'measurement' in f and id_str in f and 'tiff' in f]
-        f_tiff = f'{safe_dir_path}/measurement/{f_tiff[0]}' if f_tiff else ''
+        f_tiff = glob.glob(f'{safe_dir_path}/measurement/*{id_str}*tiff') or ''
     else:
         msg = f'measurement directory NOT found in {safe_dir_path}'
         msg += ', continue with metadata only.'
