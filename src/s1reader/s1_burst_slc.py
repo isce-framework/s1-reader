@@ -699,12 +699,13 @@ class Sentinel1BurstSlc:
 
         return AzimuthCarrierComponents(kt, eta, eta_ref)
 
-    def az_fm_rate_mismatch_mitigation(self, path_dem: str, path_scratch: str=None,
-            rg_step=None,
-            az_step=None,
-            threshold_rdr2geo=1e-8,
-            numiter_rdr2geo=25,
-            custom_radargrid=None):
+    def az_fm_rate_mismatch_mitigation(self, path_dem: str,
+                                             path_scratch: str = None,
+                                             rg_step=None,
+                                             az_step=None,
+                                             threshold_rdr2geo=1e-8,
+                                             numiter_rdr2geo=25,
+                                             custom_radargrid=None):
         '''
         Calculate azimuth FM rate mismatch mitigation
         Based on ETAD-DLR-DD-0008, Algorithm Technical Baseline Document.
@@ -926,7 +927,7 @@ class Sentinel1BurstSlc:
         hgt_map = gdal.Open(list_filename_llh[2], gdal.GA_ReadOnly).ReadAsArray()
 
         # Clean up the temporary directory in case it exists.
-        if not temp_dir_obj is None:
+        if temp_dir_obj is not None:
             temp_dir_obj.cleanup()
 
         x_ecef, y_ecef, z_ecef = _llh_to_ecef(lat_map,
