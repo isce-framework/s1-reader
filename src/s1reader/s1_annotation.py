@@ -935,7 +935,7 @@ class BurstExtendedCoeffs:
         az_fm_rate_list: list[isce3.core.Poly1d]
             List of azimuth FM rate polynomials
         doppler_centroid_list: list[isce3.core.Poly1d]
-            List of doppler centroid polynimials
+            List of doppler centroid polynomials
         sensing_start: datetime.datetime
             Azimuth start time of the burst
         sensing_end: datetime.datetime
