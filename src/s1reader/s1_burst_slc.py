@@ -140,7 +140,7 @@ def _evaluate_polynomial_array(arr_polynomial, grid_tau, vec_tau0):
 
     return eval_out
 
-def _llh_to_ecef(lat, lon, hgt, ellipsoid, unit_degree=True):
+def _llh_to_ecef(lat, lon, hgt, ellipsoid, in_degree=True):
     '''
     Calculate cartesian coordinates in ECEF from
     latitude, longitude, and altitude
@@ -165,7 +165,7 @@ def _llh_to_ecef(lat, lon, hgt, ellipsoid, unit_degree=True):
 
     '''
 
-    if unit_degree:
+    if in_degree:
         rad_lat = np.radians(lat)
         rad_lon = np.radians(lon)
     else:
