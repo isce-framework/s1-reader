@@ -160,7 +160,12 @@ def _llh_to_ecef(lat, lon, hgt, ellipsoid, in_degree=True):
         False if the units are radian.
 
     Return:
-    _: tuple(np.ndarray)
+    x_ecef : ndarray
+        ECEF X coordinate (in meters).
+    y_ecef : ndarray
+        ECEF X coordinate (in meters).
+    z_ecef : ndarray
+        ECEF X coordinate (in meters).
         x, y, and z as a tuple of np.ndarray
 
     '''
