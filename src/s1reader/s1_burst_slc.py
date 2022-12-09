@@ -705,13 +705,14 @@ class Sentinel1BurstSlc:
 
         return AzimuthCarrierComponents(kt, eta, eta_ref)
 
-    def az_fm_rate_mismatch_mitigation(self, path_dem: str,
-                                             path_scratch: str = None,
-                                             range_step=None,
-                                             az_step=None,
-                                             threshold_rdr2geo=1e-8,
-                                             numiter_rdr2geo=25,
-                                             custom_radargrid=None):
+    def az_fm_rate_mismatch_mitigation(self, 
+                                       path_dem: str,
+                                       path_scratch: str = None,
+                                       range_step=None,
+                                       az_step=None,
+                                       threshold_rdr2geo=1e-8,
+                                       numiter_rdr2geo=25,
+                                       custom_radargrid=None):
         '''
         Calculate azimuth FM rate mismatch mitigation
         Based on ETAD-DLR-DD-0008, Algorithm Technical Baseline Document.
