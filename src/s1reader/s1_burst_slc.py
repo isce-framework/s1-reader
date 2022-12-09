@@ -866,7 +866,7 @@ class Sentinel1BurstSlc:
                 threshold=threshold_rdr2geo,
                 numiter=numiter_rdr2geo)
 
-        str_datetime = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+        str_datetime = datetime.datetime.now().strftime('%Y%m%d_%H%M%S%f')
         list_filename_llh = [f'{path_scratch}/{llh}_{str_datetime}.rdr'
                              for llh
                              in ['lat', 'lon', 'hgt']]
