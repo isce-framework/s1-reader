@@ -335,18 +335,6 @@ class ProductAnnotation(AnnotationBase):
 
     slant_range_time: float
 
-    # FM rate parameters for
-    # azimuth FM rate mismatch mitigation
-    vec_aztime_fm_rate: np.ndarray
-    lut_coeff_fm_rate: np.ndarray
-    vec_tau0_fm_rate:np.ndarray
-
-    # Doppler centroid (DC) parameters for
-    # azimuth FM rate mismatch mitigation
-    vec_aztime_dc: np.ndarray
-    lut_coeff_dc: np.ndarray
-    vec_tau0_dc: np.ndarray
-
 
     @classmethod
     def from_et(cls, et_in: ET):
@@ -939,7 +927,7 @@ class BurstExtendedCoeffs:
                               sensing_start: datetime.datetime,
                               sensing_end: datetime.datetime):
         '''
-        Extract coefficients from `product_annotation` that fall within
+        Extract coefficients from the list of the polynomial lists that fall within
         the provided sensing start / end times of a burst.
 
         Parameters:
