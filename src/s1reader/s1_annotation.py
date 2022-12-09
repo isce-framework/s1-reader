@@ -979,7 +979,7 @@ class BurstExtendedCoeffs:
 
         Returns:
         --------
-        _: tuple()
+        tuple
             Tuple of (vec_aztime_sequence,
                       arr_coeff_sequence,
                       vec_tau0_sequence)
