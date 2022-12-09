@@ -114,7 +114,7 @@ def _evaluate_polynomial_array(arr_polynomial, grid_tau, vec_tau0):
     Parameters:
     -----------
     arr_polynomial: np.ndarray
-        coeffieients interpolated to azimuth times in each line
+        coefficients interpolated to azimuth times in each line
         in correction grid
     grid_tau: np.ndarray
         2d numpy array filled with range time in the correction grid
