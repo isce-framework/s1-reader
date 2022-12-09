@@ -729,7 +729,7 @@ class Sentinel1BurstSlc:
         range_step: float
             Range step of the correction grid in meters
         az_step: float
-            Azimuth step of the correciton grid in seconds
+            Azimuth step of the correction grid in seconds
         threshold_rdr2geo: int
             Threshold of the iteration for rdr2geo
         numiter_rdr2geo: int
@@ -742,7 +742,9 @@ class Sentinel1BurstSlc:
         -------
         _: isce3.core.LUT2d
             azimuth FM rate mismatch rate in radar grid in seconds.
-
+    Examples
+    ----------
+    >>> correction_grid = burst.az_fm_rate_mismatch_mitigation("my_dem.tif")
         '''
 
         # Create temporary directory for scratch when
