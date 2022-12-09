@@ -130,12 +130,13 @@ def _evaluate_polynomial_array(arr_polynomial, grid_tau, vec_tau0):
     ncol = grid_tau.shape[1]
     term_tau = grid_tau - vec_tau0 * np.ones(ncol)[np.newaxis, ...]
 
-    eval_out = (arr_polynomial[:,0][..., np.newaxis]
-                *np.ones(ncol)[np.newaxis, ...]
-                + (arr_polynomial[:,1][..., np.newaxis]
-                    * np.ones(ncol)[np.newaxis, ...]) * term_tau
-                + (arr_polynomial[:,2][..., np.newaxis]
-                    * np.ones(ncol)[np.newaxis, ...]) * term_tau**2)
+    eval_out = (
+        arr_polynomial[:, 0][..., np.newaxis] * np.ones(ncol)[np.newaxis, ...]
+        + (arr_polynomial[:, 1][..., np.newaxis] * np.ones(ncol)[np.newaxis, ...])
+        * term_tau
+        + (arr_polynomial[:, 2][..., np.newaxis] * np.ones(ncol)[np.newaxis, ...])
+        * term_tau**2
+    )
 
     return eval_out
 
