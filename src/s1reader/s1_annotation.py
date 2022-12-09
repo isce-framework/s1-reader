@@ -973,7 +973,7 @@ class BurstExtendedCoeffs:
         polynomial_list: list
             list of (azimuth_time, isce3.core.Poly1d)
         datetime_start: datetime.datetime
-            Startime of the period
+            Start time of the period
         datetime_end: datetime.datetime
             end time of the period
 
