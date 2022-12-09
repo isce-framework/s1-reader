@@ -961,8 +961,8 @@ class BurstExtendedCoeffs:
 
     @classmethod
     def extract_polynomial_sequence(cls, polynomial_list: list,
-                   datetime_start: datetime.datetime,
-                   datetime_end: datetime.datetime):
+                                    datetime_start: datetime.datetime,
+                                    datetime_end: datetime.datetime):
         '''
         Scan `vec_azimuth_time` end find indices of the vector
         that covers the period defined with
