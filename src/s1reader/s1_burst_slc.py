@@ -155,7 +155,7 @@ def _llh_to_ecef(lat, lon, hgt, ellipsoid, unit_degree=True):
         height as numpy array
     ellipsoid: isce3.core.Ellipsoid
         Definition of Ellipsoid
-    unit_degree: bool
+    in_degree: bool
         True if the units of lat and lon are degrees.
         False if the units are radian.
 
