@@ -254,7 +254,7 @@ class Sentinel1BurstSlc:
     burst_eap: s1_annotation.BurstEAP  # EAP correction
 
     # Time series of FM rate / Doppler centroid polynomial coefficients
-    # for azimith FM rate mismatch mitigation
+    # for azimuth FM rate mismatch mitigation
     extended_coeffs: s1_annotation.BurstExtendedCoeffs
 
     def __str__(self):
