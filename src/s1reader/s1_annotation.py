@@ -911,14 +911,14 @@ class BurstExtendedCoeffs:
     '''
 
     # FM rate
-    vec_aztime_fm_rate: np.ndarray
-    lut_coeff_fm_rate: np.ndarray
-    vec_tau0_fm_rate:np.ndarray
+    fm_rate_aztime_vec: np.ndarray
+    fm_rate_coeff_arr: np.ndarray
+    fm_rate_tau0_vec:np.ndarray
 
     # Doppler centroid
-    vec_aztime_dc: np.ndarray
-    lut_coeff_dc: np.ndarray
-    vec_tau0_dc: np.ndarray
+    dc_aztime_vec: np.ndarray
+    dc_coeff_arr: np.ndarray
+    dc_tau0_vec: np.ndarray
 
     @classmethod
     def from_polynomial_lists(cls,
@@ -943,20 +943,20 @@ class BurstExtendedCoeffs:
         '''
 
         # Extract polynomial info for azimuth FM rate
-        (vec_aztime_fm_rate_burst,
-         lut_coeff_fm_rate_burst,
-         vec_tau0_fm_rate_burst) = cls.extract_polynomial_sequence(az_fm_rate_list,
+        (fm_rate_aztime_burst_vec,
+         fm_rate_coeff_burst_arr,
+         fm_rate_tau0_burst_vec) = cls.extract_polynomial_sequence(az_fm_rate_list,
                                                                    sensing_start,
                                                                    sensing_end)
 
-        (vec_aztime_dc_burst,
-         lut_coeff_dc_burst,
-         vec_tau0_dc_burst) = cls.extract_polynomial_sequence(doppler_centroid_list,
+        (dc_aztime_burst_vec,
+         dc_coeff_burst_arr,
+         dc_tau0_burst_vec) = cls.extract_polynomial_sequence(doppler_centroid_list,
                                                               sensing_start,
                                                               sensing_end)
 
-        return cls(vec_aztime_fm_rate_burst, lut_coeff_fm_rate_burst, vec_tau0_fm_rate_burst,
-                   vec_aztime_dc_burst, lut_coeff_dc_burst, vec_tau0_dc_burst)
+        return cls(fm_rate_aztime_burst_vec, fm_rate_coeff_burst_arr, fm_rate_tau0_burst_vec,
+                   dc_aztime_burst_vec, dc_coeff_burst_arr, dc_tau0_burst_vec)
 
 
     @classmethod

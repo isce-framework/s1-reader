@@ -817,24 +817,24 @@ class Sentinel1BurstSlc:
         vec_acceleration_intp = np.diff(vec_vel_intp_staggered, axis=0) / intv_t
 
         # convert azimuth time to seconds from the reference epoch of burst_in.orbit
-        vec_aztime_fm_rate_sec = [(isce3.core.DateTime(datetime_vec) \
+        fm_rate_aztime_sec_vec = [(isce3.core.DateTime(datetime_vec) \
                                    - self.orbit.reference_epoch).total_seconds()
-                                  for datetime_vec in self.extended_coeffs.vec_aztime_fm_rate]
+                                  for datetime_vec in self.extended_coeffs.fm_rate_aztime_vec]
 
-        vec_aztime_dc_sec = [(isce3.core.DateTime(datetime_vec) \
+        dc_aztime_sec_vec = [(isce3.core.DateTime(datetime_vec) \
                               - self.orbit.reference_epoch).total_seconds()
-                             for datetime_vec in self.extended_coeffs.vec_aztime_dc]
+                             for datetime_vec in self.extended_coeffs.dc_aztime_vec]
 
         # calculate splined interpolation of the coeffs. and tau_0s
         interpolator_tau0_ka = InterpolatedUnivariateSpline(
-                                        vec_aztime_fm_rate_sec,
-                                        self.extended_coeffs.vec_tau0_fm_rate,
+                                        fm_rate_aztime_sec_vec,
+                                        self.extended_coeffs.fm_rate_tau0_vec,
                                         k=1)
         tau0_ka_interp = interpolator_tau0_ka(vec_t)[..., np.newaxis]
 
         interpolator_tau0_fdc_interp = InterpolatedUnivariateSpline(
-                                        vec_aztime_dc_sec,
-                                        self.extended_coeffs.vec_tau0_dc,
+                                        dc_aztime_sec_vec,
+                                        self.extended_coeffs.dc_tau0_vec,
                                         k=1)
         tau0_fdc_interp = interpolator_tau0_fdc_interp(vec_t)[..., np.newaxis]
 
@@ -852,12 +852,12 @@ class Sentinel1BurstSlc:
                 interpolated_coeffs.append(coeff_interpolator(az_time_interp))
             return np.array(interpolated_coeffs).transpose()
 
-        dc_coeffs = interp_coeffs(vec_aztime_fm_rate_sec,
-                                  self.extended_coeffs.lut_coeff_dc,
+        dc_coeffs = interp_coeffs(fm_rate_aztime_sec_vec,
+                                  self.extended_coeffs.dc_coeff_arr,
                                   vec_t)
 
-        fm_rate_coeffs = interp_coeffs(vec_aztime_fm_rate_sec,
-                                       self.extended_coeffs.lut_coeff_fm_rate,
+        fm_rate_coeffs = interp_coeffs(fm_rate_aztime_sec_vec,
+                                       self.extended_coeffs.fm_rate_coeff_arr,
                                        vec_t)
 
         # Run topo on scratch directory
