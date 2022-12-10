@@ -705,7 +705,7 @@ class Sentinel1BurstSlc:
 
         return AzimuthCarrierComponents(kt, eta, eta_ref)
 
-    def az_fm_rate_mismatch_mitigation(self, 
+    def az_fm_rate_mismatch_mitigation(self,
                                        path_dem: str,
                                        path_scratch: str = None,
                                        range_step=None,
