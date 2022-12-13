@@ -219,7 +219,6 @@ def get_file_name_tokens(zip_path: str) -> [str, list[datetime.datetime]]:
 item_valid = lambda item, sat_id: os.path.isfile(item) and sat_id in os.path.basename(item)
 
 
-
 def get_orbit_file_from_dir(zip_path: str, orbit_dir: str, auto_download: bool = False) -> str:
     '''Get orbit state vector list for a given swath.
 
@@ -272,7 +271,6 @@ def get_orbit_file_from_dir(zip_path: str, orbit_dir: str, auto_download: bool =
     # Attempt auto download
     orbit_file = download_orbit(zip_path, orbit_dir)
     return orbit_file
-
 
 
 def get_orbit_file_from_list(zip_path: str, orbit_file_list: list) -> str:

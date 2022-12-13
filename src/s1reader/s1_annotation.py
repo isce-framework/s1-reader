@@ -15,6 +15,8 @@ import numpy as np
 from scipy.interpolate import InterpolatedUnivariateSpline, interp1d
 from packaging import version
 
+from isce3.core import speed_of_light
+
 # Minimum IPF version from which the S1 product's Noise Annotation
 # Data Set (NADS) includes azimuth noise vector annotation
 min_ipf_version_az_noise_vector = version.parse('2.90')
@@ -332,6 +334,7 @@ class ProductAnnotation(AnnotationBase):
     range_sampling_rate: float
 
     slant_range_time: float
+
 
     @classmethod
     def from_et(cls, et_in: ET):
@@ -897,3 +900,120 @@ class BurstEAP:
             h_t += h_i * np.sin((i+1) * worb * delta_anx + phi[i])
 
         return h_t
+
+
+@dataclass
+class BurstExtendedCoeffs:
+    '''
+    Segments of FM rate / Doppler centroid polynomial coefficients.
+    For (linear) interpolation of FM rate / Doppler Centroid along azimuth.
+    To be used for calculating azimuth FM rate mismatch mitigation
+    '''
+
+    # FM rate
+    fm_rate_aztime_vec: np.ndarray
+    fm_rate_coeff_arr: np.ndarray
+    fm_rate_tau0_vec:np.ndarray
+
+    # Doppler centroid
+    dc_aztime_vec: np.ndarray
+    dc_coeff_arr: np.ndarray
+    dc_tau0_vec: np.ndarray
+
+    @classmethod
+    def from_polynomial_lists(cls,
+                              az_fm_rate_list: list,
+                              doppler_centroid_list: list,
+                              sensing_start: datetime.datetime,
+                              sensing_end: datetime.datetime):
+        '''
+        Extract coefficients from the list of the polynomial lists that fall within
+        the provided sensing start / end times of a burst.
+
+        Parameters:
+        -----------
+        az_fm_rate_list: list[isce3.core.Poly1d]
+            List of azimuth FM rate polynomials
+        doppler_centroid_list: list[isce3.core.Poly1d]
+            List of doppler centroid polynomials
+        sensing_start: datetime.datetime
+            Azimuth start time of the burst
+        sensing_end: datetime.datetime
+            Azimuth end time of the burst
+        '''
+
+        # Extract polynomial info for azimuth FM rate
+        (fm_rate_aztime_burst_vec,
+         fm_rate_coeff_burst_arr,
+         fm_rate_tau0_burst_vec) = cls.extract_polynomial_sequence(az_fm_rate_list,
+                                                                   sensing_start,
+                                                                   sensing_end)
+
+        (dc_aztime_burst_vec,
+         dc_coeff_burst_arr,
+         dc_tau0_burst_vec) = cls.extract_polynomial_sequence(doppler_centroid_list,
+                                                              sensing_start,
+                                                              sensing_end)
+
+        return cls(fm_rate_aztime_burst_vec, fm_rate_coeff_burst_arr, fm_rate_tau0_burst_vec,
+                   dc_aztime_burst_vec, dc_coeff_burst_arr, dc_tau0_burst_vec)
+
+
+    @classmethod
+    def extract_polynomial_sequence(cls, polynomial_list: list,
+                                    datetime_start: datetime.datetime,
+                                    datetime_end: datetime.datetime):
+        '''
+        Scan `vec_azimuth_time` end find indices of the vector
+        that covers the period defined with
+        `datetime_start` and `datetime_end`
+
+        Parameters:
+        -----------
+        polynomial_list: list
+            list of (azimuth_time, isce3.core.Poly1d)
+        datetime_start: datetime.datetime
+            Start time of the period
+        datetime_end: datetime.datetime
+            end time of the period
+
+        Returns:
+        --------
+        tuple
+            Tuple of (vec_aztime_sequence,
+                      arr_coeff_sequence,
+                      vec_tau0_sequence)
+            as a sequence of polynomial info that covers the period
+            defined in the parameters.
+            vec_aztime_sequence: azimuth time of each sample in the sequence
+            arr_coeff_sequence: N by 3 npy array whose row is coefficients of
+                                each sample in the sequence
+            vec_tau0_sequence: Range start time of each sample in the sequence
+        '''
+
+        # NOTE: dt is defined as: [azimuth time] - [start/end time]
+        # find index of poly time closest to start time that is less than start time
+        dt_wrt_start = np.array([(poly[0] - datetime_start).total_seconds() for poly in polynomial_list])
+        dt_wrt_start = np.ma.masked_array(dt_wrt_start, mask=dt_wrt_start > 0)
+        index_start = np.argmax(dt_wrt_start)
+
+        # find index of poly time  closest to end time that is greater than end time
+        dt_wrt_end = np.array([(poly[0] - datetime_end).total_seconds() for poly in polynomial_list])
+        dt_wrt_end = np.ma.masked_array(dt_wrt_end, mask=dt_wrt_end < 0)
+        index_end = np.argmin(dt_wrt_end)
+
+        # Done extracting the IDs. Extract the polynomial sequence
+        vec_aztime_sequence = []
+        arr_coeff_sequence = []
+        vec_tau0_sequence = []
+
+        # Scale factor to convert range (in meters) to seconds (tau)
+        range_to_tau = 2.0 / speed_of_light
+        for poly in polynomial_list[index_start:index_end+1]:
+            vec_aztime_sequence.append(poly[0])
+            arr_coeff_sequence.append(poly[1].coeffs)
+            vec_tau0_sequence.append(poly[1].mean * range_to_tau)
+
+        return (np.array(vec_aztime_sequence),
+                np.array(arr_coeff_sequence),
+                np.array(vec_tau0_sequence))
