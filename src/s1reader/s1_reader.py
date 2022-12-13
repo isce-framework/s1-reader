@@ -18,7 +18,8 @@ from nisar.workflows.stage_dem import check_dateline
 from s1reader import s1_annotation  # to access __file__
 from s1reader.s1_annotation import ProductAnnotation, NoiseAnnotation,\
                                    CalibrationAnnotation, AuxCal, \
-                                   BurstCalibration, BurstEAP, BurstNoise
+                                   BurstCalibration, BurstEAP, BurstNoise,\
+                                   BurstExtendedCoeffs
 
 from s1reader.s1_burst_slc import Doppler, Sentinel1BurstSlc
 from s1reader.s1_burst_id import S1BurstId
@@ -62,7 +63,8 @@ def parse_polynomial_element(elem, poly_name):
     half_c = 0.5 * isce3.core.speed_of_light
     r0 = half_c * float(elem.find('t0').text)
 
-    # NOTE Format of the azimuth FM rate polynomials has changed when IPF version was somewhere between 2.36 and 2.82
+    # NOTE Format of the azimuth FM rate polynomials has changed
+    # when IPF version was somewhere between 2.36 and 2.82
     if elem.find(poly_name) is None:  # before the format change i.e. older IPF
         coeffs = [float(x.text) for x in elem[2:]]
     else:  # after the format change i.e. newer IPF
@@ -470,7 +472,8 @@ def get_track_burst_num(track_burst_num_file: str = esa_track_burst_id_file):
     return track_burst_num
 
 def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
-                   iw2_annotation_path: str, open_method=open, flag_apply_eap: bool = True):
+                   iw2_annotation_path: str, open_method=open,
+                   flag_apply_eap: bool = True):
     '''Parse bursts in Sentinel-1 annotation XML.
 
     Parameters:
@@ -515,7 +518,8 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
     # load the Calibraton annotation
     try:
         calibration_annotation_path =\
-            annotation_path.replace('annotation/', 'annotation/calibration/calibration-')
+            annotation_path.replace('annotation/',
+                                    'annotation/calibration/calibration-')
         with open_method(calibration_annotation_path, 'r') as f_cads:
             tree_cads = ET.parse(f_cads)
             calibration_annotation =\
@@ -526,7 +530,8 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
 
     # load the Noise annotation
     try:
-        noise_annotation_path = annotation_path.replace('annotation/', 'annotation/calibration/noise-')
+        noise_annotation_path = annotation_path.replace('annotation/',
+                                                        'annotation/calibration/noise-')
         with open_method(noise_annotation_path, 'r') as f_nads:
             tree_nads = ET.parse(f_nads)
             noise_annotation = NoiseAnnotation.from_et(tree_nads, ipf_version,
@@ -643,10 +648,11 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
                                         azimuth_time_interval)
         doppler = Doppler(poly1d, lut2d)
 
+        sensing_duration = datetime.timedelta(
+            seconds=n_lines * azimuth_time_interval)
         if len(osv_list) > 0:
             # get orbit from state vector list/element tree
-            sensing_duration = datetime.timedelta(
-                seconds=n_lines * azimuth_time_interval)
+
             orbit = get_burst_orbit(sensing_start, sensing_start + sensing_duration,
                                     osv_list)
         else:
@@ -671,12 +677,15 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
             burst_calibration = None
         else:
             burst_calibration = BurstCalibration.from_calibration_annotation(calibration_annotation,
-                                                                            sensing_start)
+                                                                             sensing_start)
         if noise_annotation is None:
             burst_noise = None
         else:
-            burst_noise = BurstNoise.from_noise_annotation(noise_annotation, sensing_start,
-                                                i*n_lines, (i+1)*n_lines-1, ipf_version)
+            burst_noise = BurstNoise.from_noise_annotation(noise_annotation,
+                                                           sensing_start,
+                                                           i*n_lines,
+                                                           (i+1)*n_lines-1,
+                                                           ipf_version)
         if aux_cal_subswath is None:
             # Not applying EAP correction; (IPF high enough or user turned that off)
             # No need to fill in `burst_aux_cal`
@@ -685,6 +694,13 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
             burst_aux_cal = BurstEAP.from_product_annotation_and_aux_cal(product_annotation,
                                                                          aux_cal_subswath,
                                                                          sensing_start)
+
+        # Extended FM and DC coefficient information
+        extended_coeffs = BurstExtendedCoeffs.from_polynomial_lists(
+            az_fm_rate_list,
+            doppler_list,
+            sensing_start,
+            sensing_start + sensing_duration)
 
         bursts[i] = Sentinel1BurstSlc(ipf_version, sensing_start, radar_freq, wavelength,
                                       azimuth_steer_rate, azimuth_time_interval,
@@ -698,7 +714,8 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
                                       last_sample, first_valid_line, last_line,
                                       range_window_type, range_window_coeff,
                                       rank, prf_raw_data, range_chirp_ramp_rate,
-                                      burst_calibration, burst_noise, burst_aux_cal)
+                                      burst_calibration, burst_noise, burst_aux_cal,
+                                      extended_coeffs)
 
     return bursts
 
@@ -745,6 +762,8 @@ def load_bursts(path: str, orbit_path: str, swath_num: int, pol: str = 'vv',
         returned. Default of None returns all bursts.
         If not all burst IDs are found, a list containing found bursts will be
         returned (empty list if none are found).
+    flag_apply_eap: bool
+        Turn on/off EAP related features (AUX_CAL loader)
 
     Returns:
     --------
@@ -772,9 +791,11 @@ def load_bursts(path: str, orbit_path: str, swath_num: int, pol: str = 'vv',
     if not os.path.exists(path):
         raise FileNotFoundError(f'{path} not found')
     elif os.path.isdir(path):
-        bursts = _burst_from_safe_dir(path, id_str, orbit_path, flag_apply_eap)
+        bursts = _burst_from_safe_dir(path, id_str, orbit_path,
+                                      flag_apply_eap)
     elif os.path.isfile(path):
-        bursts = _burst_from_zip(path, id_str, orbit_path, flag_apply_eap)
+        bursts = _burst_from_zip(path, id_str, orbit_path,
+                                 flag_apply_eap)
     else:
         raise ValueError(f'{path} is unsupported')
 
@@ -799,7 +820,8 @@ def load_bursts(path: str, orbit_path: str, swath_num: int, pol: str = 'vv',
     return bursts
 
 
-def _burst_from_zip(zip_path: str, id_str: str, orbit_path: str, flag_apply_eap: bool):
+def _burst_from_zip(zip_path: str, id_str: str, orbit_path: str,
+                    flag_apply_eap: bool):
     '''Find bursts in a Sentinel-1 zip file.
 
     Parameters:
@@ -810,6 +832,8 @@ def _burst_from_zip(zip_path: str, id_str: str, orbit_path: str, flag_apply_eap:
         Identification of desired burst. Format: iw[swath_num]-slc-[pol]
     orbit_path : str
         Path the orbit file.
+    flag_apply_eap: bool
+        Turn on/off EAP related features (AUX_CAL loader)
 
     Returns:
     --------
@@ -841,8 +865,8 @@ def _burst_from_zip(zip_path: str, id_str: str, orbit_path: str, flag_apply_eap:
                                 flag_apply_eap=flag_apply_eap)
         return bursts
 
-
-def _burst_from_safe_dir(safe_dir_path: str, id_str: str, orbit_path: str, flag_apply_eap: bool):
+def _burst_from_safe_dir(safe_dir_path: str, id_str: str, orbit_path: str,
+                         flag_apply_eap: bool):
     '''Find bursts in a Sentinel-1 SAFE structured directory.
 
     Parameters:
@@ -853,6 +877,8 @@ def _burst_from_safe_dir(safe_dir_path: str, id_str: str, orbit_path: str, flag_
         Identification of desired burst. Format: iw[swath_num]-slc-[pol]
     orbit_path : str
         Path the orbit file.
+    flag_apply_eap: bool
+        Turn on/off EAP related features (AUX_CAL loader)
 
     Returns:
     --------
