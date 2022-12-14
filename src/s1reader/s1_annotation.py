@@ -1002,6 +1002,10 @@ class BurstExtendedCoeffs:
         dt_wrt_end = np.ma.masked_array(dt_wrt_end, mask=dt_wrt_end < 0)
         index_end = np.argmin(dt_wrt_end)
 
+        # Handle the case that the burst's sensing period exceeds `polynomial_list`
+        if index_end == 0 and index_start > 0:
+            index_end = len(polynomial_list)-1
+
         # Done extracting the IDs. Extract the polynomial sequence
         vec_aztime_sequence = []
         arr_coeff_sequence = []
