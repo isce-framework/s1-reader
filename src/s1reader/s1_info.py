@@ -99,7 +99,7 @@ def _bounds_from_preview(safe_path: Union[Path, str]) -> List[float]:
                 if "preview/map-overlay.kml" in zi.filename
             ]
             if len(zname) > 0:
-                with zip_ref.open(zname[0].filename, 'r') as kml_in:
+                with zip_ref.open(zname[0].filename, "r") as kml_in:
                     root = ET.parse(kml_in).getroot()
             else:
                 root = None
@@ -115,7 +115,6 @@ def _bounds_from_preview(safe_path: Union[Path, str]) -> List[float]:
     return [min(lons), min(lats), max(lons), max(lats)]
 
 
-
 def _bounds_from_bursts(safe_path: Union[Path, str]) -> List[float]:
     """Get the bounding box of the frame from the union of all burst bounds."""
     # Get all the bursts from subswath 1, 2, 3
@@ -125,7 +124,7 @@ def _bounds_from_bursts(safe_path: Union[Path, str]) -> List[float]:
             bursts = get_bursts(safe_path, pol=pol)
             break
         except ValueError:
-            # This is raised if the product doesn't have the specified polarization 
+            # This is raised if the product doesn't have the specified polarization
             continue
     if bursts is None:
         raise ValueError("Could not load any polarizations in {safe_path}.")
@@ -147,6 +146,9 @@ Example usage:
     # Print only the burst IDs
     s1_info S1A_IW_SLC__1SDV_20180601T000000_20180601T000025_021873_025F3D_9E9E.SAFE --burst-id
 
+    # Print the burst IDs, and the bounding box for each burst
+    s1_info S1A_IW_SLC__1SDV_20180601T000000_20180601T000025_021873_025F3D_9E9E.SAFE -b --burst-bbox
+
     # Print burst ids for all files matching the pattern
     s1_info -b S1A_IW_SLC__1SDV_2018*
 
@@ -156,11 +158,11 @@ Example usage:
     # Get info for all products in the 'data/' directory
     s1_info data/
 
-    # Print the bounding box of each frame
-    s1_info --bbox data/
+    # Print the bounding box of the full frame for each product
+    s1_info --frame-bbox data/
 
     # Using https://github.com/scottstanie/sardem , create a DEM covering the SLC product
-    s1_info --bbox S1A_IW_SLC__1SDV_20220226T124745_20220226T124812_042084_050378_F69A.zip |
+    s1_info --frame-bbox S1A_IW_SLC__1SDV_20220226T124745_20220226T124812_042084_050378_F69A.zip |
         cut -d':' -f2 |     # separate the bbox from the label
         tr -d ',[]'   |     # remove brackets and commas
         xargs sardem --data cop --bbox     # pass the bbox to sardem as an argument
@@ -203,9 +205,14 @@ def get_cli_args():
         help="Print only the burst IDs for all bursts.",
     )
     parser.add_argument(
-        "--bbox",
+        "--frame-bbox",
         action="store_true",
-        help="Print the bounding box (lonmin, latmin, lonmax, latmax) of the S1 product.",
+        help="Print the frame bounding box (lonmin, latmin, lonmax, latmax) of the S1 product.",
+    )
+    parser.add_argument(
+        "--burst-bbox",
+        action="store_true",
+        help="Print each burst's bounding box (lonmin, latmin, lonmax, latmax).",
     )
     parser.add_argument(
         "-p",
@@ -244,7 +251,7 @@ def main():
         if args.plot:
             _plot_bursts(path)
             continue
-        elif args.bbox:
+        elif args.frame_bbox:
             msg = f"{path}: {get_frame_bounds(path)}"
             print(msg)
             continue
@@ -254,9 +261,13 @@ def main():
         # Do we want to pretty-print this with rich?
         for burst in get_bursts(path, args.pol, args.iw):
             if args.burst_id:
-                print(burst.burst_id)
+                print(burst.burst_id, end=" ")
             else:
-                print(burst)
+                print(burst, end=" ")
+
+            if args.burst_bbox:
+                print(list(shapely.geometry.MultiPolygon(burst.border).bounds), end=" ")
+            print()
 
 
 if __name__ == "__main__":
