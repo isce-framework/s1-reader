@@ -119,7 +119,17 @@ def _bounds_from_preview(safe_path: Union[Path, str]) -> List[float]:
 def _bounds_from_bursts(safe_path: Union[Path, str]) -> List[float]:
     """Get the bounding box of the frame from the union of all burst bounds."""
     # Get all the bursts from subswath 1, 2, 3
-    bursts = get_bursts(safe_path)
+    bursts = None
+    for pol in ["vv", "hh", "hv", "vh"]:
+        try:
+            bursts = get_bursts(safe_path, pol=pol)
+            break
+        except ValueError:
+            # This is raised if the product doesn't have the specified polarization 
+            continue
+    if bursts is None:
+        raise ValueError("Could not load any polarizations in {safe_path}.")
+
     # Convert the border (list of polygons) into a MultiPolygon
     all_borders = [shapely.geometry.MultiPolygon(b.border) for b in bursts]
     # Perform a union to get one shape for the entire frame
