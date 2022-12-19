@@ -89,31 +89,31 @@ def _bounds_from_preview(safe_path: Union[Path, str]) -> List[float]:
     # S1A_IW_SLC__1SDV_20221005T125539_20221005T125606_045307_056AA5_CB45.SAFE/preview/map-overlay.kml
     if _is_safe_dir(safe_path):
         overlay_path = Path(safe_path) / "preview" / "map-overlay.kml"
-        temp_dir = None
+        root = ET.parse(overlay_path).getroot()
     else:
         # The name of the unzipped .SAFE directory (with .zip stripped)
-        temp_dir = tempfile.mkdtemp()
         with zipfile.ZipFile(safe_path, "r") as zip_ref:
             zname = [
                 zi
                 for zi in zip_ref.infolist()
                 if "preview/map-overlay.kml" in zi.filename
             ]
-            overlay_path = Path(zip_ref.extract(zname[0], path=temp_dir))
+            if len(zname) > 0:
+                with zip_ref.open(zname[0].filename, 'r') as kml_in:
+                    root = ET.parse(kml_in).getroot()
+            else:
+                root = None
 
-    # Check that they have all the necessary kmls
-    if not overlay_path.exists():
-        raise ValueError(f"{overlay_path} does not exist.")
-    root = ET.parse(overlay_path).getroot()
+    if root is None:
+        raise ValueError(f"map-overlay.kml does not exist in {safe_path}.")
 
     # point_str looks like:
     # <coordinates>-102.552971,31.482372 -105.191353,31.887299...
     point_str = list(elem.text for elem in root.iter("coordinates"))[0]
     coords = [p.split(",") for p in point_str.split()]
     lons, lats = zip(*[(float(lon), float(lat)) for lon, lat in coords])
-    if temp_dir is not None:
-        shutil.rmtree(temp_dir)
     return [min(lons), min(lats), max(lons), max(lats)]
+
 
 
 def _bounds_from_bursts(safe_path: Union[Path, str]) -> List[float]:
