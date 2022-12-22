@@ -1,8 +1,6 @@
 """Extract the burst ID information from a Sentinel-1 SLC product."""
 import argparse
-import shutil
 import sys
-import tempfile
 import warnings
 import zipfile
 from itertools import chain
