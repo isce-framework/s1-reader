@@ -542,7 +542,7 @@ def closest_block_to_azimuth_time(vector_azimuth_time: np.ndarray,
 class BurstNoise:
     '''Noise correction information for Sentinel-1 burst'''
     basename_nads: str
-    range_azimith_time: datetime.datetime
+    range_azimuth_time: datetime.datetime
     range_line: float
     range_pixel: np.ndarray
     range_lut: np.ndarray
@@ -590,7 +590,7 @@ class BurstNoise:
         id_closest = closest_block_to_azimuth_time(noise_annotation.rg_list_azimuth_time,
                                                    azimuth_time)
 
-        range_azimith_time = noise_annotation.rg_list_azimuth_time[id_closest]
+        range_azimuth_time = noise_annotation.rg_list_azimuth_time[id_closest]
         range_line = noise_annotation.rg_list_line[id_closest]
         range_pixel = noise_annotation.rg_list_pixel[id_closest]
         range_lut = noise_annotation.rg_list_noise_range_lut[id_closest]
@@ -617,7 +617,7 @@ class BurstNoise:
             azimuth_line = None
             azimuth_lut = None
 
-        return cls(basename_nads, range_azimith_time, range_line, range_pixel, range_lut,
+        return cls(basename_nads, range_azimuth_time, range_line, range_pixel, range_lut,
                    azimuth_first_azimuth_line, azimuth_first_range_sample,
                    azimuth_last_azimuth_line, azimuth_last_range_sample,
                    azimuth_line, azimuth_lut,
