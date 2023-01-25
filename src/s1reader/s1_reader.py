@@ -716,7 +716,7 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
             doppler_list,
             sensing_start,
             sensing_start + sensing_duration)
-        
+
         # RFI information
         if burst_rfi_info_collection is None:
             burst_rfi_info = None
