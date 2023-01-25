@@ -1180,12 +1180,3 @@ class BurstExtendedCoeffs:
         return (np.array(vec_aztime_sequence),
                 np.array(arr_coeff_sequence),
                 np.array(vec_tau0_sequence))
-
-
-if __name__=='__main__':
-    path_product_annotation = '/Users/jeong/Downloads/S1A_IW_SLC__1SDV_20230108T135249_20230108T135316_046693_0598D3_BA76.SAFE/annotation/s1a-iw3-slc-vv-20230108t135249-20230108t135314-046693-0598d3-006.xml'
-    path_rfi_annotation = '/Users/jeong/Downloads/S1A_IW_SLC__1SDV_20230108T135249_20230108T135316_046693_0598D3_BA76.SAFE/annotation/rfi/rfi-s1a-iw3-slc-vv-20230108t135249-20230108t135314-046693-0598d3-006.xml'
-    xin_rfi = ET.parse(path_rfi_annotation)
-    xin_lads = ET.parse(path_product_annotation)
-    SR = SwathRFI.from_et(xin_rfi, xin_lads, version.Version('3.52'))
-    print('afas')
