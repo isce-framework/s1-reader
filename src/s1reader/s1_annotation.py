@@ -57,8 +57,6 @@ def element_to_dict(elem_in: ET, dict_tree: dict=None):
     return dict_tree
 
 
-
-
 @dataclass
 class AnnotationBase:
     '''
@@ -558,6 +556,12 @@ class AuxCal(AnnotationBase):
 class SwathRfiInfo:
     '''
     RFI information in bursts-wise in swath
+    Reference documentation: "Sentinel-1: Using the RFI annotations" by
+    G.Hajduch et al.
+
+    url = "https://sentinel.esa.int/documents/247904/1653442/
+           DI-MPC-OTH-0540-1-0-RFI-Tech-Note.pdf/
+           4b4fa95d-039f-5c78-fb90-06d307b3c13a?t=1644988601315"
     '''
     # from product annotation >= 3.40
     rfi_mitigation_performed: str
@@ -572,9 +576,21 @@ class SwathRfiInfo:
                 et_rfi: ET,
                 et_product: ET,
                 ipf_version: version.Version):
-        '''Load RFI information from etree'''
+        '''Load RFI information from etree
 
-        cls.xml_et = et_rfi
+        Parameters:
+        -----------
+        et_rfi: ET
+            XML ElementTree from RFI annotation
+        et_product: ET
+            XML ElementTree from product annotation
+        ipf_version: version.Version
+            IPF version of the input sentinel-1 data
+
+        Return:
+        cls: SwathRfiInfo
+            dataclass populated by this function
+        '''
 
         if ipf_version < version.Version('3.40'):
             # RFI related processing is not in place
@@ -608,7 +624,20 @@ class SwathRfiInfo:
     @classmethod
     def extract_by_aztime(cls, aztime_start: datetime.datetime, aztime_end: datetime.datetime):
         '''
-        Docstring please
+        Extract the burst noise report that is within the azimuth time of a burst
+
+        Parameters:
+        -----------
+        aztime_start: datetime.datetime
+            Starting azimuth time of a burst
+        aztime_end: datetime.datetime
+            Ending azimuth time of a burst
+
+        Return:
+        -------
+        rfi_info: SimpleNamespace
+            A SimpleNamespace that contains burst noise report,
+            along with the RFI related information from the product annotation
         '''
         index_start = np.array(cls.azimuth_time_list) >= aztime_start
         index_end = np.array(cls.azimuth_time_list) <= aztime_end
