@@ -555,7 +555,7 @@ class AuxCal(AnnotationBase):
 
 
 @dataclass
-class SwathRFI:
+class SwathRfiInfo:
     '''
     RFI information in bursts-wise in swath
     '''
@@ -579,7 +579,7 @@ class SwathRFI:
         if ipf_version < version.Version('3.40'):
             # RFI related processing is not in place
             # return an empty dataclass
-            return None # TODO return sth. other than None
+            return None
 
         # Attempt to locate the RFI information from the input annotations
         header_lads = et_product.find('imageAnnotation/processingInformation')
@@ -590,11 +590,9 @@ class SwathRFI:
         if header_rfi is None:
             raise ValueError('Cannot find RFI burst information from the RFI annotation')
 
-
         # Start to load RFI information
         cls.rfi_mitigation_performed = header_lads.find('rfiMitigationPerformed').text
         cls.rfi_mitigation_domain = header_lads.find('rfiMitigationDomain').text
-
 
         num_burst_report = len(header_rfi)
         cls.rfi_burst_report_list = [None] * num_burst_report
@@ -605,6 +603,24 @@ class SwathRFI:
             cls.azimuth_time_list[i_burst] = cls.rfi_burst_report_list[i_burst]['azimuthTime']
 
         return cls
+
+
+    @classmethod
+    def extract_by_aztime(cls, aztime_start: datetime.datetime, aztime_end: datetime.datetime):
+        '''
+        Docstring please
+        '''
+        index_start = np.array(cls.azimuth_time_list) >= aztime_start
+        index_end = np.array(cls.azimuth_time_list) <= aztime_end
+
+        report_within = np.array(cls.rfi_burst_report_list)[index_start & index_end]
+
+        rfi_info = SimpleNamespace()
+        rfi_info.rfi_mitigation_performed = cls.rfi_mitigation_performed
+        rfi_info.rfi_mitigation_domain = cls.rfi_mitigation_domain
+        rfi_info.rfi_burst_report = list(report_within)
+
+        return rfi_info
 
 
 @dataclass

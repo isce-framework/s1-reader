@@ -19,7 +19,7 @@ from s1reader import s1_annotation  # to access __file__
 from s1reader.s1_annotation import ProductAnnotation, NoiseAnnotation,\
                                    CalibrationAnnotation, AuxCal, \
                                    BurstCalibration, BurstEAP, BurstNoise,\
-                                   BurstExtendedCoeffs
+                                   BurstExtendedCoeffs, SwathRfiInfo
 
 from s1reader.s1_burst_slc import Doppler, Sentinel1BurstSlc
 from s1reader.s1_burst_id import S1BurstId
@@ -516,12 +516,17 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
         product_annotation = ProductAnnotation.from_et(tree_lads)
 
         # Load RFI information
-        rfi_annotation_path =\
-                annotation_path.replace('annotation/',
-                                        'annotation/rfi/rfi-')
-        with open_method(rfi_annotation_path, 'r') as f_rads:
-            tree_rads = ET.parse(f_rads)
-            # TODO implement the reader further
+        if ipf_version >= version.Version('3.40'):
+            # NOTE: Version threshold from RFI tech note.
+            rfi_annotation_path =\
+                    annotation_path.replace('annotation/',
+                                            'annotation/rfi/rfi-')
+            with open_method(rfi_annotation_path, 'r') as f_rads:
+                tree_rads = ET.parse(f_rads)
+                burst_rfi_info_collection = SwathRfiInfo.from_et(tree_rads, tree_lads, ipf_version)
+                
+        else:
+            burst_rfi_info_collection = None
 
 
     # load the Calibraton annotation
@@ -711,6 +716,15 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
             doppler_list,
             sensing_start,
             sensing_start + sensing_duration)
+        
+        # RFI information
+        if burst_rfi_info_collection is None:
+            burst_rfi_info = None
+        else:
+            burst_rfi_info = burst_rfi_info_collection.extract_by_aztime(
+                                                    sensing_start,
+                                                    sensing_start + sensing_duration)
+
 
         bursts[i] = Sentinel1BurstSlc(ipf_version, sensing_start, radar_freq, wavelength,
                                       azimuth_steer_rate, azimuth_time_interval,
@@ -725,7 +739,7 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
                                       range_window_type, range_window_coeff,
                                       rank, prf_raw_data, range_chirp_ramp_rate,
                                       burst_calibration, burst_noise, burst_aux_cal,
-                                      extended_coeffs)
+                                      extended_coeffs, burst_rfi_info)
 
     return bursts
 

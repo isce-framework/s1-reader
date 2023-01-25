@@ -3,8 +3,9 @@ from dataclasses import dataclass
 import datetime
 import tempfile
 import warnings
-from packaging import version
+from types import SimpleNamespace
 
+from packaging import version
 import isce3
 import numpy as np
 from osgeo import gdal
@@ -256,6 +257,8 @@ class Sentinel1BurstSlc:
     # Time series of FM rate / Doppler centroid polynomial coefficients
     # for azimuth FM rate mismatch mitigation
     extended_coeffs: s1_annotation.BurstExtendedCoeffs
+
+    burst_rfi_info: SimpleNamespace
 
     def __str__(self):
         return f"Sentinel1BurstSlc: {self.burst_id} at {self.sensing_start}"
