@@ -37,7 +37,7 @@ dict_datatype_rfi={
 }
 
 
-def element_to_dict(elem_in: ET, dict_tree: dict=None):
+def element_to_dict(elem_in: ET, dict_tree: dict = None):
     '''Recursively parse the element tree,
         return the results as SimpleNameSpace'''
     if dict_tree is None:
@@ -650,28 +650,6 @@ class SwathRfiInfo:
         rfi_info.rfi_burst_report = list(report_within)
 
         return rfi_info
-
-
-@dataclass
-class RfiBurstReport:
-    '''RFI information in Burst scale'''
-    # From product annotation
-    rfi_mitigation_performed: str
-    rfi_mitigation_domain: str
-
-    # From RFI annotation
-    rfi_mitigation_applied: str
-    azimuth_time: datetime.datetime
-    in_band_out_band_power_ratio: float
-    time_domain_rfi_report: SimpleNamespace
-    frequency_domain_rfi_burst_report: SimpleNamespace
-
-    #def from_
-
-
-
-    
-
 
 
 def closest_block_to_azimuth_time(vector_azimuth_time: np.ndarray,
