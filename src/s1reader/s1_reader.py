@@ -510,10 +510,19 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
         # equator crossing (for the burst_id calculation).
         start_track, end_track = get_start_end_track(tree_manifest)
 
-    # Load the Product annotation - for EAP calibration
+    # Load the Product annotation - for EAP calibration and RFI information
     with open_method(annotation_path, 'r') as f_lads:
         tree_lads = ET.parse(f_lads)
         product_annotation = ProductAnnotation.from_et(tree_lads)
+
+        # Load RFI information
+        rfi_annotation_path =\
+                annotation_path.replace('annotation/',
+                                        'annotation/rfi/rfi-')
+        with open_method(rfi_annotation_path, 'r') as f_rads:
+            tree_rads = ET.parse(f_rads)
+            # TODO implement the reader further
+
 
     # load the Calibraton annotation
     try:
@@ -538,6 +547,7 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
                                                        noise_annotation_path)
     except (FileNotFoundError, KeyError):
         noise_annotation = None
+
 
     # load AUX_CAL annotation
     eap_necessity = is_eap_correction_necessary(ipf_version)

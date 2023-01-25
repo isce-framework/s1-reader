@@ -7,19 +7,57 @@ from dataclasses import dataclass
 
 import datetime
 import os
-import lxml.etree as ET
 import zipfile
 
+from types import SimpleNamespace
+
+import lxml.etree as ET
 import numpy as np
 
 from scipy.interpolate import InterpolatedUnivariateSpline, interp1d
 from packaging import version
-
 from isce3.core import speed_of_light
 
 # Minimum IPF version from which the S1 product's Noise Annotation
 # Data Set (NADS) includes azimuth noise vector annotation
 min_ipf_version_az_noise_vector = version.parse('2.90')
+
+dict_datatype_rfi={
+    "swath": str,
+    "azimuthTime": lambda T: datetime.datetime.strptime(T, '%Y-%m-%dT%H:%M:%S.%f'),
+    "inBandOutBandPowerRatio": float,
+    "percentageAffectedLines": float,
+    "avgPercentageAffectedSamples": float,
+    "maxPercentageAffectedSamples": float,
+    "numSubBlocks": int,
+    "subBlockSize": int,
+    "maxPercentageAffectedBW": float,
+    "percentageBlocksPersistentRfi": float,
+    "maxPercentageBWAffectedPersistentRfi": float
+}
+
+
+def element_to_dict(elem_in: ET, dict_tree: dict=None):
+    '''Recursively parse the element tree,
+        return the results as SimpleNameSpace'''
+    if dict_tree is None:
+        dict_tree = {}
+    key_elem = elem_in.tag
+    child_elem = list(elem_in.iterchildren())
+
+    if len(child_elem) == 0:
+        # Reached the tree end
+        text_elem = elem_in.text
+        dict_tree[key_elem] = dict_datatype_rfi[key_elem](text_elem)
+    else:
+        dict_tree[key_elem] = {}
+        for et_child in child_elem:
+            element_to_dict(et_child, dict_tree[key_elem])
+
+    return dict_tree
+
+
+
 
 @dataclass
 class AnnotationBase:
@@ -514,6 +552,82 @@ class AuxCal(AnnotationBase):
                     float(calibration_params.find('noiseCalibrationFactor').text)
 
         return cls
+
+
+@dataclass
+class SwathRFI:
+    '''
+    RFI information in bursts-wise in swath
+    '''
+    # from product annotation >= 3.40
+    rfi_mitigation_performed: str
+    rfi_mitigation_domain: str
+
+    # From RFI burst report in RFI annotation
+    rfi_burst_report_list: list
+    azimuth_time_list: list
+
+    @classmethod
+    def from_et(cls,
+                et_rfi: ET,
+                et_product: ET,
+                ipf_version: version.Version):
+        '''Load RFI information from etree'''
+
+        cls.xml_et = et_rfi
+
+        if ipf_version < version.Version('3.40'):
+            # RFI related processing is not in place
+            # return an empty dataclass
+            return None # TODO return sth. other than None
+
+        # Attempt to locate the RFI information from the input annotations
+        header_lads = et_product.find('imageAnnotation/processingInformation')
+        if header_lads is None:
+            raise ValueError('Cannot find RFI mitigation info from the product annotation.')
+
+        header_rfi = et_rfi.find('rfiBurstReportList')
+        if header_rfi is None:
+            raise ValueError('Cannot find RFI burst information from the RFI annotation')
+
+
+        # Start to load RFI information
+        cls.rfi_mitigation_performed = header_lads.find('rfiMitigationPerformed').text
+        cls.rfi_mitigation_domain = header_lads.find('rfiMitigationDomain').text
+
+
+        num_burst_report = len(header_rfi)
+        cls.rfi_burst_report_list = [None] * num_burst_report
+        cls.azimuth_time_list = [None] * num_burst_report
+
+        for i_burst, elem_burst in enumerate(header_rfi):
+            cls.rfi_burst_report_list[i_burst] = element_to_dict(elem_burst)['rfiBurstReport']
+            cls.azimuth_time_list[i_burst] = cls.rfi_burst_report_list[i_burst]['azimuthTime']
+
+        return cls
+
+
+@dataclass
+class RfiBurstReport:
+    '''RFI information in Burst scale'''
+    # From product annotation
+    rfi_mitigation_performed: str
+    rfi_mitigation_domain: str
+
+    # From RFI annotation
+    rfi_mitigation_applied: str
+    azimuth_time: datetime.datetime
+    in_band_out_band_power_ratio: float
+    time_domain_rfi_report: SimpleNamespace
+    frequency_domain_rfi_burst_report: SimpleNamespace
+
+    #def from_
+
+
+
+    
+
+
 
 def closest_block_to_azimuth_time(vector_azimuth_time: np.ndarray,
                                   azimuth_time_burst: datetime.datetime) -> int:
@@ -1021,3 +1135,12 @@ class BurstExtendedCoeffs:
         return (np.array(vec_aztime_sequence),
                 np.array(arr_coeff_sequence),
                 np.array(vec_tau0_sequence))
+
+
+if __name__=='__main__':
+    path_product_annotation = '/Users/jeong/Downloads/S1A_IW_SLC__1SDV_20230108T135249_20230108T135316_046693_0598D3_BA76.SAFE/annotation/s1a-iw3-slc-vv-20230108t135249-20230108t135314-046693-0598d3-006.xml'
+    path_rfi_annotation = '/Users/jeong/Downloads/S1A_IW_SLC__1SDV_20230108T135249_20230108T135316_046693_0598D3_BA76.SAFE/annotation/rfi/rfi-s1a-iw3-slc-vv-20230108t135249-20230108t135314-046693-0598d3-006.xml'
+    xin_rfi = ET.parse(path_rfi_annotation)
+    xin_lads = ET.parse(path_product_annotation)
+    SR = SwathRFI.from_et(xin_rfi, xin_lads, version.Version('3.52'))
+    print('afas')
