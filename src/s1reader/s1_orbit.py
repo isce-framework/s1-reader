@@ -249,6 +249,7 @@ def get_orbit_file_from_dir(zip_path: str, orbit_dir: str, auto_download: bool =
         if not auto_download:
             raise NotADirectoryError(f"{orbit_dir} not found")
         else:
+            print(f"{orbit_dir} not found, creating directory.")
             os.makedirs(orbit_dir, exist_ok=True)
 
     # extract platform id, start and end times from swath file name
