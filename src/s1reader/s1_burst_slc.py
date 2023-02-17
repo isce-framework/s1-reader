@@ -719,11 +719,11 @@ class Sentinel1BurstSlc:
                                        custom_radargrid=None):
         '''
         - Calculate Lon / Lat / Hgt in radar grid, to be used for the
-          actual computation of az fm mismatch rate 
+          actual computation of az fm mismatch rate
         - Define the radar grid for the correction.
         - call `az_fm_rate_mismatch_from_llh` to do the actual computation
 
-        
+
         Parameters:
         -----------
         path_dem: str
