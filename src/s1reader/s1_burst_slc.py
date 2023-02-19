@@ -2,6 +2,7 @@ import os
 from dataclasses import dataclass
 import datetime
 import tempfile
+from typing import Optional
 import warnings
 from packaging import version
 
@@ -263,16 +264,30 @@ class Sentinel1BurstSlc:
     def __repr__(self):
         return f"{self.__class__.__name__}(burst_id={self.burst_id})"
 
-    def as_isce3_radargrid(self):
+    def as_isce3_radargrid(self, az_step: Optional[float] = None, rg_step: Optional[float] = None):
         '''Init and return isce3.product.RadarGridParameters.
 
-        Returns:
-        --------
+        Parameters
+        ----------
+        az_step : float, optional
+            Azimuth step size in seconds. If not provided, the azimuth step
+            size is set to the azimuth time interval.
+        rg_step : float, optional
+            Range step size in meters. If not provided, the range step size
+            is set to the range pixel spacing.
+
+        Returns
+        -------
         _ : RadarGridParameters
             RadarGridParameters constructed from class members.
         '''
 
+        if az_step is None:
+            az_step = self.azimuth_time_interval
         prf = 1 / self.azimuth_time_interval
+
+        if rg_step is None:
+            rg_step = self.range_pixel_spacing
 
         length, width = self.shape
 
@@ -286,7 +301,7 @@ class Sentinel1BurstSlc:
                                                  self.wavelength,
                                                  prf,
                                                  self.starting_range,
-                                                 self.range_pixel_spacing,
+                                                 rg_step,
                                                  isce3.core.LookSide.Right,
                                                  length,
                                                  width,
