@@ -1,5 +1,8 @@
+from datetime import timedelta
+
 import isce3
 import numpy as np
+
 
 
 def test_burst(bursts):
@@ -72,3 +75,39 @@ def test_burst(bursts):
         assert burst.azimuth_fm_rate.mean == 901673.89084624
         assert burst.azimuth_fm_rate.std == 149896229.0
         assert burst.azimuth_fm_rate.coeffs == az_fm_rate_poly1d_coeffs[i]
+
+
+def test_as_isce3_radargrid(bursts):
+    for burst in bursts:
+        grid = burst.as_isce3_radargrid()
+        assert grid.width == burst.width
+        assert grid.length == burst.length
+        assert grid.starting_range == burst.starting_range
+        dt = isce3.core.DateTime((burst.sensing_start - timedelta(days=2)))
+        assert dt == grid.ref_epoch
+        assert grid.prf == 1 / burst.azimuth_time_interval
+        assert grid.range_pixel_spacing == burst.range_pixel_spacing
+        assert str(grid.lookside) == 'LookSide.Right'
+        assert grid.wavelength == burst.wavelength
+
+
+def test_as_isce3_radargrid_step_change(bursts):
+    # Change the az_step, rg_step in .as_isce3_radargrid()
+    burst = bursts[0]
+    rg_step = burst.range_pixel_spacing
+    az_step = burst.azimuth_time_interval
+    grid = burst.as_isce3_radargrid(az_step=az_step, rg_step=rg_step)
+    assert grid.width == burst.width
+    assert grid.length == burst.length
+    assert grid.prf == 1 / az_step
+
+
+    rg_step *= 2
+    grid = burst.as_isce3_radargrid(rg_step=rg_step)
+    assert grid.width == burst.width // 2
+    assert grid.length == burst.length
+
+    az_step *= 2
+    grid = burst.as_isce3_radargrid(az_step=az_step)
+    assert grid.width == burst.width
+    assert grid.length == burst.length // 2

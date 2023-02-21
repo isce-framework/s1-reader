@@ -2,6 +2,7 @@ import os
 from dataclasses import dataclass
 import datetime
 import tempfile
+from typing import Optional
 import warnings
 from packaging import version
 
@@ -263,18 +264,54 @@ class Sentinel1BurstSlc:
     def __repr__(self):
         return f"{self.__class__.__name__}(burst_id={self.burst_id})"
 
-    def as_isce3_radargrid(self):
+    def as_isce3_radargrid(self,
+                           az_step: Optional[float] = None,
+                           rg_step: Optional[float] = None):
         '''Init and return isce3.product.RadarGridParameters.
 
-        Returns:
-        --------
+        The `az_step` and `rg_step` parameters are used to construct a
+        decimated grid. If not specified, the grid will be at the full radar
+        resolution.
+        Note that increasing the range/azimuth step size does not change the sensing
+        start of the grid, as the grid is decimated rather than multilooked.
+
+        Parameters
+        ----------
+        az_step : float, optional
+            Azimuth step size in seconds. If not provided, the azimuth step
+            size is set to the azimuth time interval.
+        rg_step : float, optional
+            Range step size in meters. If not provided, the range step size
+            is set to the range pixel spacing.
+
+        Returns
+        -------
         _ : RadarGridParameters
             RadarGridParameters constructed from class members.
         '''
 
-        prf = 1 / self.azimuth_time_interval
-
         length, width = self.shape
+        if az_step is None:
+            az_step = self.azimuth_time_interval
+        else:
+            if az_step < 0:
+                raise ValueError("az_step cannot be negative")
+            length_in_seconds = length * self.azimuth_time_interval
+            if az_step > length_in_seconds:
+                raise ValueError("az_step cannot be larger than radar grid")
+            length = int(length_in_seconds / az_step)
+
+        if rg_step is None:
+            rg_step = self.range_pixel_spacing
+        else:
+            if rg_step < 0:
+                raise ValueError("rg_step cannot be negative")
+            width_in_meters = width * self.range_pixel_spacing
+            if rg_step > width_in_meters:
+                raise ValueError("rg_step cannot be larger than radar grid")
+            width = int(width_in_meters / rg_step)
+
+        prf = 1 / az_step
 
         time_delta = datetime.timedelta(days=2)
         ref_epoch = isce3.core.DateTime(self.sensing_start - time_delta)
@@ -286,7 +323,7 @@ class Sentinel1BurstSlc:
                                                  self.wavelength,
                                                  prf,
                                                  self.starting_range,
-                                                 self.range_pixel_spacing,
+                                                 rg_step,
                                                  isce3.core.LookSide.Right,
                                                  length,
                                                  width,
