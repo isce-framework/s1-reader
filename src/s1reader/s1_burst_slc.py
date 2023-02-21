@@ -282,26 +282,24 @@ class Sentinel1BurstSlc:
             RadarGridParameters constructed from class members.
         '''
 
+        width, length = self.shape
         if az_step is None:
             az_step = self.azimuth_time_interval
-            length = self.shape[0]
         else:
-            length_in_seconds = length / self.azimuth_time_interval
             if az_step < 0:
                 raise ValueError("az_step cannot be negative")
-            if 1 / az_step > length_in_seconds:
+            length_in_seconds = length * self.azimuth_time_interval
+            if az_step > length_in_seconds:
                 raise ValueError("az_step cannot be larger than radar grid")
-            length = (length / self.azimuth_time_interval) // az_step
-
+            length = length_in_seconds // az_step
 
         if rg_step is None:
             rg_step = self.range_pixel_spacing
-            width = self.shape[1]
         else:
-            width_in_meters = width * self.range_pixel_spacing
             if rg_step < 0:
                 raise ValueError("rg_step cannot be negative")
-            if rg_step > width * width_in_meters:
+            width_in_meters = width * self.range_pixel_spacing
+            if rg_step > width_in_meters:
                 raise ValueError("rg_step cannot be larger than radar grid")
             width = (width_in_meters) // rg_step
 
