@@ -284,7 +284,7 @@ class Sentinel1BurstSlc:
 
         if az_step is None:
             az_step = self.azimuth_time_interval
-        prf = 1 / self.azimuth_time_interval
+        prf = 1 / az_step
 
         if rg_step is None:
             rg_step = self.range_pixel_spacing
