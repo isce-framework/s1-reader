@@ -282,7 +282,7 @@ class Sentinel1BurstSlc:
             RadarGridParameters constructed from class members.
         '''
 
-        width, length = self.shape
+        length, width = self.shape
         if az_step is None:
             az_step = self.azimuth_time_interval
         else:
