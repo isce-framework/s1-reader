@@ -264,8 +264,16 @@ class Sentinel1BurstSlc:
     def __repr__(self):
         return f"{self.__class__.__name__}(burst_id={self.burst_id})"
 
-    def as_isce3_radargrid(self, az_step: Optional[float] = None, rg_step: Optional[float] = None):
+    def as_isce3_radargrid(self,
+                           az_step: Optional[float] = None,
+                           rg_step: Optional[float] = None):
         '''Init and return isce3.product.RadarGridParameters.
+
+        The `az_step` and `rg_step` parameters are used to construct a
+        decimated grid. If not specified, the grid will be at the full radar
+        resolution.
+        Note that increasing the range/azimuth step size does not change the sensing
+        start of the grid, as the grid is decimated rather than multilooked.
 
         Parameters
         ----------
