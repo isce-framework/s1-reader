@@ -47,7 +47,7 @@ def download_orbit(safe_file: str, orbit_dir: str):
         orbit_dict = get_orbit_dict(mission_id, start_time,
                                     end_time, 'AUX_RESORB')
     # Download orbit file
-    orbit_file = os.path.join(orbit_dir, orbit_dict["orbit_name"] + '.EOF')
+    orbit_file = os.path.join(orbit_dir, f"{orbit_dict['orbit_name']}.EOF")
     if not os.path.exists(orbit_file):
         download_orbit_file(orbit_dir, orbit_dict['orbit_url'])
 
