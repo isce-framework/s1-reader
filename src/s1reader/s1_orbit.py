@@ -110,7 +110,7 @@ def get_file_name_tokens(zip_path: str) -> [str, list[datetime.datetime]]:
     Parameters
     ----------
     zip_path: list[str]
-        List containing orbit path strings. 
+        List containing orbit path strings.
         Orbit files required to adhere to naming convention found here:
         https://sentinels.copernicus.eu/documents/247904/351187/Copernicus_Sentinels_POD_Service_File_Format_Specification
 
