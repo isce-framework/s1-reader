@@ -37,14 +37,14 @@ def download_orbit(safe_file: str, orbit_dir: str):
     check_internet_connection()
 
     # Parse info from SAFE file name
-    sensor_id, _, start_time, end_time, _ = parse_safe_filename(safe_file)
+    mission_id, _, start_time, end_time, _ = parse_safe_filename(safe_file)
 
     # Find precise orbit first
-    orbit_dict = get_orbit_dict(sensor_id, start_time,
+    orbit_dict = get_orbit_dict(mission_id, start_time,
                                 end_time, 'AUX_POEORB')
     # If orbit dict is empty, find restituted orbits
     if orbit_dict is None:
-        orbit_dict = get_orbit_dict(sensor_id, start_time,
+        orbit_dict = get_orbit_dict(mission_id, start_time,
                                     end_time, 'AUX_RESORB')
     # Download orbit file
     orbit_file = os.path.join(orbit_dir, orbit_dict["orbit_name"] + '.EOF')
@@ -76,9 +76,9 @@ def parse_safe_filename(safe_filename):
 
     Returns
     -------
-    List of [sensor_id, mode_id, start_datetime,
+    List of [mission_id, mode_id, start_datetime,
                 end_datetime, abs_orbit_num]
-       sensor_id: sensor identifier (S1A or S1B)
+       mission_id: sensor identifier (S1A or S1B)
        mode_id: mode/beam (e.g. IW)
        start_datetime: acquisition start datetime
        stop_datetime: acquisition stop datetime
@@ -88,12 +88,12 @@ def parse_safe_filename(safe_filename):
     ---------
     parse_safe_filename('S1A_IW_SLC__1SDV_20150224T114043_20150224T114111_004764_005E86_AD02.SAFE')
     returns
-    ['A', 'IW', datetime.datetime(2015, 2, 24, 11, 40, 43),\
+    ['S1A', 'IW', datetime.datetime(2015, 2, 24, 11, 40, 43),\
     datetime.datetime(2015, 2, 24, 11, 41, 11), 4764]
     '''
 
     safe_name = os.path.basename(safe_filename)
-    sensor_id = safe_name[2]
+    mission_id = safe_name[:3]
     sensor_mode = safe_name[4:6]
     start_datetime = datetime.datetime.strptime(safe_name[17:32],
                                                 FMT)
@@ -101,16 +101,38 @@ def parse_safe_filename(safe_filename):
                                               FMT)
     abs_orb_num = int(safe_name[49:55])
 
-    return [sensor_id, sensor_mode, start_datetime, end_datetime, abs_orb_num]
+    return [mission_id, sensor_mode, start_datetime, end_datetime, abs_orb_num]
 
 
-def get_orbit_dict(sensor_id, start_time, end_time, orbit_type):
+def get_file_name_tokens(zip_path: str) -> [str, list[datetime.datetime]]:
+    '''Extract swath platform ID and start/stop times from SAFE zip file path.
+
+    Parameters
+    ----------
+    zip_path: list[str]
+        List containing orbit path strings. 
+        Orbit files required to adhere to naming convention found here:
+        https://sentinels.copernicus.eu/documents/247904/351187/Copernicus_Sentinels_POD_Service_File_Format_Specification
+
+    Returns
+    -------
+    mission_id: ('S1A', 'S1B')
+    orbit_path : str
+        Path the orbit file.
+    t_swath_start_stop: list[datetime.datetime]
+        Swath start/stop times
+    '''
+    mission_id, _, start_time, end_time, _ = parse_safe_filename(zip_path)
+    return mission_id, [start_time, end_time]
+
+
+def get_orbit_dict(mission_id, start_time, end_time, orbit_type):
     '''
     Query Copernicus GNSS API to find latest orbit file
     Parameters
     ----------
-    sensor_id: str
-        Sentinel satellite identifier ('A' or 'B')
+    mission_id: str
+        Sentinel satellite identifier ('S1A' or 'S1B')
     start_time: datetime object
         Sentinel start acquisition time
     end_time: datetime object
@@ -140,7 +162,7 @@ def get_orbit_dict(sensor_id, start_time, end_time, orbit_type):
     pad_end_time = end_time + pad_30_min
     new_start_time = pad_start_time.strftime('%Y-%m-%dT%H:%M:%S')
     new_end_time = pad_end_time.strftime('%Y-%m-%dT%H:%M:%S')
-    query_string = f"startswith(Name,'S1{sensor_id}') and substringof('{orbit_type}',Name) " \
+    query_string = f"startswith(Name,'{mission_id}') and substringof('{orbit_type}',Name) " \
                    f"and ContentDate/Start lt datetime'{new_start_time}' and ContentDate/End gt datetime'{new_end_time}'"
     query_params = {'$top': 1, '$orderby': 'ContentDate/Start asc',
                     '$filter': query_string}
@@ -193,32 +215,6 @@ def download_orbit_file(output_folder, orbit_url):
     return orbit_file
 
 
-def get_file_name_tokens(zip_path: str) -> [str, list[datetime.datetime]]:
-    '''Extract swath platform ID and start/stop times from SAFE zip file path.
-
-    Parameters
-    ----------
-    zip_path: list[str]
-        List containing orbit path strings. Orbit files required to adhere to
-        naming convention found here:
-        https://s1qc.asf.alaska.edu/aux_poeorb/
-
-    Returns
-    -------
-    platform_id: ('S1A', 'S1B')
-    orbit_path : str
-        Path the orbit file.
-    t_swath_start_stop: list[datetime.datetime]
-        Swath start/stop times
-    '''
-    platform_id, _, start_time, end_time, _ = parse_safe_filename(zip_path)
-    return platform_id,[start_time, end_time]
-
-
-# lambda to check if file exists if desired sat_id in basename
-item_valid = lambda item, sat_id: os.path.isfile(item) and sat_id in os.path.basename(item)
-
-
 def get_orbit_file_from_dir(zip_path: str, orbit_dir: str, auto_download: bool = False) -> str:
     '''Get orbit state vector list for a given swath.
 
@@ -251,12 +247,6 @@ def get_orbit_file_from_dir(zip_path: str, orbit_dir: str, auto_download: bool =
         else:
             print(f"{orbit_dir} not found, creating directory.")
             os.makedirs(orbit_dir, exist_ok=True)
-
-    # extract platform id, start and end times from swath file name
-    platform_id, t_swath_start_stop = get_file_name_tokens(zip_path)
-
-    # initiate output
-    orbit_file = ''
 
     # search for orbit file
     orbit_file_list = glob.glob(os.path.join(orbit_dir, 'S1*.EOF'))
@@ -292,15 +282,14 @@ def get_orbit_file_from_list(zip_path: str, orbit_file_list: list) -> str:
     Returns:
     --------
     orbit_file : str
-        Path to the orbit file.
+        Path to the orbit file, or an empty string if no orbit file was found.
     '''
-
     # check the existence of input file path and directory
     if not os.path.exists(zip_path):
         raise FileNotFoundError(f"{zip_path} does not exist")
 
     # extract platform id, start and end times from swath file name
-    platform_id, t_swath_start_stop = get_file_name_tokens(zip_path)
+    mission_id, t_swath_start_stop = get_file_name_tokens(zip_path)
 
     # initiate output
     orbit_file_final = ''
@@ -308,7 +297,9 @@ def get_orbit_file_from_list(zip_path: str, orbit_file_list: list) -> str:
     # search for orbit file
     for orbit_file in orbit_file_list:
         # check if file validity
-        if not item_valid(orbit_file, platform_id):
+        if not os.path.isfile(orbit_file):
+            continue
+        if mission_id not in os.path.basename(orbit_file):
             continue
 
         # get file name and extract state vector start/end time strings
@@ -332,4 +323,3 @@ def get_orbit_file_from_list(zip_path: str, orbit_file_list: list) -> str:
         warnings.warn(msg)
 
     return orbit_file_final
-
