@@ -528,10 +528,24 @@ class Sentinel1BurstSlc:
         return self_as_dict
 
 
-    def _steps_to_vecs(self, range_step, az_step):
-        ''' convert range_step (meters) and az_step (seconds) into aranges to
-        generate LUT2ds
-        '''
+    def _steps_to_vecs(self, range_step, az_step, range_margin=1000, az_margin=0.1):
+        """ create vectors of slant range and azimuth time
+        Parameters
+        ----------
+        range_step: float
+            spacing in range direction [meters]
+        az_step: float
+            spacing in azimuth direction [seconds]
+        range_margin: float
+            extra margin in meters
+        az_margin: float
+            extra margin in seconds
+
+        Returns
+        -------
+        vectors of slant range and azimuth time
+        """
+
         step_errs = []
         if range_step <= 0:
             step_errs.append('range')
@@ -545,16 +559,29 @@ class Sentinel1BurstSlc:
         # container to store names of axis vectors that are invalid: i.e. size 0
         vec_errs = []
 
+        rdrgrid = self.as_isce3_radargrid()
+
+        # compute number of margin pixels
+        n_rng_margin = range_margin/self.range_pixel_spacing
+        n_az_margin = az_margin/self.azimuth_time_interval
+
+        # adjust the width and length with margin on both sides
+        width = self.width + 2*n_rng_margin
+        length = self.length + 2*n_az_margin
+
+        # adjust the starting range and sensing start with the margin
+        starting_range = self.starting_range - range_margin
+        sensing_start = rdrgrid.sensing_start - az_margin
+
         # compute range vector
-        n_range = np.ceil(self.width * self.range_pixel_spacing / range_step).astype(int)
-        range_vec = self.starting_range + np.arange(0, n_range) * range_step
+        n_range = np.ceil(width * self.range_pixel_spacing / range_step).astype(int)
+        range_vec = starting_range + np.arange(0, n_range) * range_step
         if range_vec.size == 0:
             vec_errs.append('range')
 
         # compute azimuth vector
-        n_az = np.ceil(self.length * self.azimuth_time_interval / az_step).astype(int)
-        rdrgrid = self.as_isce3_radargrid()
-        az_vec = rdrgrid.sensing_start + np.arange(0, n_az) * az_step
+        n_az = np.ceil(length * self.azimuth_time_interval / az_step).astype(int)
+        az_vec = sensing_start + np.arange(0, n_az) * az_step
         if az_vec.size == 0:
             vec_errs.append('azimuth')
 
