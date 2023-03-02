@@ -747,7 +747,7 @@ class Sentinel1BurstSlc:
         -------
         _: isce3.core.LUT2d
             azimuth FM rate mismatch rate in radar grid in seconds.
-    
+
         Examples
         ----------
         >>> correction_grid = burst.az_fm_rate_mismatch_mitigation("my_dem.tif")
@@ -787,7 +787,7 @@ class Sentinel1BurstSlc:
                                     length_radargrid,
                                     width_radargrid,
                                     self.as_isce3_radargrid().ref_epoch)
-        
+
         # Run topo on scratch directory
         dem_raster = isce3.io.Raster(path_dem)
         epsg = dem_raster.get_epsg()
@@ -839,7 +839,7 @@ class Sentinel1BurstSlc:
             temp_dir_obj.cleanup()
 
         return lut_az_fm_mismatch
-    
+
 
     def az_fm_rate_mismatch_from_llh(self,
                                      lat_map: np.ndarray,
@@ -873,7 +873,7 @@ class Sentinel1BurstSlc:
             azimuth FM rate mismatch rate in radar grid in seconds.
 
         '''
- 
+
         # Define the correction grid from the radargrid
         # Also define the staggered grid in azimuth to calculate acceeration
         width_grid = correction_radargrid.width
