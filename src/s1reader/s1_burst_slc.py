@@ -789,6 +789,8 @@ class Sentinel1BurstSlc:
                                     self.as_isce3_radargrid().ref_epoch)
 
         # Run topo on scratch directory
+        if not os.path.isfile(path_dem):
+            raise FileNotFoundError(f'not found - DEM {path_dem})
         dem_raster = isce3.io.Raster(path_dem)
         epsg = dem_raster.get_epsg()
         proj = isce3.core.make_projection(epsg)
