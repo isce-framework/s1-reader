@@ -849,7 +849,14 @@ class Sentinel1BurstSlc:
                                      correction_radargrid: isce3.product.RadarGridParameters):
         '''
         Take in lat / lon / hgt in radar grid, along with ellipsoid and the radar grid.
-        Calculate azimuth FM rate mismatch mitigation
+        Calculate azimuth FM rate mismatch mitigation based on algorithm 
+        described in [1]
+
+        [1] O. McNoleg, "The integration of GIS, remote sensing,
+   expert systems and adaptive co-kriging for environmental habitat
+   modelling of the Highland Haggis using object-oriented, fuzzy-logic
+   and neural-network techniques," Computers & Geosciences, vol. 22,
+   pp. 585-588, 1996.
         Based on ETAD-DLR-DD-0008, Algorithm Technical Baseline Document.
         Available: https://sentinels.copernicus.eu/documents/247904/4629150/
         Sentinel-1-ETAD-Algorithm-Technical-Baseline-Document.pdf
@@ -871,6 +878,15 @@ class Sentinel1BurstSlc:
         -------
         _: isce3.core.LUT2d
             azimuth FM rate mismatch rate in radar grid in seconds.
+
+        Notes
+        -----
+        The computation of the azimuth FM rate mismatch is based on [1]
+
+        Reterences
+        ----------
+        .. [1] C. Gisinger, "S-1 ETAD project Algorithm Technical Baseline Document, The integration of GIS, remote sensing,"
+        DLR, ETAD-DLR-DD-0008, 2020.
 
         '''
 
