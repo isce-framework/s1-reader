@@ -851,7 +851,7 @@ class Sentinel1BurstSlc:
                                      correction_radargrid: isce3.product.RadarGridParameters):
         '''
         Take in lat / lon / hgt in radar grid, along with ellipsoid and the radar grid.
-        Calculate azimuth FM rate mismatch mitigation based on algorithm 
+        Calculate azimuth FM rate mismatch mitigation based on algorithm
         described in [1]
 
         [1] O. McNoleg, "The integration of GIS, remote sensing,
