@@ -3,6 +3,7 @@ import glob
 import os
 import warnings
 import lxml.etree as ET
+from typing import Union
 import zipfile
 
 from types import SimpleNamespace
@@ -17,9 +18,11 @@ from nisar.workflows.stage_dem import check_dateline
 from s1reader import s1_annotation  # to access __file__
 from s1reader.s1_annotation import ProductAnnotation, NoiseAnnotation,\
                                    CalibrationAnnotation, AuxCal, \
-                                   BurstCalibration, BurstEAP, BurstNoise
+                                   BurstCalibration, BurstEAP, BurstNoise,\
+                                   BurstExtendedCoeffs
 
 from s1reader.s1_burst_slc import Doppler, Sentinel1BurstSlc
+from s1reader.s1_burst_id import S1BurstId
 
 
 esa_track_burst_id_file = f"{os.path.dirname(os.path.realpath(__file__))}/data/sentinel1_track_burst_id.txt"
@@ -32,9 +35,6 @@ def as_datetime(t_str):
     ----------
     t_str : string
         Time string to be parsed. (e.g., "2021-12-10T12:00:0.0")
-    fmt : string
-        Format of string provided. Defaults to az time format found in annotation XML.
-        (e.g., "%Y-%m-%dT%H:%M:%S.%f").
 
     Returns:
     ------
@@ -63,7 +63,8 @@ def parse_polynomial_element(elem, poly_name):
     half_c = 0.5 * isce3.core.speed_of_light
     r0 = half_c * float(elem.find('t0').text)
 
-    # NOTE Format of the azimuth FM rate polynomials has changed when IPF version was somewhere between 2.36 and 2.82
+    # NOTE Format of the azimuth FM rate polynomials has changed
+    # when IPF version was somewhere between 2.36 and 2.82
     if elem.find(poly_name) is None:  # before the format change i.e. older IPF
         coeffs = [float(x.text) for x in elem[2:]]
     else:  # after the format change i.e. newer IPF
@@ -268,22 +269,61 @@ def get_burst_centers_and_boundaries(tree):
     return center_pts, boundary_pts
 
 def get_ipf_version(tree: ET):
-    '''Extract the IPF version from the ET of manifest.safe
+    '''Extract the IPF version from the ET of manifest.safe.
+
+    Parameters
+    ----------
+    tree : xml.etree.ElementTree
+        ElementTree containing the parsed 'manifest.safe' file.
+
+    Returns
+    -------
+    ipf_version : version.Version
+        IPF version of the burst.
     '''
-    # path to xmlData in manifest
-    xml_meta_path = 'metadataSection/metadataObject/metadataWrap/xmlData'
-
-    # piecemeal build path to software path to access version attrib
-    esa_http = '{http://www.esa.int/safe/sentinel-1.0}'
-    processing = xml_meta_path + f'/{esa_http}processing'
-    facility = processing + f'/{esa_http}facility'
-    software = facility + f'/{esa_http}software'
-
     # get version from software element
-    software_elem = tree.find(software)
+    search_term, nsmap = _get_manifest_pattern(tree, ['processing', 'facility', 'software'])
+    software_elem = tree.find(search_term, nsmap)
     ipf_version = version.parse(software_elem.attrib['version'])
 
     return ipf_version
+
+def get_start_end_track(tree: ET):
+    '''Extract the start/end relative orbits from manifest.safe file'''
+    search_term, nsmap = _get_manifest_pattern(tree, ['orbitReference', 'relativeOrbitNumber'])
+    elem_start, elem_end = tree.findall(search_term, nsmap)
+    return int(elem_start.text), int(elem_end.text)
+
+
+def _get_manifest_pattern(tree: ET, keys: list):
+    '''Get the search path to extract data from the ET of manifest.safe.
+
+    Parameters
+    ----------
+    tree : xml.etree.ElementTree
+        ElementTree containing the parsed 'manifest.safe' file.
+    keys : list
+        List of keys to search for in the manifest file.
+
+    Returns
+    -------
+    str
+        Search path to extract from the ET of the manifest.safe XML.
+
+    '''
+    # https://lxml.de/tutorial.html#namespaces
+    # Get the namespace from the root element to avoid full urls
+    # This is a dictionary with a short name containing the labels in the
+    # XML tree, and the fully qualified URL as the value.
+    try:
+        nsmap = tree.nsmap
+    except AttributeError:
+        nsmap = tree.getroot().nsmap
+    # path to xmlData in manifest
+    xml_meta_path = 'metadataSection/metadataObject/metadataWrap/xmlData'
+    safe_terms = "/".join([f'safe:{key}' for key in keys])
+    return f'{xml_meta_path}/{safe_terms}', nsmap
+
 
 def get_path_aux_cal(directory_aux_cal: str, str_annotation: str):
     '''
@@ -323,8 +363,7 @@ def get_path_aux_cal(directory_aux_cal: str, str_annotation: str):
     list_aux_cal = glob.glob(f'{directory_aux_cal}/{str_platform}_AUX_CAL_V*.SAFE.zip')
 
     if len(list_aux_cal) == 0:
-        raise ValueError( 'Cannot find AUX_CAL files from directory: '
-                                f'{directory_aux_cal}')
+        raise ValueError(f'Cannot find AUX_CAL files from {directory_aux_cal} .')
 
     format_datetime = '%Y%m%dT%H%M%S'
 
@@ -433,7 +472,8 @@ def get_track_burst_num(track_burst_num_file: str = esa_track_burst_id_file):
     return track_burst_num
 
 def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
-                   iw2_annotation_path: str, open_method=open, flag_apply_eap: bool = True):
+                   iw2_annotation_path: str, open_method=open,
+                   flag_apply_eap: bool = True):
     '''Parse bursts in Sentinel-1 annotation XML.
 
     Parameters:
@@ -457,27 +497,18 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
     bursts : list
         List of Sentinel1BurstSlc objects found in annotation XML.
     '''
-
-    # a dict where the key is the track number and the value is a list of
-    # two integers for the start and stop burst number
-    track_burst_num = get_track_burst_num()
-
     _, tail = os.path.split(annotation_path)
-    platform_id, swath_name, _, pol = [x.upper() for x in tail.split('-')[:4]]
+    platform_id, subswath, _, pol = [x.upper() for x in tail.split('-')[:4]]
     safe_filename = os.path.basename(annotation_path.split('.SAFE')[0])
-
-    # For IW mode, one burst has a duration of ~2.75 seconds and a burst
-    # overlap of approximately ~0.4 seconds.
-    # https://sentinels.copernicus.eu/web/sentinel/user-guides/sentinel-1-sar/product-types-processing-levels/level-1
-    # Additional precision calculated from averaging the differences between
-    # burst sensing starts in prototyping test data
-    burst_interval = 2.758277
 
     # parse manifest.safe to retrieve IPF version
     manifest_path = os.path.dirname(annotation_path).replace('annotation','') + 'manifest.safe'
     with open_method(manifest_path, 'r') as f_manifest:
-        tree_manfest = ET.parse(f_manifest)
-        ipf_version = get_ipf_version(tree_manfest)
+        tree_manifest = ET.parse(f_manifest)
+        ipf_version = get_ipf_version(tree_manifest)
+        # Parse out the start/end track to determine if we have an
+        # equator crossing (for the burst_id calculation).
+        start_track, end_track = get_start_end_track(tree_manifest)
 
     # Load the Product annotation - for EAP calibration
     with open_method(annotation_path, 'r') as f_lads:
@@ -487,7 +518,8 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
     # load the Calibraton annotation
     try:
         calibration_annotation_path =\
-            annotation_path.replace('annotation/', 'annotation/calibration/calibration-')
+            annotation_path.replace('annotation/',
+                                    'annotation/calibration/calibration-')
         with open_method(calibration_annotation_path, 'r') as f_cads:
             tree_cads = ET.parse(f_cads)
             calibration_annotation =\
@@ -498,7 +530,8 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
 
     # load the Noise annotation
     try:
-        noise_annotation_path = annotation_path.replace('annotation/', 'annotation/calibration/noise-')
+        noise_annotation_path = annotation_path.replace('annotation/',
+                                                        'annotation/calibration/noise-')
         with open_method(noise_annotation_path, 'r') as f_nads:
             tree_nads = ET.parse(f_nads)
             noise_annotation = NoiseAnnotation.from_et(tree_nads, ipf_version,
@@ -543,7 +576,7 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
         slant_range_time = float(image_info_element.find('slantRangeTime').text)
         ascending_node_time = as_datetime(image_info_element.find('ascendingNodeTime').text)
 
-        downlink_element =  tree.find('generalAnnotation/downlinkInformationList/downlinkInformation')
+        downlink_element = tree.find('generalAnnotation/downlinkInformationList/downlinkInformation')
         prf_raw_data = float(downlink_element.find('prf').text)
         rank = int(downlink_element.find('downlinkValues/rank').text)
         range_chirp_ramp_rate = float(downlink_element.find('downlinkValues/txPulseRampRate').text)
@@ -565,8 +598,6 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
         range_window_coeff = float(rng_processing_element.find('windowCoefficient').text)
 
         orbit_number = int(tree.find('adsHeader/absoluteOrbitNumber').text)
-        orbit_number_offset = 73 if  platform_id == 'S1A' else 202
-        track_number = (orbit_number - orbit_number_offset) % 175 + 1
 
         center_pts, boundary_pts = get_burst_centers_and_boundaries(tree)
 
@@ -590,40 +621,38 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
         osv_list = []
 
     # load individual burst
+    half_burst_in_seconds = 0.5 * (n_lines - 1) * azimuth_time_interval
     burst_list_elements = tree.find('swathTiming/burstList')
     n_bursts = int(burst_list_elements.attrib['count'])
     bursts = [[]] * n_bursts
-    sensing_starts = [[]] * n_bursts
-    sensing_times = [[]] * n_bursts
 
     for i, burst_list_element in enumerate(burst_list_elements):
-        # get burst timing
+        # Zero Doppler azimuth time of the first line of this burst
         sensing_start = as_datetime(burst_list_element.find('azimuthTime').text)
-        sensing_starts[i] = sensing_start
-        sensing_times[i] = as_datetime(burst_list_element.find('sensingTime').text)
-        dt = sensing_times[i] - ascending_node_time
-        # local burst_num within one track, starting from 0
-        burst_num = int((dt.seconds + dt.microseconds / 1e6) // burst_interval)
+        azimuth_time_mid = sensing_start + datetime.timedelta(seconds=half_burst_in_seconds)
 
-        # convert the local burst_num to the global burst_num, starting from 1
-        burst_num += track_burst_num[track_number][0]
+        # Sensing time of the first input line of this burst [UTC]
+        sensing_time = as_datetime(burst_list_element.find('sensingTime').text)
+        # Create the burst ID to match the ESA ID scheme
+        burst_id = S1BurstId.from_burst_params(
+            sensing_time, ascending_node_time, start_track, end_track, subswath
+        )
 
         # choose nearest azimuth FM rate
-        d_seconds = 0.5 * (n_lines - 1) * azimuth_time_interval
-        sensing_mid = sensing_start + datetime.timedelta(seconds=d_seconds)
-        az_fm_rate = get_nearest_polynomial(sensing_mid, az_fm_rate_list)
+        az_fm_rate = get_nearest_polynomial(azimuth_time_mid, az_fm_rate_list)
 
         # choose nearest doppler
-        poly1d = get_nearest_polynomial(sensing_mid, doppler_list)
+        poly1d = get_nearest_polynomial(azimuth_time_mid, doppler_list)
         lut2d = doppler_poly1d_to_lut2d(poly1d, starting_range,
                                         range_pxl_spacing, (n_lines, n_samples),
                                         azimuth_time_interval)
         doppler = Doppler(poly1d, lut2d)
 
+        sensing_duration = datetime.timedelta(
+            seconds=n_lines * azimuth_time_interval)
         if len(osv_list) > 0:
             # get orbit from state vector list/element tree
-            sensing_duration = datetime.timedelta(
-                seconds=n_lines * azimuth_time_interval)
+
             orbit = get_burst_orbit(sensing_start, sensing_start + sensing_duration,
                                     osv_list)
         else:
@@ -643,20 +672,20 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
         last_sample = min(last_valid_samples[first_valid_line],
                           last_valid_samples[last_line])
 
-
-        burst_id = f't{track_number:03d}_{burst_num}_{swath_name.lower()}'
-
         # Extract burst-wise information for Calibration, Noise, and EAP correction
         if calibration_annotation is None:
             burst_calibration = None
         else:
             burst_calibration = BurstCalibration.from_calibration_annotation(calibration_annotation,
-                                                                            sensing_start)
+                                                                             sensing_start)
         if noise_annotation is None:
             burst_noise = None
         else:
-            burst_noise = BurstNoise.from_noise_annotation(noise_annotation, sensing_start,
-                                                i*n_lines, (i+1)*n_lines-1, ipf_version)
+            burst_noise = BurstNoise.from_noise_annotation(noise_annotation,
+                                                           sensing_start,
+                                                           i*n_lines,
+                                                           (i+1)*n_lines-1,
+                                                           ipf_version)
         if aux_cal_subswath is None:
             # Not applying EAP correction; (IPF high enough or user turned that off)
             # No need to fill in `burst_aux_cal`
@@ -665,6 +694,13 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
             burst_aux_cal = BurstEAP.from_product_annotation_and_aux_cal(product_annotation,
                                                                          aux_cal_subswath,
                                                                          sensing_start)
+
+        # Extended FM and DC coefficient information
+        extended_coeffs = BurstExtendedCoeffs.from_polynomial_lists(
+            az_fm_rate_list,
+            doppler_list,
+            sensing_start,
+            sensing_start + sensing_duration)
 
         bursts[i] = Sentinel1BurstSlc(ipf_version, sensing_start, radar_freq, wavelength,
                                       azimuth_steer_rate, azimuth_time_interval,
@@ -678,7 +714,8 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
                                       last_sample, first_valid_line, last_line,
                                       range_window_type, range_window_coeff,
                                       rank, prf_raw_data, range_chirp_ramp_rate,
-                                      burst_calibration, burst_noise, burst_aux_cal)
+                                      burst_calibration, burst_noise, burst_aux_cal,
+                                      extended_coeffs)
 
     return bursts
 
@@ -706,7 +743,7 @@ def _is_zip_annotation_xml(path: str, id_str: str) -> bool:
 
 
 def load_bursts(path: str, orbit_path: str, swath_num: int, pol: str = 'vv',
-                burst_ids: list[str] = None,
+                burst_ids: list[Union[str, S1BurstId]] = None,
                 flag_apply_eap: bool = True):
     '''Find bursts in a Sentinel-1 zip file or a SAFE structured directory.
 
@@ -720,11 +757,13 @@ def load_bursts(path: str, orbit_path: str, swath_num: int, pol: str = 'vv',
         Integer of subswath of desired burst. {1, 2, 3}
     pol : str
         Polarization of desired burst. {hh, vv, hv, vh}
-    burst_ids : list[str]
+    burst_ids : list[str] or list[S1BurstId]
         List of burst IDs for which their Sentinel1BurstSlc objects will be
-        returned. Default of None returns all bursts. Empty list returned if
-        none of the burst IDs are found. If not all burst IDs are found, a list
-        containing found bursts will be returned.
+        returned. Default of None returns all bursts.
+        If not all burst IDs are found, a list containing found bursts will be
+        returned (empty list if none are found).
+    flag_apply_eap: bool
+        Turn on/off EAP related features (AUX_CAL loader)
 
     Returns:
     --------
@@ -738,7 +777,7 @@ def load_bursts(path: str, orbit_path: str, swath_num: int, pol: str = 'vv',
         burst_ids = []
 
     # ensure burst IDs is a list
-    if not isinstance(burst_ids, list):
+    if isinstance(burst_ids, (str, S1BurstId)):
         burst_ids = [burst_ids]
 
     # lower case polarity to be consistent with file naming convention
@@ -752,19 +791,23 @@ def load_bursts(path: str, orbit_path: str, swath_num: int, pol: str = 'vv',
     if not os.path.exists(path):
         raise FileNotFoundError(f'{path} not found')
     elif os.path.isdir(path):
-        bursts = _burst_from_safe_dir(path, id_str, orbit_path, flag_apply_eap)
+        bursts = _burst_from_safe_dir(path, id_str, orbit_path,
+                                      flag_apply_eap)
     elif os.path.isfile(path):
-        bursts = _burst_from_zip(path, id_str, orbit_path, flag_apply_eap)
+        bursts = _burst_from_zip(path, id_str, orbit_path,
+                                 flag_apply_eap)
     else:
         raise ValueError(f'{path} is unsupported')
 
     if burst_ids:
         bursts = [b for b in bursts if b.burst_id in burst_ids]
 
-        burst_ids_found = set([b.burst_id for b in bursts])
+        # convert S1BurstId to string for consistent object comparison later
+        burst_ids_found = set([str(b.burst_id) for b in bursts])
 
         warnings.simplefilter("always")
-        set_burst_ids = set(burst_ids)
+        # burst IDs as strings for consistent object comparison
+        set_burst_ids = set([str(b) for b in burst_ids])
         if not burst_ids_found:
             warnings.warn("None of provided burst IDs found in sub-swath {swath_num}")
         elif burst_ids_found != set_burst_ids:
@@ -777,7 +820,8 @@ def load_bursts(path: str, orbit_path: str, swath_num: int, pol: str = 'vv',
     return bursts
 
 
-def _burst_from_zip(zip_path: str, id_str: str, orbit_path: str, flag_apply_eap: bool):
+def _burst_from_zip(zip_path: str, id_str: str, orbit_path: str,
+                    flag_apply_eap: bool):
     '''Find bursts in a Sentinel-1 zip file.
 
     Parameters:
@@ -785,9 +829,11 @@ def _burst_from_zip(zip_path: str, id_str: str, orbit_path: str, flag_apply_eap:
     path : str
         Path to zip file.
     id_str: str
-        Identifcation of desired burst. Format: iw[swath_num]-slc-[pol]
+        Identification of desired burst. Format: iw[swath_num]-slc-[pol]
     orbit_path : str
         Path the orbit file.
+    flag_apply_eap: bool
+        Turn on/off EAP related features (AUX_CAL loader)
 
     Returns:
     --------
@@ -819,7 +865,8 @@ def _burst_from_zip(zip_path: str, id_str: str, orbit_path: str, flag_apply_eap:
                                 flag_apply_eap=flag_apply_eap)
         return bursts
 
-def _burst_from_safe_dir(safe_dir_path: str, id_str: str, orbit_path: str, flag_apply_eap: bool):
+def _burst_from_safe_dir(safe_dir_path: str, id_str: str, orbit_path: str,
+                         flag_apply_eap: bool):
     '''Find bursts in a Sentinel-1 SAFE structured directory.
 
     Parameters:
@@ -827,9 +874,11 @@ def _burst_from_safe_dir(safe_dir_path: str, id_str: str, orbit_path: str, flag_
     path : str
         Path to SAFE directory.
     id_str: str
-        Identifcation of desired burst. Format: iw[swath_num]-slc-[pol]
+        Identification of desired burst. Format: iw[swath_num]-slc-[pol]
     orbit_path : str
         Path the orbit file.
+    flag_apply_eap: bool
+        Turn on/off EAP related features (AUX_CAL loader)
 
     Returns:
     --------
@@ -853,10 +902,8 @@ def _burst_from_safe_dir(safe_dir_path: str, id_str: str, orbit_path: str, flag_
 
     # find tiff file if measurement directory found
     if os.path.isdir(f'{safe_dir_path}/measurement'):
-        measurement_list = os.listdir(f'{safe_dir_path}/measurement')
-        f_tiff = [f for f in measurement_list
-                  if 'measurement' in f and id_str in f and 'tiff' in f]
-        f_tiff = f'{safe_dir_path}/measurement/{f_tiff[0]}' if f_tiff else ''
+        f_tiff = glob.glob(f'{safe_dir_path}/measurement/*{id_str}*tiff')
+        f_tiff = f_tiff[0] if f_tiff else ''
     else:
         msg = f'measurement directory NOT found in {safe_dir_path}'
         msg += ', continue with metadata only.'
