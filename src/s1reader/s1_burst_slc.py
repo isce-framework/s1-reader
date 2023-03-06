@@ -527,44 +527,14 @@ class Sentinel1BurstSlc:
             self_as_dict[key] = val
         return self_as_dict
 
+    def _steps_to_vecs(self, range_step: float, az_step: float):
+        """Convert range_step (meters) and az_step (sec) into aranges to generate LUT2ds."""
+        radargrid = self.as_isce3_radargrid(az_step=az_step, rg_step=range_step)
+        n_az, n_range = radargrid.shape
 
-    def _steps_to_vecs(self, range_step, az_step):
-        ''' convert range_step (meters) and az_step (seconds) into aranges to
-        generate LUT2ds
-        '''
-        step_errs = []
-        if range_step <= 0:
-            step_errs.append('range')
-        if az_step <= 0:
-            step_errs.append('azimuth')
-        if step_errs:
-            step_errs = ', '.join(step_errs)
-            err_str = f'Following step size(s) <=0: {step_errs}'
-            raise ValueError(err_str)
-
-        # container to store names of axis vectors that are invalid: i.e. size 0
-        vec_errs = []
-
-        # compute range vector
-        n_range = np.ceil(self.width * self.range_pixel_spacing / range_step).astype(int)
         range_vec = self.starting_range + np.arange(0, n_range) * range_step
-        if range_vec.size == 0:
-            vec_errs.append('range')
-
-        # compute azimuth vector
-        n_az = np.ceil(self.length * self.azimuth_time_interval / az_step).astype(int)
-        rdrgrid = self.as_isce3_radargrid()
-        az_vec = rdrgrid.sensing_start + np.arange(0, n_az) * az_step
-        if az_vec.size == 0:
-            vec_errs.append('azimuth')
-
-        if vec_errs:
-            vec_errs = ', '.join(vec_errs)
-            err_str = f'Cannot build aranges from following step(s): {vec_errs}'
-            raise ValueError(err_str)
-
+        az_vec = radargrid.sensing_start + np.arange(0, n_az) * az_step
         return range_vec, az_vec
-
 
     def bistatic_delay(self, range_step=1, az_step=1):
         '''Computes the bistatic delay correction in azimuth direction
@@ -752,8 +722,7 @@ class Sentinel1BurstSlc:
                                        range_step=None,
                                        az_step=None,
                                        threshold_rdr2geo=1e-8,
-                                       numiter_rdr2geo=25,
-                                       custom_radargrid=None):
+                                       numiter_rdr2geo=25):
         '''
         - Calculate Lon / Lat / Hgt in radar grid, to be used for the
           actual computation of az fm mismatch rate
@@ -776,9 +745,6 @@ class Sentinel1BurstSlc:
             Threshold of the iteration for rdr2geo
         numiter_rdr2geo: int
             Maximum number of iteration for rdr2geo
-        custom_radargrid: isce3.product.RadarGridParameters
-            ISCE3 radar grid to define the correction grid.
-            If None, the full resolution radargrid of the burst will be used.
 
         Return:
         -------
@@ -801,29 +767,7 @@ class Sentinel1BurstSlc:
         os.makedirs(path_scratch, exist_ok=True)
 
         # define the radar grid to calculate az fm mismatch rate
-        correction_radargrid = self.as_isce3_radargrid()
-        if custom_radargrid is not None:
-            correction_radargrid = custom_radargrid
-
-        # Override the radargrid definition if `rg_step` and `az_step` is defined
-        if range_step and az_step:
-            if custom_radargrid is not None:
-                warnings.warn('range_step and az_step assigned. '
-                              'Overriding the custom radargrid definition.')
-
-            width_radargrid, length_radargrid = \
-                [vec.size for vec in self._steps_to_vecs(range_step, az_step)]
-            sensing_start_radargrid = self.as_isce3_radargrid().sensing_start
-            correction_radargrid = isce3.product.RadarGridParameters(
-                                    sensing_start_radargrid,
-                                    self.wavelength,
-                                    1/az_step,
-                                    self.starting_range,
-                                    range_step,
-                                    isce3.core.LookSide.Right,
-                                    length_radargrid,
-                                    width_radargrid,
-                                    self.as_isce3_radargrid().ref_epoch)
+        correction_radargrid = self.as_isce3_radargrid(az_step=az_step, range_step=range_step)
 
         # Run topo on scratch directory
         if not os.path.isfile(path_dem):
