@@ -767,7 +767,7 @@ class Sentinel1BurstSlc:
         os.makedirs(path_scratch, exist_ok=True)
 
         # define the radar grid to calculate az fm mismatch rate
-        correction_radargrid = self.as_isce3_radargrid(az_step=az_step, range_step=range_step)
+        correction_radargrid = self.as_isce3_radargrid(az_step=az_step, rg_step=range_step)
 
         # Run topo on scratch directory
         if not os.path.isfile(path_dem):
