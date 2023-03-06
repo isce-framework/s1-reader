@@ -299,7 +299,7 @@ class Sentinel1BurstSlc:
             length_in_seconds = length * self.azimuth_time_interval
             if az_step > length_in_seconds:
                 raise ValueError("az_step cannot be larger than radar grid")
-            length = int(length_in_seconds / az_step)
+            length = int(np.ceil(length_in_seconds / az_step))
 
         if rg_step is None:
             rg_step = self.range_pixel_spacing
@@ -309,7 +309,7 @@ class Sentinel1BurstSlc:
             width_in_meters = width * self.range_pixel_spacing
             if rg_step > width_in_meters:
                 raise ValueError("rg_step cannot be larger than radar grid")
-            width = int(width_in_meters / rg_step)
+            width = int(np.ceil(width_in_meters / rg_step))
 
         prf = 1 / az_step
 
