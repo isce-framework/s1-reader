@@ -201,6 +201,10 @@ class AzimuthCarrierComponents:
     def carrier(self):
         return np.pi * self.kt * ((self.eta - self.eta_ref) ** 2)
 
+    @property
+    def carrier_ramp(self):
+        return np.exp(1j*self.carrier)
+
 @dataclass(frozen=True)
 class Doppler:
     poly1d: isce3.core.Poly1d
@@ -405,6 +409,38 @@ class Sentinel1BurstSlc:
 
         with open(out_path, 'w') as fid:
             fid.write(tmpl)
+
+
+    def generate_deramp_signal(self, offset=0.0, xstep=1, ystep=1):
+        '''
+        Generate ramp using the azimuth carrier
+
+        Parameters
+        ----------
+        offset: float
+            Offset between reference and secondary bursts
+        xstep: int
+            Spacing along the x direction in pixels (default: 1)
+        ystep: int
+            Spacing along the y direction in pixels (default: 1)
+
+        Returns
+        -------
+        ramp: np.ndarray
+            Complex azimuth carrier ramp signal
+        '''
+
+        lines, samples = self.shape
+        x = np.arange(0, samples, xstep, dtype=int)
+        y = np.arange(0, lines, ystep, dtype=int)
+        x_mesh, y_mesh = np.meshgrid(x, y)
+
+        # Estimate azimuth carrier
+        az_carr_comp = self.az_carrier_components(
+                                        offset=offset,
+                                        position=(y_mesh, x_mesh))
+        return az_carr_comp.carrier_ramp
+
 
     def get_az_carrier_poly(self, offset=0.0, xstep=500, ystep=50,
                             az_order=5, rg_order=3, index_as_coord=False):
@@ -675,14 +711,8 @@ class Sentinel1BurstSlc:
 
         Returns
         -------
-        eta: float
-            zero-Doppler azimuth time centered in the middle of the burst
-        eta_ref: float
-            refernce time
-        kt: np.ndarray
-            Doppler centroid rate in the focused TOPS SLC data [Hz/s]
-        carr: np.ndarray
-           Azimuth carrier
+        AzimuthCarrierComponents: AzimuthCarrierComponents obj
+            Object containing azimuth carrier components
 
         Reference
         ---------
