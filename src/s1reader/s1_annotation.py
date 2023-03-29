@@ -22,6 +22,9 @@ from isce3.core import speed_of_light
 # Data Set (NADS) includes azimuth noise vector annotation
 min_ipf_version_az_noise_vector = version.parse('2.90')
 
+# IPF version from which the RFI information gets available
+RFI_INFO_AVAILABLE_FROM = version.Version('3.40')
+
 dict_datatype_rfi={
     "swath": str,
     "azimuthTime": lambda T: datetime.datetime.strptime(T, '%Y-%m-%dT%H:%M:%S.%f'),
@@ -592,7 +595,7 @@ class SwathRfiInfo:
             dataclass populated by this function
         '''
 
-        if ipf_version < version.Version('3.40'):
+        if ipf_version < RFI_INFO_AVAILABLE_FROM:
             # RFI related processing is not in place
             # return an empty dataclass
             return None
