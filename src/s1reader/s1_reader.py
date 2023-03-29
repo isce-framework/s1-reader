@@ -721,10 +721,8 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
         if burst_rfi_info_collection is None:
             burst_rfi_info = None
         else:
-            burst_rfi_info = burst_rfi_info_collection.extract_by_aztime(
-                                                    sensing_start,
-                                                    sensing_start + sensing_duration)
-
+            burst_rfi_info =\
+                burst_rfi_info_collection.extract_by_aztime(sensing_start)
 
         bursts[i] = Sentinel1BurstSlc(ipf_version, sensing_start, radar_freq, wavelength,
                                       azimuth_steer_rate, azimuth_time_interval,

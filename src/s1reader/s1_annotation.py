@@ -625,7 +625,7 @@ class SwathRfiInfo:
 
 
     @classmethod
-    def extract_by_aztime(cls, aztime_start: datetime.datetime, aztime_end: datetime.datetime):
+    def extract_by_aztime(cls, aztime_start: datetime.datetime):
         '''
         Extract the burst noise report that is within the azimuth time of a burst
 
@@ -633,24 +633,24 @@ class SwathRfiInfo:
         -----------
         aztime_start: datetime.datetime
             Starting azimuth time of a burst
-        aztime_end: datetime.datetime
-            Ending azimuth time of a burst
 
         Return:
         -------
         rfi_info: SimpleNamespace
-            A SimpleNamespace that contains burst noise report,
+            A SimpleNamespace that contains burst noise report as a dictionary,
             along with the RFI related information from the product annotation
         '''
-        index_start = np.array(cls.azimuth_time_list) >= aztime_start
-        index_end = np.array(cls.azimuth_time_list) <= aztime_end
+        
+        # find the corresponding burst
+        burst_aztime_diff_arr = np.array(cls.azimuth_time_list) - aztime_start
+        index_burst = np.argmin(np.abs(burst_aztime_diff_arr))
 
-        report_within = np.array(cls.rfi_burst_report_list)[index_start & index_end]
+        burst_report_out = cls.rfi_burst_report_list[index_burst]
 
         rfi_info = SimpleNamespace()
         rfi_info.rfi_mitigation_performed = cls.rfi_mitigation_performed
         rfi_info.rfi_mitigation_domain = cls.rfi_mitigation_domain
-        rfi_info.rfi_burst_report = list(report_within)
+        rfi_info.rfi_burst_report = burst_report_out
 
         return rfi_info
 
