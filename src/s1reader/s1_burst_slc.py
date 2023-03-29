@@ -2,6 +2,7 @@ import os
 from dataclasses import dataclass
 import datetime
 import tempfile
+from typing import Optional
 import warnings
 from types import SimpleNamespace
 
@@ -266,18 +267,54 @@ class Sentinel1BurstSlc:
     def __repr__(self):
         return f"{self.__class__.__name__}(burst_id={self.burst_id})"
 
-    def as_isce3_radargrid(self):
+    def as_isce3_radargrid(self,
+                           az_step: Optional[float] = None,
+                           rg_step: Optional[float] = None):
         '''Init and return isce3.product.RadarGridParameters.
 
-        Returns:
-        --------
+        The `az_step` and `rg_step` parameters are used to construct a
+        decimated grid. If not specified, the grid will be at the full radar
+        resolution.
+        Note that increasing the range/azimuth step size does not change the sensing
+        start of the grid, as the grid is decimated rather than multilooked.
+
+        Parameters
+        ----------
+        az_step : float, optional
+            Azimuth step size in seconds. If not provided, the azimuth step
+            size is set to the azimuth time interval.
+        rg_step : float, optional
+            Range step size in meters. If not provided, the range step size
+            is set to the range pixel spacing.
+
+        Returns
+        -------
         _ : RadarGridParameters
             RadarGridParameters constructed from class members.
         '''
 
-        prf = 1 / self.azimuth_time_interval
-
         length, width = self.shape
+        if az_step is None:
+            az_step = self.azimuth_time_interval
+        else:
+            if az_step < 0:
+                raise ValueError("az_step cannot be negative")
+            length_in_seconds = length * self.azimuth_time_interval
+            if az_step > length_in_seconds:
+                raise ValueError("az_step cannot be larger than radar grid")
+            length = int(length_in_seconds / az_step)
+
+        if rg_step is None:
+            rg_step = self.range_pixel_spacing
+        else:
+            if rg_step < 0:
+                raise ValueError("rg_step cannot be negative")
+            width_in_meters = width * self.range_pixel_spacing
+            if rg_step > width_in_meters:
+                raise ValueError("rg_step cannot be larger than radar grid")
+            width = int(width_in_meters / rg_step)
+
+        prf = 1 / az_step
 
         time_delta = datetime.timedelta(days=2)
         ref_epoch = isce3.core.DateTime(self.sensing_start - time_delta)
@@ -289,7 +326,7 @@ class Sentinel1BurstSlc:
                                                  self.wavelength,
                                                  prf,
                                                  self.starting_range,
-                                                 self.range_pixel_spacing,
+                                                 rg_step,
                                                  isce3.core.LookSide.Right,
                                                  length,
                                                  width,
@@ -493,44 +530,14 @@ class Sentinel1BurstSlc:
             self_as_dict[key] = val
         return self_as_dict
 
+    def _steps_to_vecs(self, range_step: float, az_step: float):
+        """Convert range_step (meters) and az_step (sec) into aranges to generate LUT2ds."""
+        radargrid = self.as_isce3_radargrid(az_step=az_step, rg_step=range_step)
+        n_az, n_range = radargrid.shape
 
-    def _steps_to_vecs(self, range_step, az_step):
-        ''' convert range_step (meters) and az_step (seconds) into aranges to
-        generate LUT2ds
-        '''
-        step_errs = []
-        if range_step <= 0:
-            step_errs.append('range')
-        if az_step <= 0:
-            step_errs.append('azimuth')
-        if step_errs:
-            step_errs = ', '.join(step_errs)
-            err_str = f'Following step size(s) <=0: {step_errs}'
-            raise ValueError(err_str)
-
-        # container to store names of axis vectors that are invalid: i.e. size 0
-        vec_errs = []
-
-        # compute range vector
-        n_range = np.ceil(self.width * self.range_pixel_spacing / range_step).astype(int)
         range_vec = self.starting_range + np.arange(0, n_range) * range_step
-        if range_vec.size == 0:
-            vec_errs.append('range')
-
-        # compute azimuth vector
-        n_az = np.ceil(self.length * self.azimuth_time_interval / az_step).astype(int)
-        rdrgrid = self.as_isce3_radargrid()
-        az_vec = rdrgrid.sensing_start + np.arange(0, n_az) * az_step
-        if az_vec.size == 0:
-            vec_errs.append('azimuth')
-
-        if vec_errs:
-            vec_errs = ', '.join(vec_errs)
-            err_str = f'Cannot build aranges from following step(s): {vec_errs}'
-            raise ValueError(err_str)
-
+        az_vec = radargrid.sensing_start + np.arange(0, n_az) * az_step
         return range_vec, az_vec
-
 
     def bistatic_delay(self, range_step=1, az_step=1):
         '''Computes the bistatic delay correction in azimuth direction
@@ -584,6 +591,7 @@ class Sentinel1BurstSlc:
 
         return isce3.core.LUT2d(slant_vec, az_vec, bistatic_correction)
 
+
     def geometrical_and_steering_doppler(self, range_step=500, az_step=50):
         """
         Compute total Doppler which is the sum of two components:
@@ -627,6 +635,7 @@ class Sentinel1BurstSlc:
 
         return isce3.core.LUT2d(range_vec, az_vec, total_doppler)
 
+
     def doppler_induced_range_shift(self, range_step=500, az_step=50):
         """
         Computes the range delay caused by the Doppler shift as described
@@ -653,6 +662,7 @@ class Sentinel1BurstSlc:
         tau_corr = doppler_shift.data / self.range_chirp_rate
 
         return isce3.core.LUT2d(range_vec, az_vec, tau_corr)
+
 
     def az_carrier_components(self, offset, position):
         '''
@@ -708,19 +718,20 @@ class Sentinel1BurstSlc:
 
         return AzimuthCarrierComponents(kt, eta, eta_ref)
 
+
     def az_fm_rate_mismatch_mitigation(self,
                                        path_dem: str,
                                        path_scratch: str = None,
                                        range_step=None,
                                        az_step=None,
                                        threshold_rdr2geo=1e-8,
-                                       numiter_rdr2geo=25,
-                                       custom_radargrid=None):
+                                       numiter_rdr2geo=25):
         '''
-        Calculate azimuth FM rate mismatch mitigation
-        Based on ETAD-DLR-DD-0008, Algorithm Technical Baseline Document.
-        Available: https://sentinels.copernicus.eu/documents/247904/4629150/
-        Sentinel-1-ETAD-Algorithm-Technical-Baseline-Document.pdf
+        - Calculate Lon / Lat / Hgt in radar grid, to be used for the
+          actual computation of az fm mismatch rate
+        - Define the radar grid for the correction.
+        - call `az_fm_rate_mismatch_from_llh` to do the actual computation
+
 
         Parameters:
         -----------
@@ -737,17 +748,15 @@ class Sentinel1BurstSlc:
             Threshold of the iteration for rdr2geo
         numiter_rdr2geo: int
             Maximum number of iteration for rdr2geo
-        custom_radargrid: isce3.product.RadarGridParameters
-            ISCE3 radar grid to define the correction grid.
-            If None, the full resolution radargrid of the burst will be used.
 
         Return:
         -------
         _: isce3.core.LUT2d
             azimuth FM rate mismatch rate in radar grid in seconds.
-    Examples
-    ----------
-    >>> correction_grid = burst.az_fm_rate_mismatch_mitigation("my_dem.tif")
+
+        Examples
+        ----------
+        >>> correction_grid = burst.az_fm_rate_mismatch_mitigation("my_dem.tif")
         '''
 
         # Create temporary directory for scratch when
@@ -758,32 +767,101 @@ class Sentinel1BurstSlc:
         else:
             temp_dir_obj = None
 
-
         os.makedirs(path_scratch, exist_ok=True)
 
-        correction_radargrid = self.as_isce3_radargrid()
-        if custom_radargrid is not None:
-            correction_radargrid = custom_radargrid
+        # define the radar grid to calculate az fm mismatch rate
+        correction_radargrid = self.as_isce3_radargrid(az_step=az_step, rg_step=range_step)
 
-        # Override the radargrid definition if `rg_step` and `az_step` is defined
-        if range_step and az_step:
-            if custom_radargrid is not None:
-                warnings.warn('range_step and az_step assigned. '
-                              'Overriding the custom radargrid definition.')
+        # Run topo on scratch directory
+        if not os.path.isfile(path_dem):
+            raise FileNotFoundError(f'not found - DEM {path_dem}')
+        dem_raster = isce3.io.Raster(path_dem)
+        epsg = dem_raster.get_epsg()
+        proj = isce3.core.make_projection(epsg)
+        ellipsoid = proj.ellipsoid
+        grid_doppler = isce3.core.LUT2d()
 
-            width_radargrid, length_radargrid = \
-                [vec.size for vec in self._steps_to_vecs(range_step, az_step)]
-            sensing_start_radargrid = self.as_isce3_radargrid().sensing_start
-            correction_radargrid = isce3.product.RadarGridParameters(
-                                    sensing_start_radargrid,
-                                    self.wavelength,
-                                    1/az_step,
-                                    self.starting_range,
-                                    range_step,
-                                    isce3.core.LookSide.Right,
-                                    length_radargrid,
-                                    width_radargrid,
-                                    self.as_isce3_radargrid().ref_epoch)
+        rdr2geo_obj = isce3.geometry.Rdr2Geo(
+                correction_radargrid,
+                self.orbit,
+                ellipsoid,
+                grid_doppler,
+                threshold=threshold_rdr2geo,
+                numiter=numiter_rdr2geo)
+
+        str_datetime = datetime.datetime.now().strftime('%Y%m%d_%H%M%S%f')
+        list_filename_llh = [f'{path_scratch}/{llh}_{str_datetime}.rdr'
+                             for llh
+                             in ['lat', 'lon', 'hgt']]
+        lat_raster, lon_raster, hgt_raster = [isce3.io.Raster(
+                                                        filename_llh,
+                                                        correction_radargrid.width,
+                                                        correction_radargrid.length,
+                                                        1,
+                                                        gdal.GDT_Float64,
+                                                        'ENVI')
+                                              for filename_llh in list_filename_llh]
+
+        rdr2geo_obj.topo(dem_raster, lon_raster, lat_raster, hgt_raster)
+
+        # make sure that the ISCE3 rasters are written out to file system
+        lat_raster.close_dataset()
+        lon_raster.close_dataset()
+        hgt_raster.close_dataset()
+
+        # Load the lon / lat / hgt value from the raster
+        arr_lat = gdal.Open(list_filename_llh[0], gdal.GA_ReadOnly).ReadAsArray()
+        arr_lon = gdal.Open(list_filename_llh[1], gdal.GA_ReadOnly).ReadAsArray()
+        arr_hgt = gdal.Open(list_filename_llh[2], gdal.GA_ReadOnly).ReadAsArray()
+
+        lut_az_fm_mismatch = self.az_fm_rate_mismatch_from_llh(arr_lat,
+                                                               arr_lon,
+                                                               arr_hgt,
+                                                               ellipsoid,
+                                                               correction_radargrid)
+
+        # Clean up the temporary directory in case it exists.
+        if temp_dir_obj is not None:
+            temp_dir_obj.cleanup()
+
+        return lut_az_fm_mismatch
+
+
+    def az_fm_rate_mismatch_from_llh(self,
+                                     lat_map: np.ndarray,
+                                     lon_map: np.ndarray,
+                                     hgt_map: np.ndarray,
+                                     ellipsoid: isce3.core.Ellipsoid,
+                                     correction_radargrid: isce3.product.RadarGridParameters):
+        '''
+        Take in lat / lon / hgt in radar grid, along with ellipsoid and the radar grid.
+        Calculate azimuth FM rate mismatch mitigation based on algorithm
+        described in [1]
+
+        Parameters:
+        -----------
+        lat_map: np.ndarray
+            Latitude in radar grid, unit: degrees
+        lon_map: np.ndarray,
+            Longitude in radar grid, unit: degrees
+        hgt_map: np.ndarray,
+            Height in radar grid, unit: meters
+        ellipsoid: isce3.core.Ellipsoid
+            Reference ellipsoid to be used
+        correction_radargrid: isce3.product.RadarGridParameters
+            Radar grid as the definition of the correction grid
+
+        Return:
+        -------
+        _: isce3.core.LUT2d
+            azimuth FM rate mismatch rate in radar grid in seconds.
+
+        References
+        ----------
+        [1] C. Gisinger, "S-1 ETAD project Algorithm Technical
+            Baseline Document, The integration of GIS, remote sensing,"
+            DLR, ETAD-DLR-DD-0008, 2020.
+        '''
 
         # Define the correction grid from the radargrid
         # Also define the staggered grid in azimuth to calculate acceeration
@@ -808,6 +886,7 @@ class Sentinel1BurstSlc:
         vec_position_intp = np.zeros((length_grid, 3))
         vec_vel_intp = np.zeros((length_grid, 3))
         vec_vel_intp_staggered = [None] * (length_grid + 1)
+
         for i_azimuth, t_azimuth in enumerate(vec_t):
             vec_position_intp[i_azimuth, :], vec_vel_intp[i_azimuth, :] = \
                 self.orbit.interpolate(t_azimuth)
@@ -846,7 +925,7 @@ class Sentinel1BurstSlc:
 
         # Interpolate the DC and fm rate coeffs along azimuth time
         def interp_coeffs(az_time, coeffs, az_time_interp):
-            '''Convenience function to interpolate DC and FM rate coeffiicients
+            '''Convenience function to interpolate DC and FM rate coefficients
             '''
             interpolated_coeffs = []
             for i in range(3):
@@ -862,41 +941,6 @@ class Sentinel1BurstSlc:
         fm_rate_coeffs = interp_coeffs(fm_rate_aztime_sec_vec,
                                        self.extended_coeffs.fm_rate_coeff_arr,
                                        vec_t)
-
-        # Run topo on scratch directory
-        dem_raster = isce3.io.Raster(path_dem)
-        epsg = dem_raster.get_epsg()
-        proj = isce3.core.make_projection(epsg)
-        ellipsoid = proj.ellipsoid
-        grid_doppler = isce3.core.LUT2d()
-
-        rdr2geo_obj = isce3.geometry.Rdr2Geo(
-                correction_radargrid,
-                self.orbit,
-                ellipsoid,
-                grid_doppler,
-                threshold=threshold_rdr2geo,
-                numiter=numiter_rdr2geo)
-
-        str_datetime = datetime.datetime.now().strftime('%Y%m%d_%H%M%S%f')
-        list_filename_llh = [f'{path_scratch}/{llh}_{str_datetime}.rdr'
-                             for llh
-                             in ['lat', 'lon', 'hgt']]
-        lat_raster, lon_raster, hgt_raster = [isce3.io.Raster(
-                                                        filename_llh,
-                                                        correction_radargrid.width,
-                                                        correction_radargrid.length,
-                                                        1,
-                                                        gdal.GDT_Float64,
-                                                        'ENVI')
-                                              for filename_llh in list_filename_llh]
-
-        rdr2geo_obj.topo(dem_raster, lon_raster, lat_raster, hgt_raster)
-
-        # make sure that the ISCE3 rasters are written out to file system
-        lat_raster.close_dataset()
-        lon_raster.close_dataset()
-        hgt_raster.close_dataset()
 
         # Do the bunch of computation
         kappa_steer_vec = (2 * (np.linalg.norm(vec_vel_intp, axis=1))
@@ -939,18 +983,10 @@ class Sentinel1BurstSlc:
                                           + (freq_dcg_burst / kappa_annotation_burst
                                           - grid_freq_dcg / kappa_annotation_grid)))
 
-        lat_map = gdal.Open(list_filename_llh[0], gdal.GA_ReadOnly).ReadAsArray()
-        lon_map = gdal.Open(list_filename_llh[1], gdal.GA_ReadOnly).ReadAsArray()
-        hgt_map = gdal.Open(list_filename_llh[2], gdal.GA_ReadOnly).ReadAsArray()
-
-        # Clean up the temporary directory in case it exists.
-        if temp_dir_obj is not None:
-            temp_dir_obj.cleanup()
-
         x_ecef, y_ecef, z_ecef = _llh_to_ecef(lat_map,
-                                                   lon_map,
-                                                   hgt_map,
-                                                   ellipsoid)
+                                              lon_map,
+                                              hgt_map,
+                                              ellipsoid)
 
         # Populate the position, velocity, and
         # acceleration of the satellite to the correction grid
