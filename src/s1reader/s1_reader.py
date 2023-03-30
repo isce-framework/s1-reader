@@ -523,10 +523,10 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
                                             'annotation/rfi/rfi-')
             with open_method(rfi_annotation_path, 'r') as f_rads:
                 tree_rads = ET.parse(f_rads)
-                burst_rfi_info_collection = SwathRfiInfo.from_et(tree_rads, tree_lads, ipf_version)
+                burst_rfi_info_swath = SwathRfiInfo.from_et(tree_rads, tree_lads, ipf_version)
 
         else:
-            burst_rfi_info_collection = None
+            burst_rfi_info_swath = None
 
 
     # load the Calibraton annotation
@@ -718,11 +718,11 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
             sensing_start + sensing_duration)
 
         # RFI information
-        if burst_rfi_info_collection is None:
+        if burst_rfi_info_swath is None:
             burst_rfi_info = None
         else:
             burst_rfi_info =\
-                burst_rfi_info_collection.extract_by_aztime(sensing_start)
+                burst_rfi_info_swath.extract_by_aztime(sensing_start)
 
         bursts[i] = Sentinel1BurstSlc(ipf_version, sensing_start, radar_freq, wavelength,
                                       azimuth_steer_rate, azimuth_time_interval,
