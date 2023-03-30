@@ -14,17 +14,19 @@ from types import SimpleNamespace
 import lxml.etree as ET
 import numpy as np
 
-from scipy.interpolate import InterpolatedUnivariateSpline, interp1d
-from packaging import version
 from isce3.core import speed_of_light
+from packaging import version
+from scipy.interpolate import InterpolatedUnivariateSpline, interp1d
+
 
 # Minimum IPF version from which the S1 product's Noise Annotation
 # Data Set (NADS) includes azimuth noise vector annotation
 min_ipf_version_az_noise_vector = version.parse('2.90')
 
-# IPF version from which the RFI information gets available
+# Minimum IPF version from which the RFI information gets available
 RFI_INFO_AVAILABLE_FROM = version.Version('3.40')
 
+# Dictionary of the fields in RFI information, and their data type castor
 dict_datatype_rfi={
     "swath": str,
     "azimuthTime": lambda T: datetime.datetime.strptime(T, '%Y-%m-%dT%H:%M:%S.%f'),
@@ -41,8 +43,22 @@ dict_datatype_rfi={
 
 
 def element_to_dict(elem_in: ET, dict_tree: dict = None):
-    '''Recursively parse the element tree,
-        return the results as SimpleNameSpace'''
+    '''
+    Recursively parse the element tree,
+    return the results as SimpleNameSpace
+
+    Parameters
+    ----------
+    elem_in: ElementTree
+        Input element tree object
+    dict_tree: dict
+        Dictionary to be populated
+
+    Returns
+    -------
+    dict_tree: dict
+        A populated dictionary by `elem_in`
+    '''
     if dict_tree is None:
         dict_tree = {}
     key_elem = elem_in.tag
@@ -558,7 +574,7 @@ class AuxCal(AnnotationBase):
 @dataclass
 class SwathRfiInfo:
     '''
-    RFI information in bursts-wise in swath
+    Burst RFI information in a swath
     Reference documentation: "Sentinel-1: Using the RFI annotations" by
     G.Hajduch et al.
 
@@ -566,11 +582,11 @@ class SwathRfiInfo:
            DI-MPC-OTH-0540-1-0-RFI-Tech-Note.pdf/
            4b4fa95d-039f-5c78-fb90-06d307b3c13a?t=1644988601315"
     '''
-    # from product annotation >= 3.40
+    # RFI info in the product annotation
     rfi_mitigation_performed: str
     rfi_mitigation_domain: str
 
-    # From RFI burst report in RFI annotation
+    # RFI info in the RFI annotation
     rfi_burst_report_list: list
     azimuth_time_list: list
 
@@ -581,8 +597,8 @@ class SwathRfiInfo:
                 ipf_version: version.Version):
         '''Load RFI information from etree
 
-        Parameters:
-        -----------
+        Parameters
+        ----------
         et_rfi: ET
             XML ElementTree from RFI annotation
         et_product: ET
@@ -590,7 +606,8 @@ class SwathRfiInfo:
         ipf_version: version.Version
             IPF version of the input sentinel-1 data
 
-        Return:
+        Returns
+        -------
         cls: SwathRfiInfo
             dataclass populated by this function
         '''
@@ -603,23 +620,29 @@ class SwathRfiInfo:
         # Attempt to locate the RFI information from the input annotations
         header_lads = et_product.find('imageAnnotation/processingInformation')
         if header_lads is None:
-            raise ValueError('Cannot find RFI mitigation info from the product annotation.')
+            raise ValueError('Cannot locate the element in the product '
+                             'anotation where RFI mitigation info is located.')
 
         header_rfi = et_rfi.find('rfiBurstReportList')
         if header_rfi is None:
-            raise ValueError('Cannot find RFI burst information from the RFI annotation')
+            raise ValueError('Cannot locate `rfiBurstReportList` '
+                             'in the RFI annotation')
 
         # Start to load RFI information
-        cls.rfi_mitigation_performed = header_lads.find('rfiMitigationPerformed').text
-        cls.rfi_mitigation_domain = header_lads.find('rfiMitigationDomain').text
+        cls.rfi_mitigation_performed =\
+            header_lads.find('rfiMitigationPerformed').text
+        cls.rfi_mitigation_domain =\
+            header_lads.find('rfiMitigationDomain').text
 
-        num_burst_report = len(header_rfi)
-        cls.rfi_burst_report_list = [None] * num_burst_report
-        cls.azimuth_time_list = [None] * num_burst_report
+        num_burst_rfi_report = len(header_rfi)
+        cls.rfi_burst_report_list = [None] * num_burst_rfi_report
+        cls.azimuth_time_list = [None] * num_burst_rfi_report
 
         for i_burst, elem_burst in enumerate(header_rfi):
-            cls.rfi_burst_report_list[i_burst] = element_to_dict(elem_burst)['rfiBurstReport']
-            cls.azimuth_time_list[i_burst] = cls.rfi_burst_report_list[i_burst]['azimuthTime']
+            cls.rfi_burst_report_list[i_burst] =\
+                element_to_dict(elem_burst)['rfiBurstReport']
+            cls.azimuth_time_list[i_burst] =\
+                cls.rfi_burst_report_list[i_burst]['azimuthTime']
 
         return cls
 
@@ -629,21 +652,22 @@ class SwathRfiInfo:
         '''
         Extract the burst noise report that is within the azimuth time of a burst
 
-        Parameters:
-        -----------
+        Parameters
+        ----------
         aztime_start: datetime.datetime
             Starting azimuth time of a burst
 
-        Return:
+        Returns
         -------
         rfi_info: SimpleNamespace
             A SimpleNamespace that contains burst noise report as a dictionary,
             along with the RFI related information from the product annotation
         '''
-        
+
         # find the corresponding burst
-        burst_aztime_diff_arr = np.array(cls.azimuth_time_list) - aztime_start
-        index_burst = np.argmin(np.abs(burst_aztime_diff_arr))
+        index_burst =\
+            closest_block_to_azimuth_time(np.array(cls.azimuth_time_list),
+                                          aztime_start)
 
         burst_report_out = cls.rfi_burst_report_list[index_burst]
 
@@ -675,7 +699,7 @@ def closest_block_to_azimuth_time(vector_azimuth_time: np.ndarray,
 
     '''
 
-    return np.argmin(np.abs(vector_azimuth_time-azimuth_time_burst))
+    return np.argmin(np.abs(vector_azimuth_time - azimuth_time_burst))
 
 
 @dataclass
