@@ -4,9 +4,10 @@ import datetime
 import tempfile
 from typing import Optional
 import warnings
-from types import SimpleNamespace
 
 from packaging import version
+from types import SimpleNamespace
+
 import isce3
 import numpy as np
 from osgeo import gdal

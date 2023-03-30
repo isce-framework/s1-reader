@@ -19,7 +19,8 @@ from s1reader import s1_annotation  # to access __file__
 from s1reader.s1_annotation import ProductAnnotation, NoiseAnnotation,\
                                    CalibrationAnnotation, AuxCal, \
                                    BurstCalibration, BurstEAP, BurstNoise,\
-                                   BurstExtendedCoeffs, SwathRfiInfo
+                                   BurstExtendedCoeffs, SwathRfiInfo,\
+                                   RFI_INFO_AVAILABLE_FROM
 
 from s1reader.s1_burst_slc import Doppler, Sentinel1BurstSlc
 from s1reader.s1_burst_id import S1BurstId
@@ -515,9 +516,8 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
         tree_lads = ET.parse(f_lads)
         product_annotation = ProductAnnotation.from_et(tree_lads)
 
-        # Load RFI information
-        if ipf_version >= version.Version('3.40'):
-            # NOTE: Version threshold from RFI tech note.
+        # Load RFI information if available
+        if ipf_version >= RFI_INFO_AVAILABLE_FROM:
             rfi_annotation_path =\
                     annotation_path.replace('annotation/',
                                             'annotation/rfi/rfi-')
