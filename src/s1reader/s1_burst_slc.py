@@ -262,6 +262,8 @@ class Sentinel1BurstSlc:
 
     burst_rfi_info: SimpleNamespace
 
+    burst_misc_metadata: SimpleNamespace
+
     def __str__(self):
         return f"Sentinel1BurstSlc: {self.burst_id} at {self.sensing_start}"
 

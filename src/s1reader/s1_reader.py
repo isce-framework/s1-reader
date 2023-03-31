@@ -17,9 +17,9 @@ from nisar.workflows.stage_dem import check_dateline
 
 from s1reader import s1_annotation  # to access __file__
 from s1reader.s1_annotation import ProductAnnotation, NoiseAnnotation,\
-                                   CalibrationAnnotation, AuxCal, \
+                                   CalibrationAnnotation, AuxCal,\
                                    BurstCalibration, BurstEAP, BurstNoise,\
-                                   BurstExtendedCoeffs, SwathRfiInfo,\
+                                   BurstExtendedCoeffs, SwathRfiInfo, SwathMiscMetadata,\
                                    RFI_INFO_AVAILABLE_FROM
 
 from s1reader.s1_burst_slc import Doppler, Sentinel1BurstSlc
@@ -269,6 +269,7 @@ def get_burst_centers_and_boundaries(tree):
 
     return center_pts, boundary_pts
 
+
 def get_ipf_version(tree: ET):
     '''Extract the IPF version from the ET of manifest.safe.
 
@@ -288,6 +289,50 @@ def get_ipf_version(tree: ET):
     ipf_version = version.parse(software_elem.attrib['version'])
 
     return ipf_version
+
+
+def get_swath_misc_metadata(et_manifest: ET, et_product:ET,
+                            product_annotation:ProductAnnotation):
+    '''
+    Extract the miscellaneous metadata to populate CARD4L-NRB metadata
+
+    Parameters
+    ----------
+    et_manifest: ET
+        Element Tree of manifest.safe
+    et_product:ET
+        Element Tree of product annotation file
+    product_annotation: ProductAnnotation
+        Swath product annotation class
+
+    Returns
+    -------
+        misc_metadata: SwathMiscMetadata
+            swath-wide miscellaneous metadata
+
+    '''
+    search_term, nsmap = _get_manifest_pattern(et_manifest, ['processing'])
+    processing_elem = et_manifest.find(search_term, nsmap)
+    processing_date = datetime.datetime.fromisoformat(processing_elem.attrib['stop'])
+
+    slant_range_looks =\
+        int(et_product.find('imageAnnotation/processingInformation/'
+                            'swathProcParamsList/swathProcParams'
+                            '/rangeProcessing/numberOfLooks').text)
+    azimuth_looks =\
+        int(et_product.find('imageAnnotation/processingInformation/'
+                            'swathProcParamsList/swathProcParams/'
+                            'azimuthProcessing/numberOfLooks').text)
+    
+    inc_angle_arr = product_annotation.antenna_pattern_incidence_angle
+    inc_angle_aztime_arr = product_annotation.antenna_pattern_azimuth_time
+
+    return SwathMiscMetadata(processing_date,
+                             azimuth_looks,
+                             slant_range_looks,
+                             inc_angle_aztime_arr,
+                             inc_angle_arr)
+
 
 def get_start_end_track(tree: ET):
     '''Extract the start/end relative orbits from manifest.safe file'''
@@ -503,16 +548,15 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
     safe_filename = os.path.basename(annotation_path.split('.SAFE')[0])
 
     # parse manifest.safe to retrieve IPF version
+    # Also load the Product annotation - for EAP calibration and RFI information
     manifest_path = os.path.dirname(annotation_path).replace('annotation','') + 'manifest.safe'
-    with open_method(manifest_path, 'r') as f_manifest:
+    with open_method(manifest_path, 'r') as f_manifest, open_method(annotation_path, 'r') as f_lads:
         tree_manifest = ET.parse(f_manifest)
         ipf_version = get_ipf_version(tree_manifest)
         # Parse out the start/end track to determine if we have an
         # equator crossing (for the burst_id calculation).
         start_track, end_track = get_start_end_track(tree_manifest)
 
-    # Load the Product annotation - for EAP calibration and RFI information
-    with open_method(annotation_path, 'r') as f_lads:
         tree_lads = ET.parse(f_lads)
         product_annotation = ProductAnnotation.from_et(tree_lads)
 
@@ -523,11 +567,17 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
                                             'annotation/rfi/rfi-')
             with open_method(rfi_annotation_path, 'r') as f_rads:
                 tree_rads = ET.parse(f_rads)
-                burst_rfi_info_swath = SwathRfiInfo.from_et(tree_rads, tree_lads, ipf_version)
+                burst_rfi_info_swath = SwathRfiInfo.from_et(tree_rads,
+                                                            tree_lads,
+                                                            ipf_version)
 
         else:
             burst_rfi_info_swath = None
 
+        # Load the miscellaneous metadata for CARD4L-NRB
+        swath_misc_metadata = get_swath_misc_metadata(tree_manifest,
+                                                      tree_lads,
+                                                      product_annotation)
 
     # load the Calibraton annotation
     try:
@@ -723,6 +773,9 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
         else:
             burst_rfi_info =\
                 burst_rfi_info_swath.extract_by_aztime(sensing_start)
+            
+        # Miscellaneous burst metadata
+        burst_misc_metadata = swath_misc_metadata.extract_by_aztime(sensing_start)
 
         bursts[i] = Sentinel1BurstSlc(ipf_version, sensing_start, radar_freq, wavelength,
                                       azimuth_steer_rate, azimuth_time_interval,
@@ -737,7 +790,7 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
                                       range_window_type, range_window_coeff,
                                       rank, prf_raw_data, range_chirp_ramp_rate,
                                       burst_calibration, burst_noise, burst_aux_cal,
-                                      extended_coeffs, burst_rfi_info)
+                                      extended_coeffs, burst_rfi_info, burst_misc_metadata)
 
     return bursts
 

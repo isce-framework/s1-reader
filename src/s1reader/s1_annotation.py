@@ -383,6 +383,7 @@ class ProductAnnotation(AnnotationBase):
     antenna_pattern_slant_range_time: list
     antenna_pattern_elevation_angle: list
     antenna_pattern_elevation_pattern: list
+    antenna_pattern_incidence_angle: list
 
     ascending_node_time: datetime.datetime
     number_of_samples: int
@@ -424,6 +425,11 @@ class ProductAnnotation(AnnotationBase):
         cls.antenna_pattern_elevation_pattern = \
             cls._parse_vectorlist('antennaPattern/antennaPatternList',
                                   'elevationPattern',
+                                  'vector_float')
+
+        cls.antenna_pattern_incidence_angle = \
+            cls._parse_vectorlist('antennaPattern/antennaPatternList',
+                                  'incidenceAngle',
                                   'vector_float')
 
         cls.image_information_slant_range_time = \
@@ -650,7 +656,7 @@ class SwathRfiInfo:
     @classmethod
     def extract_by_aztime(cls, aztime_start: datetime.datetime):
         '''
-        Extract the burst noise report that is within the azimuth time of a burst
+        Extract the burst RFI report that is within the azimuth time of a burst
 
         Parameters
         ----------
@@ -660,7 +666,7 @@ class SwathRfiInfo:
         Returns
         -------
         rfi_info: SimpleNamespace
-            A SimpleNamespace that contains burst noise report as a dictionary,
+            A SimpleNamespace that contains burst RFI report as a dictionary,
             along with the RFI related information from the product annotation
         '''
 
@@ -677,6 +683,47 @@ class SwathRfiInfo:
         rfi_info.rfi_burst_report = burst_report_out
 
         return rfi_info
+
+
+@dataclass
+class SwathMiscMetadata:
+    '''
+    Miscellaneous metadata to populate CARD4L-NRB metadata
+    '''
+    processing_date: datetime.datetime
+    azimuth_looks: int
+    slant_range_looks: int
+    aztime_vec: np.ndarray
+    inc_angle_list: list
+
+    def extract_by_aztime(self, aztime_start: datetime.datetime):
+        '''
+        Extract the miscellaneous metadata for a burst that
+        corresponds to `aztime_start`
+
+        Parameters
+        ----------
+        aztime_start: datetime.datetime
+            Starting azimuth time of a burst
+
+        Returns
+        -------
+        burst_misc_metadata: SimpleNamespace
+            A SimpleNamespace that contains the misc. metadata
+        '''
+        index_burst =\
+            closest_block_to_azimuth_time(self.aztime_vec,
+                                          aztime_start)
+        inc_angle_burst = self.inc_angle_list[index_burst]
+
+        burst_misc_metadata = SimpleNamespace()
+        burst_misc_metadata.processing_date = self.processing_date
+        burst_misc_metadata.azimuth_looks = self.azimuth_looks
+        burst_misc_metadata.slant_range_looks = self.slant_range_looks
+        burst_misc_metadata.inc_angle_near_range = inc_angle_burst[0]
+        burst_misc_metadata.inc_angle_far_range = inc_angle_burst[-1]
+
+        return burst_misc_metadata
 
 
 def closest_block_to_azimuth_time(vector_azimuth_time: np.ndarray,
@@ -728,7 +775,8 @@ class BurstNoise:
                               line_to: int,
                               ipf_version: version.Version):
         '''
-        Extracts the noise correction information for individual burst from NoiseAnnotation
+        Extracts the noise correction information for
+        individual burst from NoiseAnnotation
 
         Parameters
         ----------
