@@ -323,7 +323,7 @@ def get_swath_misc_metadata(et_manifest: ET, et_product:ET,
         int(et_product.find('imageAnnotation/processingInformation/'
                             'swathProcParamsList/swathProcParams/'
                             'azimuthProcessing/numberOfLooks').text)
-    
+
     inc_angle_arr = product_annotation.antenna_pattern_incidence_angle
     inc_angle_aztime_arr = product_annotation.antenna_pattern_azimuth_time
 
