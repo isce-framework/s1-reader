@@ -6,11 +6,31 @@ from shapely.geometry import Point
 
 from s1reader.s1_orbit import get_orbit_file_from_dir
 
+
 def test_get_orbit_file(test_paths):
     orbit_file = get_orbit_file_from_dir(test_paths.safe, test_paths.orbit_dir)
 
     expected_orbit_path = f'{test_paths.orbit_dir}/{test_paths.orbit_file}'
     assert orbit_file == expected_orbit_path
+
+
+def test_get_orbit_file_multi_mission(tmp_path):
+    orbit_a = tmp_path / "S1A_OPER_AUX_POEORB_OPOD_20210314T131617_V20191007T225942_20191009T005942.EOF"
+    orbit_a.write_text("")
+    orbit_b = tmp_path / "S1B_OPER_AUX_POEORB_OPOD_20210304T232500_V20191007T225942_20191009T005942.EOF"
+    orbit_b.write_text("")
+
+    zip_path = tmp_path / "zips"
+    zip_path.mkdir()
+    zip_a = zip_path / "S1A_IW_SLC__1SDV_20191008T005936_20191008T010003_018377_0229E5_909C.zip"
+    zip_a.write_text("")
+    zip_b = zip_path / "S1B_IW_SLC__1SDV_20191008T005936_20191008T010003_018377_0229E5_909C.zip"
+    zip_b.write_text("")
+
+    # Test S1A zip file
+    assert get_orbit_file_from_dir(zip_a, orbit_dir=tmp_path) == str(orbit_a)
+    assert get_orbit_file_from_dir(zip_b, orbit_dir=tmp_path) == str(orbit_b)
+
 
 def test_orbit_datetime(bursts):
     # pad in seconds used in orbit_reader
