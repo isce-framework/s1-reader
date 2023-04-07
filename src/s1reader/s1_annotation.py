@@ -4,6 +4,7 @@ To be used for the class "Sentinel1BurstSlc"
 '''
 
 from dataclasses import dataclass
+from typing import List
 
 import datetime
 import os
@@ -93,7 +94,7 @@ class AnnotationBase:
 
         Returns
         -------
-        val_out: list
+        val_out: List
             Parsed data in the annotation
 
         '''
@@ -144,12 +145,12 @@ class CalibrationAnnotation(AnnotationBase):
 
     basename_annotation: str
     list_azimuth_time: np.ndarray
-    list_line: list
+    list_line: List
     list_pixel: None
-    list_sigma_nought: list
-    list_beta_nought : list
-    list_gamma: list
-    list_dn: list
+    list_sigma_nought: List
+    list_beta_nought : List
+    list_gamma: List
+    list_dn: List
 
     @classmethod
     def from_et(cls, et_in: ET, path_annotation: str):
@@ -212,9 +213,9 @@ class NoiseAnnotation(AnnotationBase):
 
     basename_annotation: str
     rg_list_azimuth_time: np.ndarray
-    rg_list_line: list
-    rg_list_pixel: list
-    rg_list_noise_range_lut: list
+    rg_list_line: List
+    rg_list_pixel: List
+    rg_list_noise_range_lut: List
     az_first_azimuth_line: int
     az_first_range_sample: int
     az_last_azimuth_line: int
@@ -324,10 +325,10 @@ class ProductAnnotation(AnnotationBase):
     instrument_cfg_id: int
 
     # elevation_angle:
-    antenna_pattern_azimuth_time: list
-    antenna_pattern_slant_range_time: list
-    antenna_pattern_elevation_angle: list
-    antenna_pattern_elevation_pattern: list
+    antenna_pattern_azimuth_time: List
+    antenna_pattern_slant_range_time: List
+    antenna_pattern_elevation_angle: List
+    antenna_pattern_elevation_pattern: List
 
     ascending_node_time: datetime.datetime
     number_of_samples: int
@@ -922,8 +923,8 @@ class BurstExtendedCoeffs:
 
     @classmethod
     def from_polynomial_lists(cls,
-                              az_fm_rate_list: list,
-                              doppler_centroid_list: list,
+                              az_fm_rate_list: List,
+                              doppler_centroid_list: List,
                               sensing_start: datetime.datetime,
                               sensing_end: datetime.datetime):
         '''
@@ -932,9 +933,9 @@ class BurstExtendedCoeffs:
 
         Parameters:
         -----------
-        az_fm_rate_list: list[isce3.core.Poly1d]
+        az_fm_rate_list: List[isce3.core.Poly1d]
             List of azimuth FM rate polynomials
-        doppler_centroid_list: list[isce3.core.Poly1d]
+        doppler_centroid_list: List[isce3.core.Poly1d]
             List of doppler centroid polynomials
         sensing_start: datetime.datetime
             Azimuth start time of the burst
@@ -960,7 +961,7 @@ class BurstExtendedCoeffs:
 
 
     @classmethod
-    def extract_polynomial_sequence(cls, polynomial_list: list,
+    def extract_polynomial_sequence(cls, polynomial_list: List,
                                     datetime_start: datetime.datetime,
                                     datetime_end: datetime.datetime):
         '''
@@ -970,7 +971,7 @@ class BurstExtendedCoeffs:
 
         Parameters:
         -----------
-        polynomial_list: list
+        polynomial_list: List
             list of (azimuth_time, isce3.core.Poly1d)
         datetime_start: datetime.datetime
             Start time of the period

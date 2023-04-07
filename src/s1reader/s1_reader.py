@@ -3,7 +3,7 @@ import glob
 import os
 import warnings
 import lxml.etree as ET
-from typing import Union
+from typing import List, Union
 import zipfile
 
 from types import SimpleNamespace
@@ -295,7 +295,7 @@ def get_start_end_track(tree: ET):
     return int(elem_start.text), int(elem_end.text)
 
 
-def _get_manifest_pattern(tree: ET, keys: list):
+def _get_manifest_pattern(tree: ET, keys: List):
     '''Get the search path to extract data from the ET of manifest.safe.
 
     Parameters
@@ -416,7 +416,7 @@ def get_path_aux_cal(directory_aux_cal: str, str_annotation: str):
     return list_aux_cal[id_match]
 
 
-def is_eap_correction_necessary(ipf_version: version.Version) -> SimpleNamespace :
+def is_eap_correction_necessary(ipf_version: version.Version) -> SimpleNamespace:
     '''
     Examines if what level of elevation antenna pattern (EAP) correction is necessary.
     based on the IPF version.
@@ -743,7 +743,7 @@ def _is_zip_annotation_xml(path: str, id_str: str) -> bool:
 
 
 def load_bursts(path: str, orbit_path: str, swath_num: int, pol: str = 'vv',
-                burst_ids: list[Union[str, S1BurstId]] = None,
+                burst_ids: List[Union[str, S1BurstId]] = None,
                 flag_apply_eap: bool = True):
     '''Find bursts in a Sentinel-1 zip file or a SAFE structured directory.
 

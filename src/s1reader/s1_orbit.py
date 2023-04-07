@@ -4,6 +4,7 @@ import glob
 import os
 import requests
 import warnings
+from typing import List
 
 from xml.etree import ElementTree
 
@@ -104,7 +105,7 @@ def parse_safe_filename(safe_filename):
     return [mission_id, sensor_mode, start_datetime, end_datetime, abs_orb_num]
 
 
-def get_file_name_tokens(zip_path: str) -> [str, list[datetime.datetime]]:
+def get_file_name_tokens(zip_path: str) -> [str, List[datetime.datetime]]:
     '''Extract swath platform ID and start/stop times from SAFE zip file path.
 
     Parameters
@@ -267,7 +268,7 @@ def get_orbit_file_from_dir(zip_path: str, orbit_dir: str, auto_download: bool =
     return orbit_file
 
 
-def get_orbit_file_from_list(zip_path: str, orbit_file_list: list) -> str:
+def get_orbit_file_from_list(zip_path: str, orbit_file_list: List) -> str:
     '''Get orbit file for a given S-1 swath from a list of files
 
     Parameters:
