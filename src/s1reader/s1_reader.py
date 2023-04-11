@@ -773,7 +773,7 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
         else:
             burst_rfi_info =\
                 burst_rfi_info_swath.extract_by_aztime(sensing_start)
-            
+
         # Miscellaneous burst metadata
         burst_misc_metadata = swath_misc_metadata.extract_by_aztime(sensing_start)
 

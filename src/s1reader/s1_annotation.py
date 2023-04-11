@@ -24,6 +24,9 @@ from scipy.interpolate import InterpolatedUnivariateSpline, interp1d
 min_ipf_version_az_noise_vector = version.parse('2.90')
 
 # Minimum IPF version from which the RFI information gets available
+# source: "Sentinel-1: Using the RFI annotations", reference no: MPC-0540,
+# URL: (https://sentinel.esa.int/documents/247904/1653442/
+#       DI-MPC-OTH-0540-1-0-RFI-Tech-Note.pdf)
 RFI_INFO_AVAILABLE_FROM = version.Version('3.40')
 
 # Dictionary of the fields in RFI information, and their data type castor
