@@ -578,7 +578,7 @@ class AuxCal(AnnotationBase):
 
 
 @dataclass
-class SwathRfiInfo:
+class SwathRFIInfo:
     '''
     Burst RFI information in a swath
     Reference documentation: "Sentinel-1: Using the RFI annotations" by
@@ -666,7 +666,7 @@ class SwathRfiInfo:
         Returns
         -------
         rfi_info: SimpleNamespace
-            A SimpleNamespace that contains burst RFI report as a dictionary,
+            A SimpleNamespace that contains the burst RFI report as a dictionary,
             along with the RFI related information from the product annotation
         '''
 
@@ -688,7 +688,7 @@ class SwathRfiInfo:
 @dataclass
 class SwathMiscMetadata:
     '''
-    Miscellaneous metadata to populate CARD4L-NRB metadata
+    Miscellaneous metadata
     '''
     processing_date: datetime.datetime
     azimuth_looks: int

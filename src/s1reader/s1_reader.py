@@ -294,7 +294,7 @@ def get_ipf_version(tree: ET):
 def get_swath_misc_metadata(et_manifest: ET, et_product:ET,
                             product_annotation:ProductAnnotation):
     '''
-    Extract the miscellaneous metadata to populate CARD4L-NRB metadata
+    Extract miscellaneous metadata
 
     Parameters
     ----------
