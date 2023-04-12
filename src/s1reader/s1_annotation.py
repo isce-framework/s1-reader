@@ -2,9 +2,9 @@
 A module to load annotation files for Sentinel-1 IW SLC SAFE data
 To be used for the class "Sentinel1BurstSlc"
 '''
+from __future__ import annotations
 
 from dataclasses import dataclass
-
 import datetime
 import os
 import lxml.etree as ET
