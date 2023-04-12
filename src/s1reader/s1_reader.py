@@ -311,9 +311,16 @@ def get_swath_misc_metadata(et_manifest: ET, et_product:ET,
             swath-wide miscellaneous metadata
 
     '''
+    # Load the processing data from the manifest
+
     search_term, nsmap = _get_manifest_pattern(et_manifest, ['processing'])
     processing_elem = et_manifest.find(search_term, nsmap)
-    processing_date = datetime.datetime.fromisoformat(processing_elem.attrib['stop'])
+    post_processing_dict = dict(processing_elem.attrib)
+
+    # Extract the facility information from `processing_elem`, and
+    # add them to `post_processing_dict`
+    post_processing_facility_elem = processing_elem.find('safe:facility', nsmap)
+    post_processing_dict.update(dict(post_processing_facility_elem.attrib))
 
     slant_range_looks =\
         int(et_product.find('imageAnnotation/processingInformation/'
@@ -327,11 +334,11 @@ def get_swath_misc_metadata(et_manifest: ET, et_product:ET,
     inc_angle_arr = product_annotation.antenna_pattern_incidence_angle
     inc_angle_aztime_arr = product_annotation.antenna_pattern_azimuth_time
 
-    return SwathMiscMetadata(processing_date,
-                             azimuth_looks,
+    return SwathMiscMetadata(azimuth_looks,
                              slant_range_looks,
                              inc_angle_aztime_arr,
-                             inc_angle_arr)
+                             inc_angle_arr,
+                             post_processing_dict)
 
 
 def get_start_end_track(tree: ET):

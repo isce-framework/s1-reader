@@ -693,11 +693,13 @@ class SwathMiscMetadata:
     '''
     Miscellaneous metadata
     '''
-    processing_date: datetime.datetime
     azimuth_looks: int
     slant_range_looks: int
     aztime_vec: np.ndarray
     inc_angle_list: list
+
+    # Processing data from manifest
+    slc_post_processing: dict
 
     def extract_by_aztime(self, aztime_start: datetime.datetime):
         '''
@@ -720,7 +722,16 @@ class SwathMiscMetadata:
         inc_angle_burst = self.inc_angle_list[index_burst]
 
         burst_misc_metadata = SimpleNamespace()
-        burst_misc_metadata.processing_date = self.processing_date
+
+        # Metadata names to be populated into OPERA products as
+        # the source data's processing information
+        keys_misc_metadata = ['stop', 'country', 'organisation', 'site']
+        for key_metadata in keys_misc_metadata:
+            if not key_metadata in self.slc_post_processing:
+                self.slc_post_processing[key_metadata] =\
+                    'Not available in sentinel-1 manifest.safe'
+
+        burst_misc_metadata.processing_info_dict = self.slc_post_processing
         burst_misc_metadata.azimuth_looks = self.azimuth_looks
         burst_misc_metadata.slant_range_looks = self.slant_range_looks
         burst_misc_metadata.inc_angle_near_range = inc_angle_burst[0]
