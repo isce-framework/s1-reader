@@ -7,6 +7,7 @@ from dataclasses import dataclass
 
 import datetime
 import os
+import warnings
 import zipfile
 
 from types import SimpleNamespace
@@ -30,7 +31,7 @@ min_ipf_version_az_noise_vector = version.parse('2.90')
 RFI_INFO_AVAILABLE_FROM = version.Version('3.40')
 
 # Dictionary of the fields in RFI information, and their data type castor
-dict_datatype_rfi={
+dict_datatype_rfi = {
     "swath": str,
     "azimuthTime": lambda T: datetime.datetime.strptime(T, '%Y-%m-%dT%H:%M:%S.%f'),
     "inBandOutBandPowerRatio": float,
@@ -70,7 +71,14 @@ def element_to_dict(elem_in: ET, dict_tree: dict = None):
     if len(child_elem) == 0:
         # Reached the tree end
         text_elem = elem_in.text
-        dict_tree[key_elem] = dict_datatype_rfi[key_elem](text_elem)
+
+        if key_elem in dict_datatype_rfi.keys():
+            value_castor = dict_datatype_rfi[key_elem]
+        else:
+            warnings.warn(f'Datetype Castor for {key_elem} was not defined. Considering the value as string.')
+            value_castor = str
+        dict_tree[key_elem] = value_castor(text_elem)
+
     else:
         dict_tree[key_elem] = {}
         for et_child in child_elem:
@@ -581,7 +589,7 @@ class AuxCal(AnnotationBase):
 
 
 @dataclass
-class SwathRFIInfo:
+class SwathRfiInfo:
     '''
     Burst RFI information in a swath
     Reference documentation: "Sentinel-1: Using the RFI annotations" by
