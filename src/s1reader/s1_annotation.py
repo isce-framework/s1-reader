@@ -72,7 +72,7 @@ def element_to_dict(elem_in: ET, dict_tree: dict = None):
         # Reached the tree end
         text_elem = elem_in.text
 
-        if key_elem in dict_datatype_rfi.keys():
+        if key_elem in dict_datatype_rfi:
             value_castor = dict_datatype_rfi[key_elem]
         else:
             warnings.warn(f'Datetype Castor for {key_elem} was not defined. Considering the value as string.')
