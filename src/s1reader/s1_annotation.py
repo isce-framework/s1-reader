@@ -75,7 +75,8 @@ def element_to_dict(elem_in: ET, dict_tree: dict = None):
         if key_elem in dict_datatype_rfi:
             elem_datatype = dict_datatype_rfi[key_elem]
         else:
-            warnings.warn(f'Data type for element {key_elem} is not defined. Casting the value "{text_elem}" as string.')
+            warnings.warn(f'Data type for element {key_elem} is not defined. '
+                          f'Casting the value "{text_elem}" as string.')
             elem_datatype = str
         dict_tree[key_elem] = elem_datatype(text_elem)
 
