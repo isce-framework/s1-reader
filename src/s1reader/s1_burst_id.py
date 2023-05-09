@@ -115,7 +115,7 @@ class S1BurstId:
         Parameters
         ----------
         burst_id_str : str
-            The burst ID string, e.g. "t123_00456_iw1"
+            The burst ID string, e.g. "t123_000456_iw1"
 
         Returns
         -------
