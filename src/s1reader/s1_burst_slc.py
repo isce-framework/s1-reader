@@ -931,7 +931,7 @@ class Sentinel1BurstSlc:
                 interpolated_coeffs.append(coeff_interpolator(az_time_interp))
             return np.array(interpolated_coeffs).transpose()
 
-        dc_coeffs = interp_coeffs(fm_rate_aztime_sec_vec,
+        dc_coeffs = interp_coeffs(dc_aztime_sec_vec,
                                   self.extended_coeffs.dc_coeff_arr,
                                   vec_t)
 
