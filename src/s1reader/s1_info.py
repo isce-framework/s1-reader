@@ -1,11 +1,13 @@
 """Extract the burst ID information from a Sentinel-1 SLC product."""
+from __future__ import annotations
+
 import argparse
 import sys
 import warnings
 import zipfile
 from itertools import chain
 from pathlib import Path
-from typing import List, Optional, Union
+from typing import Optional, Union
 
 import lxml.etree as ET
 import shapely.geometry
@@ -16,7 +18,7 @@ import s1reader
 
 def get_bursts(
     filename: Union[Path, str], pol: str = "vv", iw: Optional[int] = None
-) -> List[s1reader.Sentinel1BurstSlc]:
+) -> list[s1reader.Sentinel1BurstSlc]:
     if iw is not None:
         iws = [iw]
     else:
@@ -54,7 +56,7 @@ def _plot_bursts(safe_path: Union[Path, str], output_dir="burst_maps") -> None:
     plot_bursts.burst_map(safe_path, orbit_dir, xs, ys, epsg, output_filename)
 
 
-def get_frame_bounds(safe_path: Union[Path, str]) -> List[float]:
+def get_frame_bounds(safe_path: Union[Path, str]) -> list[float]:
     """Get the bounding box of the frame from the union of all burst bounds.
 
     bounding box format is [lonmin, latmin, lonmax, latmax]
@@ -81,7 +83,7 @@ def get_frame_bounds(safe_path: Union[Path, str]) -> List[float]:
     return _bounds_from_bursts(safe_path)
 
 
-def _bounds_from_preview(safe_path: Union[Path, str]) -> List[float]:
+def _bounds_from_preview(safe_path: Union[Path, str]) -> list[float]:
     """Get the bounding box of the frame from the preview/map-overlay.kml."""
     # looking for:
     # S1A_IW_SLC__1SDV_20221005T125539_20221005T125606_045307_056AA5_CB45.SAFE/preview/map-overlay.kml
@@ -113,7 +115,7 @@ def _bounds_from_preview(safe_path: Union[Path, str]) -> List[float]:
     return [min(lons), min(lats), max(lons), max(lats)]
 
 
-def _bounds_from_bursts(safe_path: Union[Path, str]) -> List[float]:
+def _bounds_from_bursts(safe_path: Union[Path, str]) -> list[float]:
     """Get the bounding box of the frame from the union of all burst bounds."""
     # Get all the bursts from subswath 1, 2, 3
     bursts = None
