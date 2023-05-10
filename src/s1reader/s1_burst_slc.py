@@ -4,7 +4,9 @@ import datetime
 import tempfile
 from typing import Optional
 import warnings
+
 from packaging import version
+from types import SimpleNamespace
 
 import isce3
 import numpy as np
@@ -257,6 +259,10 @@ class Sentinel1BurstSlc:
     # Time series of FM rate / Doppler centroid polynomial coefficients
     # for azimuth FM rate mismatch mitigation
     extended_coeffs: s1_annotation.BurstExtendedCoeffs
+
+    burst_rfi_info: SimpleNamespace
+
+    burst_misc_metadata: SimpleNamespace
 
     def __str__(self):
         return f"Sentinel1BurstSlc: {self.burst_id} at {self.sensing_start}"

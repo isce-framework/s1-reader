@@ -7,19 +7,86 @@ from dataclasses import dataclass
 
 import datetime
 import os
-import lxml.etree as ET
+import warnings
 import zipfile
 
+from types import SimpleNamespace
+
+import lxml.etree as ET
 import numpy as np
 
-from scipy.interpolate import InterpolatedUnivariateSpline, interp1d
-from packaging import version
-
 from isce3.core import speed_of_light
+from packaging import version
+from scipy.interpolate import InterpolatedUnivariateSpline, interp1d
+
 
 # Minimum IPF version from which the S1 product's Noise Annotation
 # Data Set (NADS) includes azimuth noise vector annotation
 min_ipf_version_az_noise_vector = version.parse('2.90')
+
+# Minimum IPF version from which the RFI information gets available
+# source: "Sentinel-1: Using the RFI annotations", reference no: MPC-0540,
+# URL: (https://sentinel.esa.int/documents/247904/1653442/
+#       DI-MPC-OTH-0540-1-0-RFI-Tech-Note.pdf)
+RFI_INFO_AVAILABLE_FROM = version.Version('3.40')
+
+# Dictionary of the fields in RFI information, and their data type castor
+dict_datatype_rfi = {
+    "swath": str,
+    "azimuthTime": lambda T: datetime.datetime.strptime(T, '%Y-%m-%dT%H:%M:%S.%f'),
+    "inBandOutBandPowerRatio": float,
+    "percentageAffectedLines": float,
+    "avgPercentageAffectedSamples": float,
+    "maxPercentageAffectedSamples": float,
+    "numSubBlocks": int,
+    "subBlockSize": int,
+    "maxPercentageAffectedBW": float,
+    "percentageBlocksPersistentRfi": float,
+    "maxPercentageBWAffectedPersistentRfi": float
+}
+
+
+def element_to_dict(elem_in: ET, dict_tree: dict = None):
+    '''
+    Recursively parse the element tree,
+    return the results as SimpleNameSpace
+
+    Parameters
+    ----------
+    elem_in: ElementTree
+        Input element tree object
+    dict_tree: dict
+        Dictionary to be populated
+
+    Returns
+    -------
+    dict_tree: dict
+        A populated dictionary by `elem_in`
+    '''
+    if dict_tree is None:
+        dict_tree = {}
+    key_elem = elem_in.tag
+    child_elem = list(elem_in.iterchildren())
+
+    if len(child_elem) == 0:
+        # Reached the tree end
+        text_elem = elem_in.text
+
+        if key_elem in dict_datatype_rfi:
+            elem_datatype = dict_datatype_rfi[key_elem]
+        else:
+            warnings.warn(f'Data type for element {key_elem} is not defined. '
+                          f'Casting the value "{text_elem}" as string.')
+            elem_datatype = str
+        dict_tree[key_elem] = elem_datatype(text_elem)
+
+    else:
+        dict_tree[key_elem] = {}
+        for et_child in child_elem:
+            element_to_dict(et_child, dict_tree[key_elem])
+
+    return dict_tree
+
 
 @dataclass
 class AnnotationBase:
@@ -328,6 +395,7 @@ class ProductAnnotation(AnnotationBase):
     antenna_pattern_slant_range_time: list
     antenna_pattern_elevation_angle: list
     antenna_pattern_elevation_pattern: list
+    antenna_pattern_incidence_angle: list
 
     ascending_node_time: datetime.datetime
     number_of_samples: int
@@ -369,6 +437,11 @@ class ProductAnnotation(AnnotationBase):
         cls.antenna_pattern_elevation_pattern = \
             cls._parse_vectorlist('antennaPattern/antennaPatternList',
                                   'elevationPattern',
+                                  'vector_float')
+
+        cls.antenna_pattern_incidence_angle = \
+            cls._parse_vectorlist('antennaPattern/antennaPatternList',
+                                  'incidenceAngle',
                                   'vector_float')
 
         cls.image_information_slant_range_time = \
@@ -515,6 +588,167 @@ class AuxCal(AnnotationBase):
 
         return cls
 
+
+@dataclass
+class SwathRfiInfo:
+    '''
+    Burst RFI information in a swath
+    Reference documentation: "Sentinel-1: Using the RFI annotations" by
+    G.Hajduch et al.
+
+    url = "https://sentinel.esa.int/documents/247904/1653442/
+           DI-MPC-OTH-0540-1-0-RFI-Tech-Note.pdf/
+           4b4fa95d-039f-5c78-fb90-06d307b3c13a?t=1644988601315"
+    '''
+    # RFI info in the product annotation
+    rfi_mitigation_performed: str
+    rfi_mitigation_domain: str
+
+    # RFI info in the RFI annotation
+    rfi_burst_report_list: list
+    azimuth_time_list: list
+
+    @classmethod
+    def from_et(cls,
+                et_rfi: ET,
+                et_product: ET,
+                ipf_version: version.Version):
+        '''Load RFI information from etree
+
+        Parameters
+        ----------
+        et_rfi: ET
+            XML ElementTree from RFI annotation
+        et_product: ET
+            XML ElementTree from product annotation
+        ipf_version: version.Version
+            IPF version of the input sentinel-1 data
+
+        Returns
+        -------
+        cls: SwathRfiInfo
+            dataclass populated by this function
+        '''
+
+        if ipf_version < RFI_INFO_AVAILABLE_FROM:
+            # RFI related processing is not in place
+            # return an empty dataclass
+            return None
+
+        # Attempt to locate the RFI information from the input annotations
+        header_lads = et_product.find('imageAnnotation/processingInformation')
+        if header_lads is None:
+            raise ValueError('Cannot locate the element in the product '
+                             'anotation where RFI mitigation info is located.')
+
+        header_rfi = et_rfi.find('rfiBurstReportList')
+        if header_rfi is None:
+            raise ValueError('Cannot locate `rfiBurstReportList` '
+                             'in the RFI annotation')
+
+        # Start to load RFI information
+        cls.rfi_mitigation_performed =\
+            header_lads.find('rfiMitigationPerformed').text
+        cls.rfi_mitigation_domain =\
+            header_lads.find('rfiMitigationDomain').text
+
+        num_burst_rfi_report = len(header_rfi)
+        cls.rfi_burst_report_list = [None] * num_burst_rfi_report
+        cls.azimuth_time_list = [None] * num_burst_rfi_report
+
+        for i_burst, elem_burst in enumerate(header_rfi):
+            cls.rfi_burst_report_list[i_burst] =\
+                element_to_dict(elem_burst)['rfiBurstReport']
+            cls.azimuth_time_list[i_burst] =\
+                cls.rfi_burst_report_list[i_burst]['azimuthTime']
+
+        return cls
+
+
+    @classmethod
+    def extract_by_aztime(cls, aztime_start: datetime.datetime):
+        '''
+        Extract the burst RFI report that is within the azimuth time of a burst
+
+        Parameters
+        ----------
+        aztime_start: datetime.datetime
+            Starting azimuth time of a burst
+
+        Returns
+        -------
+        rfi_info: SimpleNamespace
+            A SimpleNamespace that contains the burst RFI report as a dictionary,
+            along with the RFI related information from the product annotation
+        '''
+
+        # find the corresponding burst
+        index_burst =\
+            closest_block_to_azimuth_time(np.array(cls.azimuth_time_list),
+                                          aztime_start)
+
+        burst_report_out = cls.rfi_burst_report_list[index_burst]
+
+        rfi_info = SimpleNamespace()
+        rfi_info.rfi_mitigation_performed = cls.rfi_mitigation_performed
+        rfi_info.rfi_mitigation_domain = cls.rfi_mitigation_domain
+        rfi_info.rfi_burst_report = burst_report_out
+
+        return rfi_info
+
+
+@dataclass
+class SwathMiscMetadata:
+    '''
+    Miscellaneous metadata
+    '''
+    azimuth_looks: int
+    slant_range_looks: int
+    aztime_vec: np.ndarray
+    inc_angle_list: list
+
+    # Processing data from manifest
+    slc_post_processing: dict
+
+    def extract_by_aztime(self, aztime_start: datetime.datetime):
+        '''
+        Extract the miscellaneous metadata for a burst that
+        corresponds to `aztime_start`
+
+        Parameters
+        ----------
+        aztime_start: datetime.datetime
+            Starting azimuth time of a burst
+
+        Returns
+        -------
+        burst_misc_metadata: SimpleNamespace
+            A SimpleNamespace that contains the misc. metadata
+        '''
+        index_burst =\
+            closest_block_to_azimuth_time(self.aztime_vec,
+                                          aztime_start)
+        inc_angle_burst = self.inc_angle_list[index_burst]
+
+        burst_misc_metadata = SimpleNamespace()
+
+        # Metadata names to be populated into OPERA products as
+        # the source data's processing information
+        keys_misc_metadata = ['stop', 'country', 'organisation', 'site']
+        for key_metadata in keys_misc_metadata:
+            if not key_metadata in self.slc_post_processing:
+                self.slc_post_processing[key_metadata] =\
+                    'Not available in sentinel-1 manifest.safe'
+
+        burst_misc_metadata.processing_info_dict = self.slc_post_processing
+        burst_misc_metadata.azimuth_looks = self.azimuth_looks
+        burst_misc_metadata.slant_range_looks = self.slant_range_looks
+        burst_misc_metadata.inc_angle_near_range = inc_angle_burst[0]
+        burst_misc_metadata.inc_angle_far_range = inc_angle_burst[-1]
+
+        return burst_misc_metadata
+
+
 def closest_block_to_azimuth_time(vector_azimuth_time: np.ndarray,
                                   azimuth_time_burst: datetime.datetime) -> int:
     '''
@@ -535,7 +769,7 @@ def closest_block_to_azimuth_time(vector_azimuth_time: np.ndarray,
 
     '''
 
-    return np.argmin(np.abs(vector_azimuth_time-azimuth_time_burst))
+    return np.argmin(np.abs(vector_azimuth_time - azimuth_time_burst))
 
 
 @dataclass
@@ -564,7 +798,8 @@ class BurstNoise:
                               line_to: int,
                               ipf_version: version.Version):
         '''
-        Extracts the noise correction information for individual burst from NoiseAnnotation
+        Extracts the noise correction information for
+        individual burst from NoiseAnnotation
 
         Parameters
         ----------
@@ -997,7 +1232,7 @@ class BurstExtendedCoeffs:
         dt_wrt_start = np.ma.masked_array(dt_wrt_start, mask=dt_wrt_start > 0)
         index_start = np.argmax(dt_wrt_start)
 
-        # find index of poly time  closest to end time that is greater than end time
+        # find index of poly time closest to end time that is greater than end time
         dt_wrt_end = np.array([(poly[0] - datetime_end).total_seconds() for poly in polynomial_list])
         dt_wrt_end = np.ma.masked_array(dt_wrt_end, mask=dt_wrt_end < 0)
         index_end = np.argmin(dt_wrt_end)
