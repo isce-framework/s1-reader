@@ -5,8 +5,9 @@ import glob
 import os
 import warnings
 import lxml.etree as ET
-from typing import Union
 import zipfile
+from pathlib import Path
+from typing import Union
 
 from types import SimpleNamespace
 from packaging import version
@@ -569,11 +570,9 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
         tree_lads = ET.parse(f_lads)
         product_annotation = ProductAnnotation.from_et(tree_lads)
 
+        rfi_annotation_path = annotation_path.replace('annotation/', 'annotation/rfi/rfi-')
         # Load RFI information if available
-        if ipf_version >= RFI_INFO_AVAILABLE_FROM:
-            rfi_annotation_path =\
-                    annotation_path.replace('annotation/',
-                                            'annotation/rfi/rfi-')
+        if Path(rfi_annotation_path).exists() and ipf_version >= RFI_INFO_AVAILABLE_FROM:
             with open_method(rfi_annotation_path, 'r') as f_rads:
                 tree_rads = ET.parse(f_rads)
                 burst_rfi_info_swath = SwathRfiInfo.from_et(tree_rads,
