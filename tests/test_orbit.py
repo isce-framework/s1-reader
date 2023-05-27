@@ -4,7 +4,11 @@ import isce3
 import numpy as np
 from shapely.geometry import Point
 
-from s1reader.s1_orbit import get_orbit_file_from_dir
+from s1reader.s1_orbit import (
+    get_orbit_file_from_dir, get_ascending_node_crossings, get_closest_ascending_node
+)
+from s1reader.s1_burst_id import S1BurstId
+from s1reader import load_bursts
 
 def test_get_orbit_file(test_paths):
     orbit_file = get_orbit_file_from_dir(test_paths.safe, test_paths.orbit_dir)
@@ -37,3 +41,21 @@ def test_orbit_datetime(bursts):
                                      rdr_grid.wavelength, dem)
         pnt = Point(np.degrees(llh[0]), np.degrees(llh[1]))
         assert(burst.border[0].contains(pnt))
+
+
+def test_get_ascending_node_crossings(test_paths):
+    orbit_file = get_orbit_file_from_dir(test_paths.safe, test_paths.orbit_dir)
+    # pad in seconds used in orbit_reader
+    anx_times = get_ascending_node_crossings(orbit_file)
+    anx_time_diffs = np.diff(anx_times)
+    # Compare to nominal orbit time, S1BurstId.T_orb 
+    for time_diff in anx_time_diffs:
+        assert np.isclose(time_diff.total_seconds(), S1BurstId.T_orb, atol=0.5)
+
+
+def test_get_closest_ascending_node(test_paths):
+    orbit_file = get_orbit_file_from_dir(test_paths.safe, test_paths.orbit_dir)
+    # pad in seconds used in orbit_reader
+    burst = load_bursts(test_paths.safe, orbit_file, 1)[0]
+    anx_time = get_closest_ascending_node(orbit_file, test_paths.safe)
+    assert abs(burst.ascending_node_time - anx_time) < datetime.timedelta(seconds=0.5)
