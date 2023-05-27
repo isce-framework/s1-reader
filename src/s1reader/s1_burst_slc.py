@@ -235,6 +235,7 @@ class Sentinel1BurstSlc:
     orbit: isce3.core.Orbit
     orbit_direction: str
     abs_orbit_number: int  # Absolute orbit number
+    ascending_node_time: datetime.datetime
     # VRT params
     tiff_path: str  # path to measurement tiff in SAFE/zip
     i_burst: int

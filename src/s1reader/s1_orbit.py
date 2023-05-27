@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import cgi
 import datetime
 import glob
@@ -333,3 +335,65 @@ def get_orbit_file_from_list(zip_path: str, orbit_file_list: list) -> str:
 
     return orbit_file_final
 
+
+def get_ascending_node_crossings(file: str) -> list[datetime.datetime]:
+    """
+    Parse a precise orbit ephemerides (POE) XML file and find the datetimes
+    of the crossing of the ascending node in UTC.
+
+    Args:
+        file (str): Path to the XML file.
+
+    Returns:
+        list[datetime]: List of datetime objects representing the ascending node crossings.
+    """
+
+    # Parse XML file
+    tree = ElementTree.parse(file)
+    root = tree.getroot()
+
+    ascending_node_crossings = []
+    prev_z = None
+    prev_utc = None
+
+    # Loop over all OSV elements in the XML file
+    for osv in root.iter('OSV'):
+        utc_str = osv.find('UTC').text.split('=')[1]
+        utc = datetime.datetime.strptime(utc_str, "%Y-%m-%dT%H:%M:%S.%f")
+        z = float(osv.find('Z').text)
+
+        # If Z changes from negative to positive, it's an ascending node crossing
+        if prev_z is not None and prev_z < 0 and z >= 0:
+            # interpolation factor computed based on the relative magnitudes of prev_z and z. 
+            # assuming that the change in Z value happens linearly between the two time points.
+            crossing_time = prev_utc + ((utc - prev_utc) * abs(prev_z) / (abs(prev_z) + z))
+            ascending_node_crossings.append(crossing_time)
+        
+
+        prev_z = z
+        prev_utc = utc
+
+    return ascending_node_crossings
+
+
+def get_closest_ascending_node(orbit_file: str, safe_filename: str) -> datetime.datetime:
+    """
+    Find the ascending node crossing closest but before the start datetime of the given SAFE file.
+
+    Args:
+        orbit_file (str): Path to the POE orbit XML file.
+        safe_filename (str): The Sentinel SAFE filename.
+
+    Returns:
+        datetime: The closest ascending node crossing time before the start datetime.
+    """
+    _, _, start_datetime, _, _ = parse_safe_filename(safe_filename)
+    crossings = get_ascending_node_crossings(orbit_file)
+
+    # Filter out crossings that occurred after the start datetime
+    valid_crossings = [c for c in crossings if c <= start_datetime]
+
+    # Return the most recent crossing before the start datetime
+    if not valid_crossings:
+        raise ValueError(f"No ascending node crossings found before {start_datetime}")
+    return max(valid_crossings)
