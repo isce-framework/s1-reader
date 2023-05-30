@@ -65,8 +65,8 @@ def test_orbit_datetime(bursts):
 
 def test_get_ascending_node_crossings(test_paths):
     orbit_file = get_orbit_file_from_dir(test_paths.safe, test_paths.orbit_dir)
-    # pad in seconds used in orbit_reader
     anx_times = get_ascending_node_crossings(orbit_file)
+    # Make sure each orbit is approx. the right number of seconds
     anx_time_diffs = np.diff(anx_times)
     # Compare to nominal orbit time, S1BurstId.T_orb 
     for time_diff in anx_time_diffs:
@@ -75,7 +75,8 @@ def test_get_ascending_node_crossings(test_paths):
 
 def test_get_closest_ascending_node(test_paths):
     orbit_file = get_orbit_file_from_dir(test_paths.safe, test_paths.orbit_dir)
-    # pad in seconds used in orbit_reader
     burst = load_bursts(test_paths.safe, orbit_file, 1)[0]
+    # TODO: if we change how load_bursts gets the ANX time, we'll need to parse the
+    # ANX time here from the zip file. we should move the function currently in s1_reader to the orbit module
     anx_time = get_closest_ascending_node(orbit_file, test_paths.safe)
     assert abs(burst.ascending_node_time - anx_time) < datetime.timedelta(seconds=0.5)
