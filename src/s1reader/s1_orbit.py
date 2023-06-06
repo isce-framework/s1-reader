@@ -12,6 +12,10 @@ from xml.etree import ElementTree
 # date format used in file names
 FMT = "%Y%m%dT%H%M%S"
 
+# Temporal margin to apply to the start time of a frame - To make sure that ANX is included when choosing the orbit file
+MARGIN_START_FRAME_SECONDS = (12*86400.0) / 175.0 + 60.0
+margin_start_time = datetime.timedelta(seconds=MARGIN_START_FRAME_SECONDS)
+
 # Scihub guest credential
 scihub_user = 'gnssguest'
 scihub_password = 'gnssguest'
@@ -40,6 +44,9 @@ def download_orbit(safe_file: str, orbit_dir: str):
 
     # Parse info from SAFE file name
     mission_id, _, start_time, end_time, _ = parse_safe_filename(safe_file)
+
+    # Apply margin to the start time
+    start_time = start_time - margin_start_time
 
     # Find precise orbit first
     orbit_dict = get_orbit_dict(mission_id, start_time,
@@ -292,6 +299,9 @@ def get_orbit_file_from_list(zip_path: str, orbit_file_list: list) -> str:
 
     # extract platform id, start and end times from swath file name
     mission_id, t_swath_start_stop = get_file_name_tokens(zip_path)
+
+    # Apply temporal margin to the start time of the frame
+    t_swath_start_stop[0] = t_swath_start_stop[0] - margin_start_time
 
     # initiate output
     orbit_file_final = ''
