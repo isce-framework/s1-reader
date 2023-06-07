@@ -15,6 +15,7 @@ import isce3
 import numpy as np
 import shapely
 
+from scipy.interpolate import InterpolatedUnivariateSpline
 from nisar.workflows.stage_dem import check_dateline
 
 from s1reader import s1_annotation  # to access __file__
@@ -526,6 +527,45 @@ def get_track_burst_num(track_burst_num_file: str = esa_track_burst_id_file):
 
     return track_burst_num
 
+
+def get_anx_time_orbit(osv_list:list, anx_time_annotation: datetime.datetime, margin_anx_sec=60.0):
+    '''
+    Estimate the time of ascending node crossing (ANX) from orbit
+
+    parameters
+    ----------
+    osv_list: list
+        Orbit state vectors as list
+    anx_time_annotatiion: datetime.datetime
+        ANX time read from annotation
+
+    returns
+    -------
+    _ : datetime.datetime
+        ANX time calculated from orbit
+    '''
+
+    margin_anx = datetime.timedelta(seconds=margin_anx_sec)
+    orbit_around_anx = get_burst_orbit(anx_time_annotation - margin_anx,
+                                       anx_time_annotation + margin_anx,
+                                       osv_list)
+    
+    grid_t_orbit = (np.arange(orbit_around_anx.time.size) * orbit_around_anx.time.spacing
+                    + orbit_around_anx.time.first)
+    grid_z_orbit = orbit_around_anx.position[:,2]
+    interpolator_time = InterpolatedUnivariateSpline(grid_z_orbit, grid_t_orbit, k=1)
+    
+    t_interp = interpolator_time(0.0)
+
+    datetime_ref = datetime.datetime(orbit_around_anx.reference_epoch.year,
+                                     orbit_around_anx.reference_epoch.month,
+                                     orbit_around_anx.reference_epoch.day)
+    datetime_ref += datetime.timedelta(
+        seconds=orbit_around_anx.reference_epoch.seconds_of_day())
+
+    return datetime_ref + datetime.timedelta(seconds=float(t_interp))
+
+
 def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
                    iw2_annotation_path: str, open_method=open,
                    flag_apply_eap: bool = True):
@@ -691,6 +731,14 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
     if orbit_path:
         orbit_tree = ET.parse(orbit_path)
         osv_list = orbit_tree.find('Data_Block/List_of_OSVs')
+
+        # Calculate ANX time from orbit; compare with the info from annotation
+        anx_time_orbit = get_anx_time_orbit(osv_list, ascending_node_time)
+        diff_anx_time_seconds = (anx_time_orbit - ascending_node_time).total_seconds()
+        if abs(diff_anx_time_seconds) > 1.0:
+            warnings.warn('Ascending node cross time is larger than 1.0 seconds. Using the time from orbit.')
+            ascending_node_time = anx_time_orbit
+
     else:
         osv_list = []
 
