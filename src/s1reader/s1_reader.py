@@ -689,7 +689,7 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
         image_info_element = tree.find('imageAnnotation/imageInformation')
         azimuth_time_interval = float(image_info_element.find('azimuthTimeInterval').text)
         slant_range_time = float(image_info_element.find('slantRangeTime').text)
-        ascending_node_time = as_datetime(image_info_element.find('ascendingNodeTime').text)
+        ascending_node_time_annotation = as_datetime(image_info_element.find('ascendingNodeTime').text)
 
         downlink_element = tree.find('generalAnnotation/downlinkInformationList/downlinkInformation')
         prf_raw_data = float(downlink_element.find('prf').text)
@@ -735,15 +735,20 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
 
         # Calculate ascending node crossing (ANX) time from orbit;
         # compare with the info from annotation
-        anx_time_orbit = get_anx_time_orbit(orbit_state_vector_list, ascending_node_time)
-        diff_anx_time_seconds = (anx_time_orbit - ascending_node_time).total_seconds()
+        ascending_node_time_orbit = get_anx_time_orbit(
+            orbit_state_vector_list, ascending_node_time_annotation)
+        diff_anx_time_seconds = (
+            ascending_node_time_orbit - ascending_node_time_annotation).total_seconds()
         if abs(diff_anx_time_seconds) > ANX_TIME_TOLERANCE:
-            warnings.warn('Ascending node cross time is larger than '
-                          f'{ANX_TIME_TOLERANCE} seconds. '
-                          'Using the time from orbit.')
-            ascending_node_time = anx_time_orbit
+            warnings.warn('ascending node time error larger than '
+                          f'{ANX_TIME_TOLERANCE} seconds was detected: '
+                          f'Error = {diff_anx_time_seconds} seconds.')
+        ascending_node_time = ascending_node_time_orbit
 
     else:
+        warnings.warn('Orbit file was not provided. '
+                      'Using the ascending node time from annotation.')
+        ascending_node_time = ascending_node_time_annotation
         orbit_state_vector_list = []
 
     # load individual burst
