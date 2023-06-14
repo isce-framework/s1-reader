@@ -12,9 +12,13 @@ from xml.etree import ElementTree
 # date format used in file names
 FMT = "%Y%m%dT%H%M%S"
 
-# Temporal margin to apply to the start time of a frame - To make sure that ANX is included when choosing the orbit file
-MARGIN_START_FRAME_SECONDS = (12*86400.0) / 175.0 + 60.0
-margin_start_time = datetime.timedelta(seconds=MARGIN_START_FRAME_SECONDS)
+# Orbital period of Sentinel-1
+T_ORBIT = (12*86400.0) / 175.0
+
+# Temporal margin to apply to the start time of a frame
+#  - To make sure that the event of ascending node crossong is
+#    included when choosing the orbit file
+margin_start_time = datetime.timedelta(seconds=T_ORBIT + 60.0)
 
 # Scihub guest credential
 scihub_user = 'gnssguest'
