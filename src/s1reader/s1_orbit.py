@@ -301,6 +301,7 @@ def get_orbit_file_from_list(zip_path: str, orbit_file_list: list) -> str:
     mission_id, t_swath_start_stop = get_file_name_tokens(zip_path)
 
     # Apply temporal margin to the start time of the frame
+    # 1st element: start time, 2nd element: end time
     t_swath_start_stop[0] = t_swath_start_stop[0] - margin_start_time
 
     # initiate output

@@ -532,17 +532,17 @@ def get_anx_time_orbit(osv_list:list, anx_time_annotation: datetime.datetime, ma
     '''
     Estimate the time of ascending node crossing (ANX) from orbit
 
-    parameters
+    Parameters
     ----------
     osv_list: list
         Orbit state vectors as list
-    anx_time_annotatiion: datetime.datetime
-        ANX time read from annotation
+    anx_time_annotation: datetime.datetime
+        Ascending node crossing (ANX) time estimated from annotation
 
-    returns
+    Returns
     -------
     _ : datetime.datetime
-        ANX time calculated from orbit
+        Ascending node crossing (ANX) time calculated from orbit
     '''
 
     margin_anx = datetime.timedelta(seconds=margin_anx_sec)
@@ -732,7 +732,7 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
         orbit_tree = ET.parse(orbit_path)
         osv_list = orbit_tree.find('Data_Block/List_of_OSVs')
 
-        # Calculate ANX time from orbit; compare with the info from annotation
+        # Calculate ascending node crossing (ANX) time from orbit; compare with the info from annotation
         anx_time_orbit = get_anx_time_orbit(osv_list, ascending_node_time)
         diff_anx_time_seconds = (anx_time_orbit - ascending_node_time).total_seconds()
         if abs(diff_anx_time_seconds) > 1.0:
