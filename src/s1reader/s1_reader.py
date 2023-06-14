@@ -28,7 +28,8 @@ from s1reader.s1_annotation import ProductAnnotation, NoiseAnnotation,\
 from s1reader.s1_burst_slc import Doppler, Sentinel1BurstSlc
 from s1reader.s1_burst_id import S1BurstId
 
-
+# Tolerance of the ascending node crossing (ANX) time
+ANX_TIME_TOLERANCE = 1.0
 esa_track_burst_id_file = f"{os.path.dirname(os.path.realpath(__file__))}/data/sentinel1_track_burst_id.txt"
 
 # TODO evaluate if it make sense to combine below into a class
@@ -730,17 +731,20 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
     # find orbit state vectors in 'Data_Block/List_of_OSVs'
     if orbit_path:
         orbit_tree = ET.parse(orbit_path)
-        osv_list = orbit_tree.find('Data_Block/List_of_OSVs')
+        orbit_state_vector_list = orbit_tree.find('Data_Block/List_of_OSVs')
 
-        # Calculate ascending node crossing (ANX) time from orbit; compare with the info from annotation
-        anx_time_orbit = get_anx_time_orbit(osv_list, ascending_node_time)
+        # Calculate ascending node crossing (ANX) time from orbit;
+        # compare with the info from annotation
+        anx_time_orbit = get_anx_time_orbit(orbit_state_vector_list, ascending_node_time)
         diff_anx_time_seconds = (anx_time_orbit - ascending_node_time).total_seconds()
-        if abs(diff_anx_time_seconds) > 1.0:
-            warnings.warn('Ascending node cross time is larger than 1.0 seconds. Using the time from orbit.')
+        if abs(diff_anx_time_seconds) > ANX_TIME_TOLERANCE:
+            warnings.warn('Ascending node cross time is larger than '
+                          f'{ANX_TIME_TOLERANCE} seconds. '
+                          'Using the time from orbit.')
             ascending_node_time = anx_time_orbit
 
     else:
-        osv_list = []
+        orbit_state_vector_list = []
 
     # load individual burst
     half_burst_in_seconds = 0.5 * (n_lines - 1) * azimuth_time_interval
@@ -772,11 +776,11 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
 
         sensing_duration = datetime.timedelta(
             seconds=n_lines * azimuth_time_interval)
-        if len(osv_list) > 0:
+        if len(orbit_state_vector_list) > 0:
             # get orbit from state vector list/element tree
 
             orbit = get_burst_orbit(sensing_start, sensing_start + sensing_duration,
-                                    osv_list)
+                                    orbit_state_vector_list)
         else:
             orbit = None
 
