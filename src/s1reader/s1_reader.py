@@ -706,7 +706,8 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
         tree = ET.parse(f)
 
         product_info_element = tree.find('generalAnnotation/productInformation')
-        azimuth_steer_rate = np.radians(float(product_info_element.find('azimuthSteeringRate').text))
+        azimuth_steer_rate =\
+            np.radians(float(product_info_element.find('azimuthSteeringRate').text))
         radar_freq = float(product_info_element.find('radarFrequency').text)
         range_sampling_rate = float(product_info_element.find('rangeSamplingRate').text)
         orbit_direction = product_info_element.find('pass').text
@@ -714,10 +715,12 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
         image_info_element = tree.find('imageAnnotation/imageInformation')
         azimuth_time_interval = float(image_info_element.find('azimuthTimeInterval').text)
         slant_range_time = float(image_info_element.find('slantRangeTime').text)
-        ascending_node_time_annotation = as_datetime(image_info_element.find('ascendingNodeTime').text)
+        ascending_node_time_annotation =\
+            as_datetime(image_info_element.find('ascendingNodeTime').text)
         first_line_utc_time = as_datetime(image_info_element.find('productFirstLineUtcTime').text)
 
-        downlink_element = tree.find('generalAnnotation/downlinkInformationList/downlinkInformation')
+        downlink_element = tree.find('generalAnnotation/downlinkInformationList/'
+                                     'downlinkInformation')
         prf_raw_data = float(downlink_element.find('prf').text)
         rank = int(downlink_element.find('downlinkValues/rank').text)
         range_chirp_ramp_rate = float(downlink_element.find('downlinkValues/txPulseRampRate').text)
@@ -733,7 +736,9 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
         poly_name = 'dataDcPolynomial'
         doppler_list = [parse_polynomial_element(x, poly_name) for x in doppler_list_element]
 
-        rng_processing_element = tree.find('imageAnnotation/processingInformation/swathProcParamsList/swathProcParams/rangeProcessing')
+        rng_processing_element = tree.find('imageAnnotation/processingInformation/'
+                                           'swathProcParamsList/swathProcParams/'
+                                           'rangeProcessing')
         rng_processing_bandwidth = float(rng_processing_element.find('processingBandwidth').text)
         range_window_type = str(rng_processing_element.find('windowType').text)
         range_window_coeff = float(rng_processing_element.find('windowCoefficient').text)
@@ -749,7 +754,8 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
     # calculate the range at mid swath (mid of SM swath, mid of IW2 or mid of EW3)
     with open_method(iw2_annotation_path, 'r') as iw2_f:
         iw2_tree = ET.parse(iw2_f)
-        iw2_slant_range_time = float(iw2_tree.find('imageAnnotation/imageInformation/slantRangeTime').text)
+        iw2_slant_range_time =\
+            float(iw2_tree.find('imageAnnotation/imageInformation/slantRangeTime').text)
         iw2_n_samples = int(iw2_tree.find('swathTiming/samplesPerBurst').text)
         iw2_starting_range = iw2_slant_range_time * isce3.core.speed_of_light / 2
         iw2_mid_range = iw2_starting_range + 0.5 * iw2_n_samples * range_pxl_spacing

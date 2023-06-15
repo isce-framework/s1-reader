@@ -13,7 +13,7 @@ from xml.etree import ElementTree
 FMT = "%Y%m%dT%H%M%S"
 
 # Orbital period of Sentinel-1
-T_ORBIT = (12*86400.0) / 175.0
+T_ORBIT = (12 * 86400.0) / 175.0
 
 # Temporal margin to apply to the start time of a frame
 #  - To make sure that the event of ascending node crossong is
