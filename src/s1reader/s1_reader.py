@@ -529,14 +529,17 @@ def get_track_burst_num(track_burst_num_file: str = esa_track_burst_id_file):
     return track_burst_num
 
 
-def get_anx_time_orbit(osv_list: ET, sensing_time: datetime.datetime):
+def get_ascending_node_time_orbit(orbit_state_vector_list: ET, sensing_time: datetime.datetime):
     '''
     Estimate the time of ascending node crossing from orbit
 
     Parameters
     ----------
-    osv_list: ET
-        Orbit state vectors as XML Element Tree
+    orbit_state_vector_list: ET
+        XML elements that points to the list of orbit information.
+        each elements in the parameter contains the information below:
+        TAI, UTC, UT1, Absolute_Orbit, X, Y, Z, VX, VY, VZ,Quality
+
     sensing_time: datetime.datetime
         Sensing time of the data
 
@@ -550,7 +553,7 @@ def get_anx_time_orbit(osv_list: ET, sensing_time: datetime.datetime):
     search_length = datetime.timedelta(seconds=2 * T_ORBIT)
     orbit_until_sensing_time = get_burst_orbit(sensing_time  - search_length,
                                                sensing_time,
-                                               osv_list)
+                                               orbit_state_vector_list)
 
     # Convert ISCE3 oribt object's reference datetime into python object
     datetime_orbit_ref = datetime.datetime(
@@ -758,14 +761,14 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
 
         # Calculate ascending node crossing time from orbit;
         # compare with the info from annotation
-        ascending_node_time_orbit = get_anx_time_orbit(
+        ascending_node_time_orbit = get_ascending_node_time_orbit(
             orbit_state_vector_list, first_line_utc_time)
-        diff_anx_time_seconds = (
+        diff_ascending_node_time_seconds = (
             ascending_node_time_orbit - ascending_node_time_annotation).total_seconds()
-        if abs(diff_anx_time_seconds) > ASCENDING_NODE_TIME_TOLERANCE:
+        if abs(diff_ascending_node_time_seconds) > ASCENDING_NODE_TIME_TOLERANCE:
             warnings.warn('ascending node time error larger than '
                           f'{ASCENDING_NODE_TIME_TOLERANCE} seconds was detected: '
-                          f'Error = {diff_anx_time_seconds} seconds.')
+                          f'Error = {diff_ascending_node_time_seconds} seconds.')
         ascending_node_time = ascending_node_time_orbit
 
     else:
