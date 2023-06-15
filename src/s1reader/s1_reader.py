@@ -566,29 +566,39 @@ def get_ascending_node_time_orbit(orbit_state_vector_list: ET, sensing_time: dat
     # detect the event of ascending node crossing from the cropped orbit info.
     # Algorithm inspirates by Scott Staniewicz's PR in the link below:
     # https://github.com/opera-adt/s1-reader/pull/120/
-
     datetime_ascending_node_crossing_list = []
     orbit_time_vec = np.array(orbit_until_sensing_time.time)
     orbit_z_vec = orbit_until_sensing_time.position[:,2]
 
+    # Iterate through the z coordinate in orbit object to
+    # detect the ascending node crossing
     z_prev = None
     for index_z, z in enumerate(orbit_z_vec):
-        if z_prev is not None and (z_prev <0 and z >= 0):
+        if z_prev is not None and (z_prev < 0 <= z):
+            # Extract z coords. and time for interpolation
             index_from = max(index_z - 3, 0)
             index_to = min(index_z + 3, len(orbit_z_vec))
-
             z_around_crossing = orbit_z_vec[index_from : index_to]
             time_around_crossing = orbit_time_vec[index_from : index_to]
+
+            # Set up spline interpolator and interpolate the time when z is equal to 0.0
             interpolator_time = InterpolatedUnivariateSpline(z_around_crossing,
                                                              time_around_crossing,
                                                              k=1)
             t_interp = interpolator_time(0.0)
+
+            # Convert the interpolated time into datetime
+            # Add the ascending node crossing time if it's before the sensing time
             datetime_ascending_crossing = (datetime_orbit_ref
                                            + datetime.timedelta(seconds=float(t_interp)))
             if datetime_ascending_crossing < sensing_time:
                 datetime_ascending_node_crossing_list.append(datetime_ascending_crossing)
         z_prev = z
 
+    if len(datetime_ascending_node_crossing_list) == 0:
+        raise RuntimeError('Cannot detect ascending node crossings from the orbit information.')
+
+    # Return the most recent time for ascending node crossing
     return max(datetime_ascending_node_crossing_list)
 
 
