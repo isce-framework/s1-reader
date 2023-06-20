@@ -30,7 +30,7 @@ from s1reader.s1_burst_id import S1BurstId
 from s1reader.s1_orbit import T_ORBIT
 
 # Tolerance of the ascending node crossing time in seconds
-ASCENDING_NODE_TIME_TOLERANCE = 1.0
+ASCENDING_NODE_TIME_TOLERANCE_IN_SEC = 1.0
 esa_track_burst_id_file = f"{os.path.dirname(os.path.realpath(__file__))}/data/sentinel1_track_burst_id.txt"
 
 # TODO evaluate if it make sense to combine below into a class
@@ -790,9 +790,9 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
             # Give warning message when the difference is noticeable.
             diff_ascending_node_time_seconds = (
                 ascending_node_time_orbit - ascending_node_time_annotation).total_seconds()
-            if abs(diff_ascending_node_time_seconds) > ASCENDING_NODE_TIME_TOLERANCE:
+            if abs(diff_ascending_node_time_seconds) > ASCENDING_NODE_TIME_TOLERANCE_IN_SEC:
                 warnings.warn('ascending node time error larger than '
-                            f'{ASCENDING_NODE_TIME_TOLERANCE} seconds was detected: '
+                            f'{ASCENDING_NODE_TIME_TOLERANCE_IN_SEC} seconds was detected: '
                             f'Error = {diff_ascending_node_time_seconds} seconds.')
 
             ascending_node_time = ascending_node_time_orbit
