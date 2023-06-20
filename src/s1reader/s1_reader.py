@@ -569,7 +569,7 @@ def get_ascending_node_time_orbit(orbit_state_vector_list: ET, sensing_time: dat
     # https://github.com/opera-adt/s1-reader/pull/120/
     datetime_ascending_node_crossing_list = []
     orbit_time_vec = np.array(orbit_until_sensing_time.time)
-    orbit_z_vec = orbit_until_sensing_time.position[:,2]
+    orbit_z_vec = orbit_until_sensing_time.position[:, 2]
 
     # Iterate through the z coordinate in orbit object to
     # detect the ascending node crossing
@@ -597,7 +597,8 @@ def get_ascending_node_time_orbit(orbit_state_vector_list: ET, sensing_time: dat
         z_prev = z
 
     if len(datetime_ascending_node_crossing_list) == 0:
-        raise RuntimeError('Cannot detect ascending node crossings from the orbit information.')
+        warnings.warn('Cannot detect ascending node crossings from the orbit information provided.')
+        return None
 
     # Return the most recent time for ascending node crossing
     return max(datetime_ascending_node_crossing_list)
@@ -780,13 +781,21 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
         # compare with the info from annotation
         ascending_node_time_orbit = get_ascending_node_time_orbit(
             orbit_state_vector_list, first_line_utc_time)
-        diff_ascending_node_time_seconds = (
-            ascending_node_time_orbit - ascending_node_time_annotation).total_seconds()
-        if abs(diff_ascending_node_time_seconds) > ASCENDING_NODE_TIME_TOLERANCE:
-            warnings.warn('ascending node time error larger than '
-                          f'{ASCENDING_NODE_TIME_TOLERANCE} seconds was detected: '
-                          f'Error = {diff_ascending_node_time_seconds} seconds.')
-        ascending_node_time = ascending_node_time_orbit
+        if ascending_node_time_orbit is None:
+            warnings.warn('Cannot estimate ascending node crossing time from Orbit. '
+                          'Using the ascending node time in annotation.')
+            ascending_node_time = ascending_node_time_annotation
+        else:
+            # Calculate the difference in the times.
+            # Give warning message when the difference is noticeable.
+            diff_ascending_node_time_seconds = (
+                ascending_node_time_orbit - ascending_node_time_annotation).total_seconds()
+            if abs(diff_ascending_node_time_seconds) > ASCENDING_NODE_TIME_TOLERANCE:
+                warnings.warn('ascending node time error larger than '
+                            f'{ASCENDING_NODE_TIME_TOLERANCE} seconds was detected: '
+                            f'Error = {diff_ascending_node_time_seconds} seconds.')
+
+            ascending_node_time = ascending_node_time_orbit
 
     else:
         warnings.warn('Orbit file was not provided. '
