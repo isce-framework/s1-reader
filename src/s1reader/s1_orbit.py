@@ -12,11 +12,12 @@ from xml.etree import ElementTree
 # date format used in file names
 FMT = "%Y%m%dT%H%M%S"
 
-# Orbital period of Sentinel-1
+# Orbital period of Sentinel-1 in seconds:
+# 12 days * 86400.0 seconds/day, divided into 175 orbits
 T_ORBIT = (12 * 86400.0) / 175.0
 
 # Temporal margin to apply to the start time of a frame
-#  - To make sure that the event of ascending node crossong is
+#  to make sure that the ascending node crossing is
 #    included when choosing the orbit file
 margin_start_time = datetime.timedelta(seconds=T_ORBIT + 60.0)
 

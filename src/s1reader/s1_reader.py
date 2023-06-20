@@ -28,7 +28,8 @@ from s1reader.s1_annotation import ProductAnnotation, NoiseAnnotation,\
 from s1reader.s1_burst_slc import Doppler, Sentinel1BurstSlc
 from s1reader.s1_burst_id import S1BurstId
 from s1reader.s1_orbit import T_ORBIT
-# Tolerance of the ascending node crossing time
+
+# Tolerance of the ascending node crossing time in seconds
 ASCENDING_NODE_TIME_TOLERANCE = 1.0
 esa_track_burst_id_file = f"{os.path.dirname(os.path.realpath(__file__))}/data/sentinel1_track_burst_id.txt"
 
@@ -537,7 +538,7 @@ def get_ascending_node_time_orbit(orbit_state_vector_list: ET, sensing_time: dat
     ----------
     orbit_state_vector_list: ET
         XML elements that points to the list of orbit information.
-        each elements in the parameter contains the information below:
+        Each element should contain the information below:
         TAI, UTC, UT1, Absolute_Orbit, X, Y, Z, VX, VY, VZ,Quality
 
     sensing_time: datetime.datetime
@@ -555,7 +556,7 @@ def get_ascending_node_time_orbit(orbit_state_vector_list: ET, sensing_time: dat
                                                sensing_time,
                                                orbit_state_vector_list)
 
-    # Convert ISCE3 oribt object's reference datetime into python object
+    # Convert the ISCE3 orbit reference datetime into a python object
     datetime_orbit_ref = datetime.datetime(
         orbit_until_sensing_time.reference_epoch.year,
         orbit_until_sensing_time.reference_epoch.month,
@@ -563,8 +564,8 @@ def get_ascending_node_time_orbit(orbit_state_vector_list: ET, sensing_time: dat
     datetime_orbit_ref += datetime.timedelta(
         seconds=orbit_until_sensing_time.reference_epoch.seconds_of_day())
 
-    # detect the event of ascending node crossing from the cropped orbit info.
-    # Algorithm inspirates by Scott Staniewicz's PR in the link below:
+    # Detect the event of ascending node crossing from the cropped orbit info.
+    # The algorithm was inspired by Scott Staniewicz's PR in the link below:
     # https://github.com/opera-adt/s1-reader/pull/120/
     datetime_ascending_node_crossing_list = []
     orbit_time_vec = np.array(orbit_until_sensing_time.time)
