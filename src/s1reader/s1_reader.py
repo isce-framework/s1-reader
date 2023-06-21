@@ -573,7 +573,7 @@ def get_ascending_node_time_orbit(orbit_state_vector_list: ET, sensing_time: dat
 
     # Iterate through the z coordinate in orbit object to
     # detect the ascending node crossing
-    iterator_z_time = zip(orbit_z_vec, orbit_z_vec[1,:], orbit_time_vec)
+    iterator_z_time = zip(orbit_z_vec, orbit_z_vec[1:], orbit_time_vec)
     for index_z, (z_prev, z, _) in enumerate(iterator_z_time):
         if z_prev < 0 <= z:
             # Extract z coords. and time for interpolation
@@ -594,7 +594,6 @@ def get_ascending_node_time_orbit(orbit_state_vector_list: ET, sensing_time: dat
                                            + datetime.timedelta(seconds=float(t_interp)))
             if datetime_ascending_crossing < sensing_time:
                 datetime_ascending_node_crossing_list.append(datetime_ascending_crossing)
-        z_prev = z
 
     if len(datetime_ascending_node_crossing_list) == 0:
         warnings.warn('Cannot detect ascending node crossings from the orbit information provided.')
