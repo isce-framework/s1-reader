@@ -575,25 +575,28 @@ def get_ascending_node_time_orbit(orbit_state_vector_list: ET, sensing_time: dat
     # detect the ascending node crossing
     iterator_z_time = zip(orbit_z_vec, orbit_z_vec[1:], orbit_time_vec)
     for index_z, (z_prev, z, _) in enumerate(iterator_z_time):
-        if z_prev < 0 <= z:
-            # Extract z coords. and time for interpolation
-            index_from = max(index_z - 3, 0)
-            index_to = min(index_z + 3, len(orbit_z_vec))
-            z_around_crossing = orbit_z_vec[index_from : index_to]
-            time_around_crossing = orbit_time_vec[index_from : index_to]
+        # Check if ascending node crossing has taken place;
+        if not z_prev < 0 <= z:
+            continue
 
-            # Set up spline interpolator and interpolate the time when z is equal to 0.0
-            interpolator_time = InterpolatedUnivariateSpline(z_around_crossing,
-                                                             time_around_crossing,
-                                                             k=1)
-            t_interp = interpolator_time(0.0)
+        # Extract z coords. and time for interpolation
+        index_from = max(index_z - 3, 0)
+        index_to = min(index_z + 3, len(orbit_z_vec))
+        z_around_crossing = orbit_z_vec[index_from : index_to]
+        time_around_crossing = orbit_time_vec[index_from : index_to]
 
-            # Convert the interpolated time into datetime
-            # Add the ascending node crossing time if it's before the sensing time
-            datetime_ascending_crossing = (datetime_orbit_ref
-                                           + datetime.timedelta(seconds=float(t_interp)))
-            if datetime_ascending_crossing < sensing_time:
-                datetime_ascending_node_crossing_list.append(datetime_ascending_crossing)
+        # Set up spline interpolator and interpolate the time when z is equal to 0.0
+        interpolator_time = InterpolatedUnivariateSpline(z_around_crossing,
+                                                            time_around_crossing,
+                                                            k=1)
+        t_interp = interpolator_time(0.0)
+
+        # Convert the interpolated time into datetime
+        # Add the ascending node crossing time if it's before the sensing time
+        datetime_ascending_crossing = (datetime_orbit_ref
+                                        + datetime.timedelta(seconds=float(t_interp)))
+        if datetime_ascending_crossing < sensing_time:
+            datetime_ascending_node_crossing_list.append(datetime_ascending_crossing)
 
     if len(datetime_ascending_node_crossing_list) == 0:
         warnings.warn('Cannot detect ascending node crossings from the orbit information provided.')
