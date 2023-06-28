@@ -6,7 +6,6 @@ import os
 import warnings
 import lxml.etree as ET
 import zipfile
-from pathlib import Path
 from typing import Union
 
 from types import SimpleNamespace
@@ -572,7 +571,7 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
 
         rfi_annotation_path = annotation_path.replace('annotation/', 'annotation/rfi/rfi-')
         # Load RFI information if available
-        if Path(rfi_annotation_path).exists() and ipf_version >= RFI_INFO_AVAILABLE_FROM:
+        if os.path.exists(rfi_annotation_path) and ipf_version >= RFI_INFO_AVAILABLE_FROM:
             with open_method(rfi_annotation_path, 'r') as f_rads:
                 tree_rads = ET.parse(f_rads)
                 burst_rfi_info_swath = SwathRfiInfo.from_et(tree_rads,
@@ -580,6 +579,7 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
                                                             ipf_version)
 
         else:
+            warnings.warn(f"No RFI metadata found at {rfi_annotation_path}.")
             burst_rfi_info_swath = None
 
         # Load the miscellaneous metadata for CARD4L-NRB
