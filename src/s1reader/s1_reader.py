@@ -21,8 +21,7 @@ from s1reader import s1_annotation  # to access __file__
 from s1reader.s1_annotation import ProductAnnotation, NoiseAnnotation,\
                                    CalibrationAnnotation, AuxCal,\
                                    BurstCalibration, BurstEAP, BurstNoise,\
-                                   BurstExtendedCoeffs, SwathRfiInfo, SwathMiscMetadata,\
-                                   RFI_INFO_AVAILABLE_FROM
+                                   BurstExtendedCoeffs, SwathRfiInfo, SwathMiscMetadata
 
 from s1reader.s1_burst_slc import Doppler, Sentinel1BurstSlc
 from s1reader.s1_burst_id import S1BurstId
@@ -571,7 +570,7 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
 
         rfi_annotation_path = annotation_path.replace('annotation/', 'annotation/rfi/rfi-')
         # Load RFI information if available
-        if os.path.exists(rfi_annotation_path) and ipf_version >= RFI_INFO_AVAILABLE_FROM:
+        if os.path.exists(rfi_annotation_path):
             with open_method(rfi_annotation_path, 'r') as f_rads:
                 tree_rads = ET.parse(f_rads)
                 burst_rfi_info_swath = SwathRfiInfo.from_et(tree_rads,
