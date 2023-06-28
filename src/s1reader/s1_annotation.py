@@ -94,7 +94,7 @@ class AnnotationBase:
     A virtual base class of the inheriting annotation class i.e. Product, Calibration, and Noise.
     Not intended for standalone use.
     '''
-    
+
     @staticmethod
     def _parse_scalar(xml_et: ET.ElementTree, path_field: str, str_type: str):
         '''A class method that parse the scalar value in AnnotationBase.xml_et
@@ -432,59 +432,60 @@ class ProductAnnotation(AnnotationBase):
             Parsed LADS from et_in
         '''
         antenna_pattern_azimuth_time = \
-            cls._parse_vectorlist(et_in, 
+            cls._parse_vectorlist(et_in,
                                   'antennaPattern/antennaPatternList',
                                   'azimuthTime',
                                   'datetime')
         antenna_pattern_slant_range_time = \
-            cls._parse_vectorlist(et_in, 
+            cls._parse_vectorlist(et_in,
                                   'antennaPattern/antennaPatternList',
                                   'slantRangeTime',
                                   'vector_float')
         antenna_pattern_elevation_angle = \
-            cls._parse_vectorlist(et_in, 
+            cls._parse_vectorlist(et_in,
                                   'antennaPattern/antennaPatternList',
                                   'elevationAngle',
                                   'vector_float')
         antenna_pattern_elevation_pattern = \
-            cls._parse_vectorlist(et_in, 
+            cls._parse_vectorlist(et_in,
                                   'antennaPattern/antennaPatternList',
                                   'elevationPattern',
                                   'vector_float')
 
         antenna_pattern_incidence_angle = \
-            cls._parse_vectorlist(et_in, 
+            cls._parse_vectorlist(et_in,
                                   'antennaPattern/antennaPatternList',
                                   'incidenceAngle',
                                   'vector_float')
 
         image_information_slant_range_time = \
-            cls._parse_scalar(et_in, 
+            cls._parse_scalar(et_in,
                               'imageAnnotation/imageInformation/slantRangeTime',
                               'scalar_float')
         ascending_node_time = \
-            cls._parse_scalar(et_in, 
+            cls._parse_scalar(et_in,
                               'imageAnnotation/imageInformation/ascendingNodeTime',
                               'datetime')
         number_of_samples = \
-            cls._parse_scalar(et_in, 
+            cls._parse_scalar(et_in,
                               'imageAnnotation/imageInformation/numberOfSamples',
                               'scalar_int')
         number_of_samples = \
-            cls._parse_scalar(et_in, 
+            cls._parse_scalar(et_in,
                               'imageAnnotation/imageInformation/numberOfSamples',
                               'scalar_int')
         range_sampling_rate = \
-            cls._parse_scalar(et_in, 
+            cls._parse_scalar(et_in,
                               'generalAnnotation/productInformation/rangeSamplingRate',
                               'scalar_float')
         slant_range_time =  \
-            cls._parse_scalar(et_in, 
+            cls._parse_scalar(et_in,
                               'imageAnnotation/imageInformation/slantRangeTime',
                               'scalar_float')
 
         instrument_cfg_id = \
-            cls._parse_scalar('generalAnnotation/downlinkInformationList/downlinkInformation/'
+            cls._parse_scalar(et_in,
+                              'generalAnnotation/downlinkInformationList/downlinkInformation/'
                               'downlinkValues/instrumentConfigId',
                               'scalar_int')
 
@@ -785,7 +786,7 @@ class SwathMiscMetadata:
         return burst_misc_metadata
 
 
-def closest_block_to_azimuth_time(vector_azimuth_time: np.ndarray,
+def closest_block_to_azimuth_time(vector_azimuth_time: list,
                                   azimuth_time_burst: datetime.datetime) -> int:
     '''
     Find the id of the closest data block in annotation.
@@ -793,8 +794,10 @@ def closest_block_to_azimuth_time(vector_azimuth_time: np.ndarray,
 
     Parameters
     ----------
-    vector_azimuth_time : np.ndarray
-        numpy array azimuth time whose data type is datetime.datetime
+    vector_azimuth_time : list
+        list of azimuth times whose data type is datetime.datetime.
+        Comes from `_parse_vectorlist`
+
     azimuth_time_burst: datetime.datetime
         Azimuth time of the burst
 
@@ -805,7 +808,7 @@ def closest_block_to_azimuth_time(vector_azimuth_time: np.ndarray,
 
     '''
 
-    return np.argmin(np.abs(vector_azimuth_time - azimuth_time_burst))
+    return np.argmin(np.abs(np.array(vector_azimuth_time) - azimuth_time_burst))
 
 
 @dataclass
