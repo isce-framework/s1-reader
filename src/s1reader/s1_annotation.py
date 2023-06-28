@@ -652,10 +652,7 @@ class SwathRfiInfo:
     azimuth_time_list: list
 
     @classmethod
-    def from_et(cls,
-                et_rfi: ET,
-                et_product: ET,
-                ipf_version: version.Version):
+    def from_et(cls, et_rfi: ET, et_product: ET):
         '''Load RFI information from etree
 
         Parameters
@@ -664,8 +661,6 @@ class SwathRfiInfo:
             XML ElementTree from RFI annotation
         et_product: ET
             XML ElementTree from product annotation
-        ipf_version: version.Version
-            IPF version of the input sentinel-1 data
 
         Returns
         -------
@@ -676,7 +671,7 @@ class SwathRfiInfo:
         header_lads = et_product.find('imageAnnotation/processingInformation')
         if header_lads is None:
             raise ValueError('Cannot locate the element in the product '
-                             'anotation where RFI mitigation info is located.')
+                             'annotation where RFI mitigation info is located.')
 
         header_rfi = et_rfi.find('rfiBurstReportList')
         if header_rfi is None:
