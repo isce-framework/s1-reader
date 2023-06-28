@@ -888,11 +888,10 @@ def load_bursts(path: str, orbit_path: str, swath_num: int, pol: str = 'vv',
         # convert S1BurstId to string for consistent object comparison later
         burst_ids_found = set([str(b.burst_id) for b in bursts])
 
-        warnings.simplefilter("always")
         # burst IDs as strings for consistent object comparison
         set_burst_ids = set([str(b) for b in burst_ids])
         if not burst_ids_found:
-            warnings.warn("None of provided burst IDs found in sub-swath {swath_num}")
+            warnings.warn(f"None of provided burst IDs found in sub-swath {swath_num}")
         elif burst_ids_found != set_burst_ids:
             diff = set_burst_ids.difference(burst_ids_found)
             warn_str = 'Not all burst IDs found. \n '
