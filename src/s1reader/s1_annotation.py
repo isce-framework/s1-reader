@@ -502,7 +502,6 @@ class ProductAnnotation(AnnotationBase):
         )
 
 
-
 @dataclass
 class AuxCal(AnnotationBase):
     '''AUX_CAL information for EAP correction'''
@@ -568,13 +567,13 @@ class AuxCal(AnnotationBase):
             swath_xml = calibration_params.find('swath').text
             polarisation_xml = calibration_params.find('polarisation').text
             if polarisation_xml == pol.upper() and swath_xml==str_swath.upper():
-                cls.beam_nominal_near_range = \
+                beam_nominal_near_range = \
                     float(calibration_params.
                         find('elevationAntennaPattern/beamNominalNearRange').text)
-                cls.beam_nominal_far_range = \
+                beam_nominal_far_range = \
                     float(calibration_params.
                         find('elevationAntennaPattern/beamNominalFarRange').text)
-                cls.elevation_angle_increment = \
+                elevation_angle_increment = \
                     float(calibration_params.
                         find('elevationAntennaPattern/elevationAngleIncrement').text)
 
@@ -588,37 +587,49 @@ class AuxCal(AnnotationBase):
 
                 if n_val == len(arr_eap_val):
                     # Provided in real numbers: In case of AUX_CAL for old IPFs.
-                    cls.elevation_antenna_pattern = arr_eap_val
+                    elevation_antenna_pattern = arr_eap_val
                 elif n_val*2 == len(arr_eap_val):
                     # Provided in complex numbers: In case of recent IPFs e.g. 3.10
-                    cls.elevation_antenna_pattern = arr_eap_val[0::2] + arr_eap_val[1::2] * 1.0j
+                    elevation_antenna_pattern = arr_eap_val[0::2] + arr_eap_val[1::2] * 1.0j
                 else:
                     raise ValueError('The number of values does not match. '
                                     f'n_val={n_val}, '
                                     f'#len(elevationAntennaPattern/values)={len(arr_eap_val)}')
 
-                cls.azimuth_angle_increment = \
+                azimuth_angle_increment = \
                     float(calibration_params.
                         find('azimuthAntennaPattern/azimuthAngleIncrement').text)
-                cls.azimuth_antenna_pattern = \
+                azimuth_antenna_pattern = \
                     np.array([float(token_val) for \
                               token_val in calibration_params.
                               find('azimuthAntennaPattern/values').text.split()])
 
-                cls.azimuth_antenna_element_pattern_increment = \
+                azimuth_antenna_element_pattern_increment = \
                     float(calibration_params.
                         find('azimuthAntennaElementPattern/azimuthAngleIncrement').text)
-                cls.azimuth_antenna_element_pattern = \
+                azimuth_antenna_element_pattern = \
                     np.array([float(token_val) for \
                               token_val in calibration_params.
                               find('azimuthAntennaElementPattern/values').text.split()])
 
-                cls.absolute_calibration_constant = \
+                absolute_calibration_constant = \
                     float(calibration_params.find('absoluteCalibrationConstant').text)
-                cls.noise_calibration_factor = \
+                noise_calibration_factor = \
                     float(calibration_params.find('noiseCalibrationFactor').text)
 
-        return cls
+        return cls(
+            beam_nominal_near_range,
+            beam_nominal_far_range,
+            elevation_angle_increment,
+            elevation_antenna_pattern,
+            azimuth_angle_increment,
+            azimuth_antenna_pattern,
+            azimuth_antenna_element_pattern_increment,
+            azimuth_antenna_element_pattern,
+            absolute_calibration_constant,
+            noise_calibration_factor,
+        )
+
 
 
 @dataclass
