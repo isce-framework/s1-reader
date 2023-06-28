@@ -146,7 +146,7 @@ class AnnotationBase:
         xml_et : lxml.etree.ElementTree
             XML tree to parse
         name_vector_list : str
-            List of dields in the xml_et to parse
+            List of fields in the xml_et to parse
         name_vector : str
             Name of the field in each elements of the `name_vector_list`
             (e.g. 'noiseLut' in 'noiseVectorList')
@@ -209,7 +209,7 @@ class CalibrationAnnotation(AnnotationBase):
     @classmethod
     def from_et(cls, et_in: ET, path_annotation: str):
         '''
-        Extracts the list of calibration informaton from etree from
+        Extracts the list of calibration information from etree from
         the Calibration Annotation Data Set (CADS).
         Parameters:
         -----------
