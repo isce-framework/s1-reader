@@ -94,6 +94,7 @@ class AnnotationBase:
     A virtual base class of the inheriting annotation class i.e. Product, Calibration, and Noise.
     Not intended for standalone use.
     '''
+    
     @staticmethod
     def _parse_scalar(xml_et: ET.ElementTree, path_field: str, str_type: str):
         '''A class method that parse the scalar value in AnnotationBase.xml_et
@@ -133,7 +134,7 @@ class AnnotationBase:
 
         return val_out
 
-    @classmethod
+    @staticmethod
     def _parse_vectorlist(xml_et: ET.ElementTree,
                           name_vector_list: str,
                           name_vector: str,
