@@ -701,9 +701,7 @@ class SwathRfiInfo:
             azimuth_time_list,
         )
 
-
-    @classmethod
-    def extract_by_aztime(cls, aztime_start: datetime.datetime):
+    def extract_by_aztime(self, aztime_start: datetime.datetime):
         '''
         Extract the burst RFI report that is within the azimuth time of a burst
 
@@ -721,14 +719,14 @@ class SwathRfiInfo:
 
         # find the corresponding burst
         index_burst =\
-            closest_block_to_azimuth_time(np.array(cls.azimuth_time_list),
+            closest_block_to_azimuth_time(np.array(self.azimuth_time_list),
                                           aztime_start)
 
-        burst_report_out = cls.rfi_burst_report_list[index_burst]
+        burst_report_out = self.rfi_burst_report_list[index_burst]
 
         rfi_info = SimpleNamespace()
-        rfi_info.rfi_mitigation_performed = cls.rfi_mitigation_performed
-        rfi_info.rfi_mitigation_domain = cls.rfi_mitigation_domain
+        rfi_info.rfi_mitigation_performed = self.rfi_mitigation_performed
+        rfi_info.rfi_mitigation_domain = self.rfi_mitigation_domain
         rfi_info.rfi_burst_report = burst_report_out
 
         return rfi_info
