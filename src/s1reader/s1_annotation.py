@@ -430,56 +430,77 @@ class ProductAnnotation(AnnotationBase):
         cls: ProductAnnotation
             Parsed LADS from et_in
         '''
-
-        cls.xml_et = et_in
-
-        cls.antenna_pattern_azimuth_time = \
-            cls._parse_vectorlist('antennaPattern/antennaPatternList',
+        antenna_pattern_azimuth_time = \
+            cls._parse_vectorlist(et_in, 
+                                  'antennaPattern/antennaPatternList',
                                   'azimuthTime',
                                   'datetime')
-        cls.antenna_pattern_slant_range_time = \
-            cls._parse_vectorlist('antennaPattern/antennaPatternList',
+        antenna_pattern_slant_range_time = \
+            cls._parse_vectorlist(et_in, 
+                                  'antennaPattern/antennaPatternList',
                                   'slantRangeTime',
                                   'vector_float')
-        cls.antenna_pattern_elevation_angle = \
-            cls._parse_vectorlist('antennaPattern/antennaPatternList',
+        antenna_pattern_elevation_angle = \
+            cls._parse_vectorlist(et_in, 
+                                  'antennaPattern/antennaPatternList',
                                   'elevationAngle',
                                   'vector_float')
-        cls.antenna_pattern_elevation_pattern = \
-            cls._parse_vectorlist('antennaPattern/antennaPatternList',
+        antenna_pattern_elevation_pattern = \
+            cls._parse_vectorlist(et_in, 
+                                  'antennaPattern/antennaPatternList',
                                   'elevationPattern',
                                   'vector_float')
 
-        cls.antenna_pattern_incidence_angle = \
-            cls._parse_vectorlist('antennaPattern/antennaPatternList',
+        antenna_pattern_incidence_angle = \
+            cls._parse_vectorlist(et_in, 
+                                  'antennaPattern/antennaPatternList',
                                   'incidenceAngle',
                                   'vector_float')
 
-        cls.image_information_slant_range_time = \
-            cls._parse_scalar('imageAnnotation/imageInformation/slantRangeTime',
+        image_information_slant_range_time = \
+            cls._parse_scalar(et_in, 
+                              'imageAnnotation/imageInformation/slantRangeTime',
                               'scalar_float')
-        cls.ascending_node_time = \
-            cls._parse_scalar('imageAnnotation/imageInformation/ascendingNodeTime',
+        ascending_node_time = \
+            cls._parse_scalar(et_in, 
+                              'imageAnnotation/imageInformation/ascendingNodeTime',
                               'datetime')
-        cls.number_of_samples = \
-            cls._parse_scalar('imageAnnotation/imageInformation/numberOfSamples',
+        number_of_samples = \
+            cls._parse_scalar(et_in, 
+                              'imageAnnotation/imageInformation/numberOfSamples',
                               'scalar_int')
-        cls.number_of_samples = \
-            cls._parse_scalar('imageAnnotation/imageInformation/numberOfSamples',
+        number_of_samples = \
+            cls._parse_scalar(et_in, 
+                              'imageAnnotation/imageInformation/numberOfSamples',
                               'scalar_int')
-        cls.range_sampling_rate = \
-            cls._parse_scalar('generalAnnotation/productInformation/rangeSamplingRate',
+        range_sampling_rate = \
+            cls._parse_scalar(et_in, 
+                              'generalAnnotation/productInformation/rangeSamplingRate',
                               'scalar_float')
-        cls.slant_range_time =  \
-            cls._parse_scalar('imageAnnotation/imageInformation/slantRangeTime',
+        slant_range_time =  \
+            cls._parse_scalar(et_in, 
+                              'imageAnnotation/imageInformation/slantRangeTime',
                               'scalar_float')
 
-        cls.inst_config_id = \
+        instrument_cfg_id = \
             cls._parse_scalar('generalAnnotation/downlinkInformationList/downlinkInformation/'
                               'downlinkValues/instrumentConfigId',
                               'scalar_int')
 
-        return cls
+        return cls(
+            image_information_slant_range_time,
+            instrument_cfg_id,
+            antenna_pattern_azimuth_time,
+            antenna_pattern_slant_range_time,
+            antenna_pattern_elevation_angle,
+            antenna_pattern_elevation_pattern,
+            antenna_pattern_incidence_angle,
+            ascending_node_time,
+            number_of_samples,
+            range_sampling_rate,
+            slant_range_time,
+        )
+
 
 
 @dataclass
