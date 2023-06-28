@@ -94,8 +94,6 @@ class AnnotationBase:
     A virtual base class of the inheriting annotation class i.e. Product, Calibration, and Noise.
     Not intended for standalone use.
     '''
-    xml_et: ET
-
     @staticmethod
     def _parse_scalar(xml_et: ET.ElementTree, path_field: str, str_type: str):
         '''A class method that parse the scalar value in AnnotationBase.xml_et
@@ -223,40 +221,39 @@ class CalibrationAnnotation(AnnotationBase):
             Instance of CalibrationAnnotation initialized by the input parameter
         '''
 
-        cls.xml_et = et_in
-        cls.basename_annotation = \
-            os.path.basename(path_annotation)
+        basename_annotation = os.path.basename(path_annotation)
 
-        cls.list_azimuth_time = \
-            cls._parse_vectorlist('calibrationVectorList',
-                                  'azimuthTime',
-                                  'datetime')
-        cls.list_line = \
-            cls._parse_vectorlist('calibrationVectorList',
-                                  'line',
-                                  'scalar_int')
-        cls.list_pixel = \
-            cls._parse_vectorlist('calibrationVectorList',
-                                  'pixel',
-                                  'vector_int')
-        cls.list_sigma_nought = \
-            cls._parse_vectorlist('calibrationVectorList',
-                                'sigmaNought',
-                                'vector_float')
-        cls.list_beta_nought = \
-            cls._parse_vectorlist('calibrationVectorList',
-                                  'betaNought',
-                                  'vector_float')
-        cls.list_gamma = \
-            cls._parse_vectorlist('calibrationVectorList',
-                                  'gamma',
-                                  'vector_float')
-        cls.list_dn = \
-            cls._parse_vectorlist('calibrationVectorList',
-                                  'dn',
-                                  'vector_float')
+        list_azimuth_time = cls._parse_vectorlist(et_in,
+                                                  'calibrationVectorList',
+                                                  'azimuthTime',
+                                                  'datetime')
+        list_line = cls._parse_vectorlist(et_in,
+                                          'calibrationVectorList',
+                                          'line',
+                                          'scalar_int')
+        list_pixel = cls._parse_vectorlist(et_in,
+                                           'calibrationVectorList',
+                                           'pixel',
+                                           'vector_int')
+        list_sigma_nought = cls._parse_vectorlist(et_in,
+                                                  'calibrationVectorList',
+                                                  'sigmaNought',
+                                                  'vector_float')
+        list_beta_nought =  cls._parse_vectorlist(et_in,
+                                                  'calibrationVectorList',
+                                                  'betaNought',
+                                                  'vector_float')
+        list_gamma = cls._parse_vectorlist(et_in,
+                                           'calibrationVectorList',
+                                           'gamma',
+                                           'vector_float')
+        list_dn = cls._parse_vectorlist(et_in,
+                                        'calibrationVectorList',
+                                        'dn',
+                                        'vector_float')
 
-        return cls
+        return cls(basename_annotation, list_azimuth_time, list_line, list_pixel,
+                   list_sigma_nought, list_beta_nought, list_gamma, list_dn)
 
 
 @dataclass
@@ -1088,7 +1085,8 @@ class BurstEAP:
         Implementation from S1A documention.
 
         Code copied from ISCE2.
-
+        See https://eop-cfi.esa.int/Repo/PUBLIC/DOCUMENTATION/SYSTEM_SUPPORT_DOCS/Mission%20Convention%20Documents/MCD_custom_v4_23.pdf
+        table 10.
 
         Parameters:
         -----------
