@@ -96,12 +96,14 @@ class AnnotationBase:
     '''
     xml_et: ET
 
-    @classmethod
-    def _parse_scalar(cls, path_field: str, str_type: str):
+    @staticmethod
+    def _parse_scalar(xml_et: ET.ElementTree, path_field: str, str_type: str):
         '''A class method that parse the scalar value in AnnotationBase.xml_et
 
         Parameters
         ----------
+        xml_et : lxml.etree.ElementTree
+            XML tree to parse
         path_field : str
             Field in the xml_et to parse
         str_type : str
@@ -111,14 +113,11 @@ class AnnotationBase:
 
         Returns
         -------
-        val_out: {datetime.datetime, int, float, np.array, str}
+        val_out: {datetime.datetime, int, float, str}
             Parsed data in the annotation
             Datatype of vel_out follows str_type.
-            val_out becomes np.array when str_type is vector*
-
         '''
-
-        elem_field = cls.xml_et.find(path_field)
+        elem_field = xml_et.find(path_field)
         if str_type == 'datetime':
             val_out = datetime.datetime.strptime(elem_field.text, '%Y-%m-%dT%H:%M:%S.%f')
 
@@ -127,12 +126,6 @@ class AnnotationBase:
 
         elif str_type == 'scalar_float':
             val_out = float(elem_field.text)
-
-        elif str_type == 'vector_int':
-            val_out = np.array([int(strin) for strin in elem_field.text.split()])
-
-        elif str_type == 'vector_float':
-            val_out = np.array([float(strin) for strin in elem_field.text.split()])
 
         elif str_type == 'str':
             val_out = elem_field.text
@@ -143,15 +136,20 @@ class AnnotationBase:
         return val_out
 
     @classmethod
-    def _parse_vectorlist(cls, name_vector_list: str, name_vector: str, str_type: str):
+    def _parse_vectorlist(xml_et: ET.ElementTree,
+                          name_vector_list: str,
+                          name_vector: str,
+                          str_type: str):
         '''A class method that parse the list of the values from xml_et in the class
 
         Parameters
         ----------
+        xml_et : lxml.etree.ElementTree
+            XML tree to parse
         name_vector_list : str
-            List Field in the xml_et to parse
+            List of dields in the xml_et to parse
         name_vector : str
-            Name of the field in each elements of the VectorList
+            Name of the field in each elements of the `name_vector_list`
             (e.g. 'noiseLut' in 'noiseVectorList')
         str_type : str
             Specify how the texts in the field will be parsed
@@ -162,43 +160,34 @@ class AnnotationBase:
         -------
         val_out: list
             Parsed data in the annotation
-
         '''
+        element_to_parse = xml_et.find(name_vector_list)
 
-        element_to_parse = cls.xml_et.find(name_vector_list)
-        num_element = len(element_to_parse)
+        if str_type == 'str':
+            return element_to_parse[0].find(name_vector).text
 
-        list_out = [None]*num_element
-
+        str_elem_list = [elem.find(name_vector).text for elem in element_to_parse]
+        list_out = []
+        # All others `str_type`s iterate over the list of elements
         if str_type == 'datetime':
-            for i,elem in enumerate(element_to_parse):
-                str_elem = elem.find(name_vector).text
-                list_out[i] = datetime.datetime.strptime(str_elem, '%Y-%m-%dT%H:%M:%S.%f')
-            list_out = np.array(list_out)
+            for str_elem in str_elem_list:
+                list_out.append(datetime.datetime.strptime(str_elem, '%Y-%m-%dT%H:%M:%S.%f'))
 
         elif str_type == 'scalar_int':
-            for i,elem in enumerate(element_to_parse):
-                str_elem = elem.find(name_vector).text
-                list_out[i] = int(str_elem)
+            for str_elem in str_elem_list:
+                list_out.append(int(str_elem))
 
         elif str_type == 'scalar_float':
-            for i,elem in enumerate(element_to_parse):
-                str_elem = elem.find(name_vector).text
-                list_out[i] = float(str_elem)
+            for str_elem in str_elem_list:
+                list_out.append(float(str_elem))
 
         elif str_type == 'vector_int':
-            for i,elem in enumerate(element_to_parse):
-                str_elem = elem.find(name_vector).text
-                list_out[i] = np.array([int(strin) for strin in str_elem.split()])
+            for str_elem in str_elem_list:
+                list_out.append(np.array([int(strin) for strin in str_elem.split()]))
 
         elif str_type == 'vector_float':
-            for i,elem in enumerate(element_to_parse):
-                str_elem = elem.find(name_vector).text
-                list_out[i] = np.array([float(strin) for strin in str_elem.split()])
-
-        elif str_type == 'str':
-            list_out = element_to_parse[0].find(name_vector).text
-
+            for str_elem in str_elem_list:
+                list_out.append(np.array([float(strin) for strin in str_elem.split()]))
         else:
             raise ValueError(f'Cannot recognize the type of the element: {str_type}')
 
