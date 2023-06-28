@@ -672,12 +672,6 @@ class SwathRfiInfo:
         cls: SwathRfiInfo
             dataclass populated by this function
         '''
-
-        if ipf_version < RFI_INFO_AVAILABLE_FROM:
-            # RFI related processing is not in place
-            # return an empty dataclass
-            return None
-
         # Attempt to locate the RFI information from the input annotations
         header_lads = et_product.find('imageAnnotation/processingInformation')
         if header_lads is None:
@@ -690,22 +684,27 @@ class SwathRfiInfo:
                              'in the RFI annotation')
 
         # Start to load RFI information
-        cls.rfi_mitigation_performed =\
+        rfi_mitigation_performed =\
             header_lads.find('rfiMitigationPerformed').text
-        cls.rfi_mitigation_domain =\
+        rfi_mitigation_domain =\
             header_lads.find('rfiMitigationDomain').text
 
         num_burst_rfi_report = len(header_rfi)
-        cls.rfi_burst_report_list = [None] * num_burst_rfi_report
-        cls.azimuth_time_list = [None] * num_burst_rfi_report
+        rfi_burst_report_list = [None] * num_burst_rfi_report
+        azimuth_time_list = [None] * num_burst_rfi_report
 
         for i_burst, elem_burst in enumerate(header_rfi):
-            cls.rfi_burst_report_list[i_burst] =\
+            rfi_burst_report_list[i_burst] =\
                 element_to_dict(elem_burst)['rfiBurstReport']
-            cls.azimuth_time_list[i_burst] =\
-                cls.rfi_burst_report_list[i_burst]['azimuthTime']
+            azimuth_time_list[i_burst] =\
+                rfi_burst_report_list[i_burst]['azimuthTime']
 
-        return cls
+        return cls(
+            rfi_mitigation_performed,
+            rfi_mitigation_domain,
+            rfi_burst_report_list,
+            azimuth_time_list,
+        )
 
 
     @classmethod
