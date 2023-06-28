@@ -989,7 +989,7 @@ def _burst_from_safe_dir(safe_dir_path: str, id_str: str, orbit_path: str,
     else:
         msg = f'measurement directory NOT found in {safe_dir_path}'
         msg += ', continue with metadata only.'
-        print(msg)
+        warnings.warn(msg)
         f_tiff = ''
 
     bursts = burst_from_xml(f_annotation, orbit_path, f_tiff, iw2_f_annotation,
