@@ -97,7 +97,7 @@ class AnnotationBase:
 
     @staticmethod
     def _parse_scalar(xml_et: ET.ElementTree, path_field: str, str_type: str):
-        '''A class method that parse the scalar value in AnnotationBase.xml_et
+        '''A static method that parse the scalar value in AnnotationBase.xml_et
 
         Parameters
         ----------
@@ -134,19 +134,20 @@ class AnnotationBase:
 
         return val_out
 
+
     @staticmethod
     def _parse_vectorlist(xml_et: ET.ElementTree,
                           name_vector_list: str,
                           name_vector: str,
                           str_type: str):
-        '''A class method that parse the list of the values from xml_et in the class
+        '''A static method that parse the list of the values from xml_et in the class
 
         Parameters
         ----------
         xml_et : lxml.etree.ElementTree
             XML tree to parse
         name_vector_list : str
-            List of fields in the xml_et to parse
+            Name of the vector list in the `xml_et` to parse e.g. `noiseVectorList`
         name_vector : str
             Name of the field in each elements of the `name_vector_list`
             (e.g. 'noiseLut' in 'noiseVectorList')
@@ -161,11 +162,14 @@ class AnnotationBase:
             Parsed data in the annotation
         '''
         element_to_parse = xml_et.find(name_vector_list)
-
-        if str_type == 'str':
-            return element_to_parse[0].find(name_vector).text
+        if not element_to_parse:
+            raise RuntimeError(f'Cannot find {name_vector_list} '
+            'from the input XML element tree')        
 
         str_elem_list = [elem.find(name_vector).text for elem in element_to_parse]
+        if str_type == 'str':
+            return str_elem_list
+
         list_out = []
         # All others `str_type`s iterate over the list of elements
         if str_type == 'datetime':
@@ -294,11 +298,10 @@ class NoiseAnnotation(AnnotationBase):
         basename_annotation = os.path.basename(path_annotation)
 
         if ipf_version < min_ipf_version_az_noise_vector:  # legacy SAFE data
-            rg_list_azimuth_time = \
-                cls._parse_vectorlist(et_in,
-                                      'noiseVectorList',
-                                      'azimuthTime',
-                                      'datetime')
+            rg_list_azimuth_time = cls._parse_vectorlist(et_in,
+                                                         'noiseVectorList',
+                                                         'azimuthTime',
+                                                         'datetime')
             rg_list_line = \
                 cls._parse_vectorlist(et_in,
                                       'noiseVectorList',
@@ -470,10 +473,6 @@ class ProductAnnotation(AnnotationBase):
             cls._parse_scalar(et_in,
                               'imageAnnotation/imageInformation/numberOfSamples',
                               'scalar_int')
-        number_of_samples = \
-            cls._parse_scalar(et_in,
-                              'imageAnnotation/imageInformation/numberOfSamples',
-                              'scalar_int')
         range_sampling_rate = \
             cls._parse_scalar(et_in,
                               'generalAnnotation/productInformation/rangeSamplingRate',
@@ -482,7 +481,6 @@ class ProductAnnotation(AnnotationBase):
             cls._parse_scalar(et_in,
                               'imageAnnotation/imageInformation/slantRangeTime',
                               'scalar_float')
-
         instrument_cfg_id = \
             cls._parse_scalar(et_in,
                               'generalAnnotation/downlinkInformationList/downlinkInformation/'
@@ -633,7 +631,6 @@ class AuxCal(AnnotationBase):
         )
 
 
-
 @dataclass
 class SwathRfiInfo:
     '''
@@ -721,7 +718,7 @@ class SwathRfiInfo:
 
         # find the corresponding burst
         index_burst =\
-            closest_block_to_azimuth_time(np.array(self.azimuth_time_list),
+            closest_block_to_azimuth_time(self.azimuth_time_list,
                                           aztime_start)
 
         burst_report_out = self.rfi_burst_report_list[index_burst]
