@@ -4,7 +4,6 @@ import isce3
 import numpy as np
 
 
-
 def test_burst(bursts):
     last_valid_lines = [1487, 1489, 1489, 1490, 1487, 1488, 1488, 1489, 1488]
     first_valid_lines = [28, 27, 27, 27, 28, 28, 28, 27, 28]
