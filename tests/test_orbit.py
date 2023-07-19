@@ -1,17 +1,22 @@
+'''
+Unit tests for orbit
+'''
+
 import datetime
+import zipfile
 
 import isce3
+import lxml.etree as ET
 import numpy as np
 from shapely.geometry import Point
 
-from s1reader.s1_orbit import (
-    get_orbit_file_from_dir, get_ascending_node_crossings, get_closest_ascending_node
-)
-from s1reader.s1_burst_id import S1BurstId
-from s1reader import load_bursts
-
+from s1reader.s1_orbit import get_orbit_file_from_dir
+from s1reader.s1_reader import as_datetime, get_ascending_node_time_orbit
 
 def test_get_orbit_file(test_paths):
+    '''
+    Unit test for `get_orbit_file_from_dir`
+    '''
     orbit_file = get_orbit_file_from_dir(test_paths.safe, test_paths.orbit_dir)
 
     expected_orbit_path = f'{test_paths.orbit_dir}/{test_paths.orbit_file}'
@@ -19,6 +24,9 @@ def test_get_orbit_file(test_paths):
 
 
 def test_get_orbit_file_multi_mission(tmp_path):
+    '''
+    Unit test for `get_orbit_file_from_dir` in case of multiple SAFE .zip files
+    '''
     orbit_a = tmp_path / "S1A_OPER_AUX_POEORB_OPOD_20210314T131617_V20191007T225942_20191009T005942.EOF"
     orbit_a.write_text("")
     orbit_b = tmp_path / "S1B_OPER_AUX_POEORB_OPOD_20210304T232500_V20191007T225942_20191009T005942.EOF"
@@ -37,6 +45,9 @@ def test_get_orbit_file_multi_mission(tmp_path):
 
 
 def test_orbit_datetime(bursts):
+    '''
+    Unit test for datetimes in the orbit file
+    '''
     # pad in seconds used in orbit_reader
     pad = datetime.timedelta(seconds=60)
     for burst in bursts:
@@ -60,23 +71,39 @@ def test_orbit_datetime(bursts):
                                      rdr_grid.lookside, dop,
                                      rdr_grid.wavelength, dem)
         pnt = Point(np.degrees(llh[0]), np.degrees(llh[1]))
-        assert(burst.border[0].contains(pnt))
+        assert burst.border[0].contains(pnt)
 
 
-def test_get_ascending_node_crossings(test_paths):
-    orbit_file = get_orbit_file_from_dir(test_paths.safe, test_paths.orbit_dir)
-    anx_times = get_ascending_node_crossings(orbit_file)
-    # Make sure each orbit is approx. the right number of seconds
-    anx_time_diffs = np.diff(anx_times)
-    # Compare to nominal orbit time, S1BurstId.T_orb 
-    for time_diff in anx_time_diffs:
-        assert np.isclose(time_diff.total_seconds(), S1BurstId.T_orb, atol=0.5)
+def test_anx_time(test_paths):
+    '''
+    Compute ascending node crossing (ANX) time from orbit,
+    and compare it with annotation ANX time.
+    '''
 
+    with zipfile.ZipFile(test_paths.safe, 'r') as safe_zip:
+        # find the 1st .xml
+        filename = ''
+        for filename in safe_zip.namelist():
+            if 'annotation/s1' in filename and filename.endswith('-001.xml'):
+                break
 
-def test_get_closest_ascending_node(test_paths):
-    orbit_file = get_orbit_file_from_dir(test_paths.safe, test_paths.orbit_dir)
-    burst = load_bursts(test_paths.safe, orbit_file, 1)[0]
-    # TODO: if we change how load_bursts gets the ANX time, we'll need to parse the
-    # ANX time here from the zip file. we should move the function currently in s1_reader to the orbit module
-    anx_time = get_closest_ascending_node(orbit_file, test_paths.safe)
-    assert abs(burst.ascending_node_time - anx_time) < datetime.timedelta(seconds=0.5)
+        with safe_zip.open(filename, 'r') as f:
+            tree = ET.parse(f)
+            image_info_element = tree.find('imageAnnotation/imageInformation')
+            ascending_node_time_annotation =\
+                as_datetime(image_info_element.find('ascendingNodeTime').text)
+            first_line_utc_time = as_datetime(
+                image_info_element.find('productFirstLineUtcTime').text)
+
+    orbit_path = f'{test_paths.orbit_dir}/{test_paths.orbit_file}'
+    orbit_tree = ET.parse(orbit_path)
+    orbit_state_vector_list = orbit_tree.find('Data_Block/List_of_OSVs')
+
+    ascending_node_time_orbit = get_ascending_node_time_orbit(
+                                            orbit_state_vector_list,
+                                            first_line_utc_time,
+                                            ascending_node_time_annotation)
+    diff_ascending_node_time_seconds = (ascending_node_time_orbit
+                                        - ascending_node_time_annotation).total_seconds()
+
+    assert abs(diff_ascending_node_time_seconds) < 0.5
