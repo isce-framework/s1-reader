@@ -17,6 +17,7 @@ import numpy as np
 
 from isce3.core import speed_of_light
 from packaging import version
+from s1reader.s1_orbit import T_ORBIT
 from scipy.interpolate import InterpolatedUnivariateSpline, interp1d
 
 
@@ -1123,11 +1124,8 @@ class BurstEAP:
         # Perturbation phases (radians)
         phi = np.array([3.1495, -1.5655 , -3.1297, 4.7222])
 
-        # Orbital time period (seconds)
-        t_orb = (12*24*60*60) / 175.
-
         # Angular velocity (rad/sec)
-        worb = 2*np.pi / t_orb
+        worb = 2*np.pi / T_ORBIT
 
         # Evaluation of series
         h_t = h_0

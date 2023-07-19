@@ -1,7 +1,7 @@
 import datetime
 from dataclasses import dataclass
 from typing import ClassVar
-
+from s1reader.s1_orbit import T_ORBIT
 import numpy as np
 
 
@@ -10,7 +10,7 @@ class S1BurstId:
     # Constants in Table 9-7 of Sentinel-1 SLC Detailed Algorithm Definition
     T_beam: ClassVar[float] = 2.758273  # interval of one burst [s]
     T_pre: ClassVar[float] = 2.299849  # Preamble time interval [s]
-    T_orb: ClassVar[float] = 12 * 24 * 3600 / 175  # Nominal orbit period [s]
+    T_orb: ClassVar[float] = T_ORBIT  # Nominal orbit period [s]
     track_number: int
     esa_burst_id: int
     subswath: str
