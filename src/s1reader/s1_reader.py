@@ -5,8 +5,8 @@ import glob
 import os
 import warnings
 import lxml.etree as ET
-from typing import Union
 import zipfile
+from typing import Union
 
 from types import SimpleNamespace
 from packaging import version
@@ -21,8 +21,7 @@ from s1reader import s1_annotation  # to access __file__
 from s1reader.s1_annotation import ProductAnnotation, NoiseAnnotation,\
                                    CalibrationAnnotation, AuxCal,\
                                    BurstCalibration, BurstEAP, BurstNoise,\
-                                   BurstExtendedCoeffs, SwathRfiInfo, SwathMiscMetadata,\
-                                   RFI_INFO_AVAILABLE_FROM
+                                   BurstExtendedCoeffs, SwathRfiInfo, SwathMiscMetadata
 
 from s1reader.s1_burst_slc import Doppler, Sentinel1BurstSlc
 from s1reader.s1_burst_id import S1BurstId
@@ -569,11 +568,9 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
         tree_lads = ET.parse(f_lads)
         product_annotation = ProductAnnotation.from_et(tree_lads)
 
+        rfi_annotation_path = annotation_path.replace('annotation/', 'annotation/rfi/rfi-')
         # Load RFI information if available
-        if ipf_version >= RFI_INFO_AVAILABLE_FROM:
-            rfi_annotation_path =\
-                    annotation_path.replace('annotation/',
-                                            'annotation/rfi/rfi-')
+        if os.path.exists(rfi_annotation_path):
             with open_method(rfi_annotation_path, 'r') as f_rads:
                 tree_rads = ET.parse(f_rads)
                 burst_rfi_info_swath = SwathRfiInfo.from_et(tree_rads,
@@ -581,6 +578,7 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
                                                             ipf_version)
 
         else:
+            warnings.warn(f"No RFI metadata found at {rfi_annotation_path}.")
             burst_rfi_info_swath = None
 
         # Load the miscellaneous metadata for CARD4L-NRB
@@ -889,11 +887,10 @@ def load_bursts(path: str, orbit_path: str, swath_num: int, pol: str = 'vv',
         # convert S1BurstId to string for consistent object comparison later
         burst_ids_found = set([str(b.burst_id) for b in bursts])
 
-        warnings.simplefilter("always")
         # burst IDs as strings for consistent object comparison
         set_burst_ids = set([str(b) for b in burst_ids])
         if not burst_ids_found:
-            warnings.warn("None of provided burst IDs found in sub-swath {swath_num}")
+            warnings.warn(f"None of provided burst IDs found in sub-swath {swath_num}")
         elif burst_ids_found != set_burst_ids:
             diff = set_burst_ids.difference(burst_ids_found)
             warn_str = 'Not all burst IDs found. \n '
@@ -991,7 +988,7 @@ def _burst_from_safe_dir(safe_dir_path: str, id_str: str, orbit_path: str,
     else:
         msg = f'measurement directory NOT found in {safe_dir_path}'
         msg += ', continue with metadata only.'
-        print(msg)
+        warnings.warn(msg)
         f_tiff = ''
 
     bursts = burst_from_xml(f_annotation, orbit_path, f_tiff, iw2_f_annotation,
