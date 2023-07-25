@@ -532,7 +532,8 @@ def get_track_burst_num(track_burst_num_file: str = esa_track_burst_id_file):
 
 def get_ascending_node_time_orbit(orbit_state_vector_list: ET,
                                   sensing_time: datetime.datetime,
-                                  anx_time_annotation: datetime.datetime=None):
+                                  anx_time_annotation: datetime.datetime=None,
+                                  search_length=None):
     '''
     Estimate the time of ascending node crossing from orbit
 
@@ -552,6 +553,9 @@ def get_ascending_node_time_orbit(orbit_state_vector_list: ET,
         - If it is `None`, then the orbit ANX time closest to (but no later than)
           the sensing time will be returned.
 
+    search_length: datetime.timedelta
+        Search length in time to crop the data in `orbit_state_vector_list`
+
     Returns
     -------
     _ : datetime.datetime
@@ -559,7 +563,8 @@ def get_ascending_node_time_orbit(orbit_state_vector_list: ET,
     '''
 
     # Crop the orbit information before 2 * (orbit period) of sensing time
-    search_length = datetime.timedelta(seconds=2 * T_ORBIT)
+    if search_length is None:
+        search_length = datetime.timedelta(seconds=2 * T_ORBIT)
     orbit_until_sensing_time = get_burst_orbit(sensing_time  - search_length,
                                                sensing_time,
                                                orbit_state_vector_list)
@@ -813,7 +818,7 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
 
         # Calculate the difference in the two ANX times, and give
         # warning message when the difference is noticeable.
-        if not ascending_node_time_orbit is None:
+        if ascending_node_time_orbit is not None:
 
             diff_ascending_node_time_seconds = (
                 ascending_node_time_orbit - ascending_node_time_annotation).total_seconds()
