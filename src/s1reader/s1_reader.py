@@ -15,6 +15,7 @@ import isce3
 import numpy as np
 import shapely
 
+from scipy.interpolate import InterpolatedUnivariateSpline
 from nisar.workflows.stage_dem import check_dateline
 
 from s1reader import s1_annotation  # to access __file__
@@ -25,8 +26,10 @@ from s1reader.s1_annotation import ProductAnnotation, NoiseAnnotation,\
 
 from s1reader.s1_burst_slc import Doppler, Sentinel1BurstSlc
 from s1reader.s1_burst_id import S1BurstId
+from s1reader.s1_orbit import T_ORBIT
 
-
+# Tolerance of the ascending node crossing time in seconds
+ASCENDING_NODE_TIME_TOLERANCE_IN_SEC = 1.0
 esa_track_burst_id_file = f"{os.path.dirname(os.path.realpath(__file__))}/data/sentinel1_track_burst_id.txt"
 
 # TODO evaluate if it make sense to combine below into a class
@@ -525,6 +528,105 @@ def get_track_burst_num(track_burst_num_file: str = esa_track_burst_id_file):
 
     return track_burst_num
 
+
+def get_ascending_node_time_orbit(orbit_state_vector_list: ET,
+                                  sensing_time: datetime.datetime,
+                                  anx_time_annotation: datetime.datetime=None,
+                                  search_length=None):
+    '''
+    Estimate the time of ascending node crossing from orbit
+
+    Parameters
+    ----------
+    orbit_state_vector_list: ET
+        XML elements that points to the list of orbit information.
+        Each element should contain the information below:
+        TAI, UTC, UT1, Absolute_Orbit, X, Y, Z, VX, VY, VZ, and Quality
+
+    sensing_time: datetime.datetime
+        Sensing time of the data
+
+    anx_time_annotation: datetime.datetime
+        ascending node crossing (ANX) time retrieved from annotation data.
+        - If it is provided, then the orbit ANX time close to this will be returned.
+        - If it is `None`, then the orbit ANX time closest to (but no later than)
+          the sensing time will be returned.
+
+    search_length: datetime.timedelta
+        Search length in time to crop the data in `orbit_state_vector_list`
+
+    Returns
+    -------
+    _ : datetime.datetime
+        Ascending node crossing time calculated from orbit
+    '''
+
+    # Crop the orbit information before 2 * (orbit period) of sensing time
+    if search_length is None:
+        search_length = datetime.timedelta(seconds=2 * T_ORBIT)
+    orbit_until_sensing_time = get_burst_orbit(sensing_time  - search_length,
+                                               sensing_time,
+                                               orbit_state_vector_list)
+
+    # Convert the ISCE3 orbit reference datetime into a python object
+    datetime_orbit_ref = datetime.datetime(
+        orbit_until_sensing_time.reference_epoch.year,
+        orbit_until_sensing_time.reference_epoch.month,
+        orbit_until_sensing_time.reference_epoch.day)
+    datetime_orbit_ref += datetime.timedelta(
+        seconds=orbit_until_sensing_time.reference_epoch.seconds_of_day())
+
+    # Detect the event of ascending node crossing from the cropped orbit info.
+    # The algorithm was inspired by Scott Staniewicz's PR in the link below:
+    # https://github.com/opera-adt/s1-reader/pull/120/
+    datetime_ascending_node_crossing_list = []
+    orbit_time_vec = np.array(orbit_until_sensing_time.time)
+    orbit_z_vec = orbit_until_sensing_time.position[:, 2]
+
+    # Iterate through the z coordinate in orbit object to
+    # detect the ascending node crossing
+    iterator_z_time = zip(orbit_z_vec, orbit_z_vec[1:], orbit_time_vec)
+    for index_z, (z_prev, z, _) in enumerate(iterator_z_time):
+        # Check if ascending node crossing has taken place;
+        if not z_prev < 0 <= z:
+            continue
+
+        # Extract z coords. and time for interpolation
+        index_from = max(index_z - 3, 0)
+        index_to = min(index_z + 3, len(orbit_z_vec))
+        z_around_crossing = orbit_z_vec[index_from : index_to]
+        time_around_crossing = orbit_time_vec[index_from : index_to]
+
+        # Set up spline interpolator and interpolate the time when z is equal to 0.0
+        interpolator_time = InterpolatedUnivariateSpline(z_around_crossing,
+                                                            time_around_crossing,
+                                                            k=1)
+        t_interp = interpolator_time(0.0)
+
+        # Convert the interpolated time into datetime
+        # Add the ascending node crossing time if it's before the sensing time
+        datetime_ascending_crossing = (datetime_orbit_ref
+                                        + datetime.timedelta(seconds=float(t_interp)))
+        if datetime_ascending_crossing < sensing_time:
+            datetime_ascending_node_crossing_list.append(datetime_ascending_crossing)
+
+    if len(datetime_ascending_node_crossing_list) == 0:
+        raise ValueError('Cannot detect ascending node crossings '
+                         'from the orbit information provided.')
+
+    # Return the most recent time for ascending node crossing
+    if anx_time_annotation is None:
+        anx_time_orbit = max(datetime_ascending_node_crossing_list)
+    elif isinstance(anx_time_annotation, datetime.datetime):
+        anx_time_orbit = min(datetime_ascending_node_crossing_list,
+                             key=lambda anxtime:abs(anxtime - anx_time_annotation))
+    else:
+        raise ValueError('datatype of `anx_time_annotation` has to be '
+                         '`datetime.datetime`')
+
+    return anx_time_orbit
+
+
 def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
                    iw2_annotation_path: str, open_method=open,
                    flag_apply_eap: bool = True):
@@ -638,7 +740,8 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
         tree = ET.parse(f)
 
         product_info_element = tree.find('generalAnnotation/productInformation')
-        azimuth_steer_rate = np.radians(float(product_info_element.find('azimuthSteeringRate').text))
+        azimuth_steer_rate =\
+            np.radians(float(product_info_element.find('azimuthSteeringRate').text))
         radar_freq = float(product_info_element.find('radarFrequency').text)
         range_sampling_rate = float(product_info_element.find('rangeSamplingRate').text)
         orbit_direction = product_info_element.find('pass').text
@@ -646,9 +749,12 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
         image_info_element = tree.find('imageAnnotation/imageInformation')
         azimuth_time_interval = float(image_info_element.find('azimuthTimeInterval').text)
         slant_range_time = float(image_info_element.find('slantRangeTime').text)
-        ascending_node_time = as_datetime(image_info_element.find('ascendingNodeTime').text)
+        ascending_node_time_annotation =\
+            as_datetime(image_info_element.find('ascendingNodeTime').text)
+        first_line_utc_time = as_datetime(image_info_element.find('productFirstLineUtcTime').text)
 
-        downlink_element = tree.find('generalAnnotation/downlinkInformationList/downlinkInformation')
+        downlink_element = tree.find('generalAnnotation/downlinkInformationList/'
+                                     'downlinkInformation')
         prf_raw_data = float(downlink_element.find('prf').text)
         rank = int(downlink_element.find('downlinkValues/rank').text)
         range_chirp_ramp_rate = float(downlink_element.find('downlinkValues/txPulseRampRate').text)
@@ -664,7 +770,9 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
         poly_name = 'dataDcPolynomial'
         doppler_list = [parse_polynomial_element(x, poly_name) for x in doppler_list_element]
 
-        rng_processing_element = tree.find('imageAnnotation/processingInformation/swathProcParamsList/swathProcParams/rangeProcessing')
+        rng_processing_element = tree.find('imageAnnotation/processingInformation/'
+                                           'swathProcParamsList/swathProcParams/'
+                                           'rangeProcessing')
         rng_processing_bandwidth = float(rng_processing_element.find('processingBandwidth').text)
         range_window_type = str(rng_processing_element.find('windowType').text)
         range_window_coeff = float(rng_processing_element.find('windowCoefficient').text)
@@ -680,7 +788,8 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
     # calculate the range at mid swath (mid of SM swath, mid of IW2 or mid of EW3)
     with open_method(iw2_annotation_path, 'r') as iw2_f:
         iw2_tree = ET.parse(iw2_f)
-        iw2_slant_range_time = float(iw2_tree.find('imageAnnotation/imageInformation/slantRangeTime').text)
+        iw2_slant_range_time =\
+            float(iw2_tree.find('imageAnnotation/imageInformation/slantRangeTime').text)
         iw2_n_samples = int(iw2_tree.find('swathTiming/samplesPerBurst').text)
         iw2_starting_range = iw2_slant_range_time * isce3.core.speed_of_light / 2
         iw2_mid_range = iw2_starting_range + 0.5 * iw2_n_samples * range_pxl_spacing
@@ -688,9 +797,39 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
     # find orbit state vectors in 'Data_Block/List_of_OSVs'
     if orbit_path:
         orbit_tree = ET.parse(orbit_path)
-        osv_list = orbit_tree.find('Data_Block/List_of_OSVs')
+        orbit_state_vector_list = orbit_tree.find('Data_Block/List_of_OSVs')
+
+        # Calculate ascending node crossing time from orbit;
+        # compare with the info from annotation
+        try:
+            ascending_node_time_orbit = get_ascending_node_time_orbit(
+                                            orbit_state_vector_list,
+                                            first_line_utc_time,
+                                            ascending_node_time_annotation)
+            ascending_node_time = ascending_node_time_orbit
+
+        except ValueError:
+            warnings.warn('Cannot estimate ascending node crossing time from Orbit. '
+                          'Using the ascending node time in annotation.')
+            ascending_node_time_orbit = None
+            ascending_node_time = ascending_node_time_annotation
+
+        # Calculate the difference in the two ANX times, and give
+        # warning message when the difference is noticeable.
+        if ascending_node_time_orbit is not None:
+
+            diff_ascending_node_time_seconds = (
+                ascending_node_time_orbit - ascending_node_time_annotation).total_seconds()
+            if abs(diff_ascending_node_time_seconds) > ASCENDING_NODE_TIME_TOLERANCE_IN_SEC:
+                warnings.warn('ascending node time error larger than '
+                            f'{ASCENDING_NODE_TIME_TOLERANCE_IN_SEC} seconds was detected: '
+                            f'Error = {diff_ascending_node_time_seconds} seconds.')
+
     else:
-        osv_list = []
+        warnings.warn('Orbit file was not provided. '
+                      'Using the ascending node time from annotation.')
+        ascending_node_time = ascending_node_time_annotation
+        orbit_state_vector_list = []
 
     # load individual burst
     half_burst_in_seconds = 0.5 * (n_lines - 1) * azimuth_time_interval
@@ -722,11 +861,11 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
 
         sensing_duration = datetime.timedelta(
             seconds=n_lines * azimuth_time_interval)
-        if len(osv_list) > 0:
+        if len(orbit_state_vector_list) > 0:
             # get orbit from state vector list/element tree
 
             orbit = get_burst_orbit(sensing_start, sensing_start + sensing_duration,
-                                    osv_list)
+                                    orbit_state_vector_list)
         else:
             orbit = None
 

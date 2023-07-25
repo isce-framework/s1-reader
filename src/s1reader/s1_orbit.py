@@ -12,6 +12,15 @@ from xml.etree import ElementTree
 # date format used in file names
 FMT = "%Y%m%dT%H%M%S"
 
+# Orbital period of Sentinel-1 in seconds:
+# 12 days * 86400.0 seconds/day, divided into 175 orbits
+T_ORBIT = (12 * 86400.0) / 175.0
+
+# Temporal margin to apply to the start time of a frame
+#  to make sure that the ascending node crossing is
+#    included when choosing the orbit file
+margin_start_time = datetime.timedelta(seconds=T_ORBIT + 60.0)
+
 # Scihub guest credential
 scihub_user = 'gnssguest'
 scihub_password = 'gnssguest'
@@ -40,6 +49,9 @@ def download_orbit(safe_file: str, orbit_dir: str):
 
     # Parse info from SAFE file name
     mission_id, _, start_time, end_time, _ = parse_safe_filename(safe_file)
+
+    # Apply margin to the start time
+    start_time = start_time - margin_start_time
 
     # Find precise orbit first
     orbit_dict = get_orbit_dict(mission_id, start_time,
@@ -292,6 +304,10 @@ def get_orbit_file_from_list(zip_path: str, orbit_file_list: list) -> str:
 
     # extract platform id, start and end times from swath file name
     mission_id, t_swath_start_stop = get_file_name_tokens(zip_path)
+
+    # Apply temporal margin to the start time of the frame
+    # 1st element: start time, 2nd element: end time
+    t_swath_start_stop[0] = t_swath_start_stop[0] - margin_start_time
 
     # initiate output
     orbit_file_final = ''
