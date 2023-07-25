@@ -29,19 +29,20 @@ conda install -c conda-forge s1reader
 
 ```bash
 git clone https://github.com/opera-adt/s1-reader.git
+cd s1-reader
 ```
 
 2. Install dependencies:
 
 ```bash
-conda env create --file s1-reader/requirements.txt
+conda env create --file environment.yaml
 ```
 
 3. Install `s1reader` via pip:
 
 ```bash
 # run "pip install -e" to install in development mode
-python -m pip install -e ./s1-reader
+python -m pip install -e .
 ```
 
 ## Usage
