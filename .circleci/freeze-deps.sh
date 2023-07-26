@@ -5,7 +5,7 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
-readonly HELP='usage: ./create-lockfile.sh ENVFILE > specfile.txt
+readonly HELP='usage: ./freeze-deps.sh ENVFILE > specfile.txt
 
 Create a conda lockfile from an environment YAML file for reproducible
 environments.
