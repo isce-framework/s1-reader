@@ -1,11 +1,12 @@
 name: s1reader
 channels:
-  - defaults
   - conda-forge
 dependencies:
-  - numpy
-  - gdal
-  - isce3
-  - packaging
-  - requests
-  - shapely
+  - python>=3.8
+  - numpy>=1.20
+  - gdal>=3.0
+  - isce3>=0.13
+  - packaging>=21.0
+  - requests>=2.0
+  - shapely>=1.8
+  - lxml>=4.8

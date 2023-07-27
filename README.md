@@ -1,42 +1,51 @@
-## s1-reader
+# s1-reader
 
 A package to read Sentinel-1 data into the ISCE3-compatible burst class.
 
-### Features
+## Features
 
-+ Create ISCE3-compatible Sentinel1 burst class given:
+Create ISCE3-compatible Sentinel1 burst class given:
 
-  - S1 SAFE
-  - subswath index
-  - polarization
-  - path to orbit directory
+- S1 SAFE
+- subswath index
+- polarization
+- path to orbit directory
 
-+ Monotonically increasing bursts IDs.
+Creates a Burst ID based on [ESA's published burst ID maps](https://sentinel.esa.int/web/sentinel/-/publication-of-brust-id-maps-for-copernicus-sentinel-1/1.1).
 
 🚨 This toolbox is still in **pre-alpha** stage and undergoing **rapid development**. 🚨 
 
-### Install
+## Install
+
+`s1reader` is available to install via `conda-forge`:
+
+```bash
+conda install -c conda-forge s1reader
+```
+
+### Installing for development
 
 1. Download source code:
 
 ```bash
 git clone https://github.com/opera-adt/s1-reader.git
+cd s1-reader
 ```
 
 2. Install dependencies:
 
 ```bash
-conda install -c conda-forge --file s1-reader/requirements.txt
+conda env create --file environment.yaml
 ```
 
-3. Install `s1-reader` via pip:
+3. Install `s1reader` via pip:
 
 ```bash
 # run "pip install -e" to install in development mode
-python -m pip install ./s1-reader
+python -m pip install -e .
 ```
 
-### Usage
+## Usage
 
 The following sample code demonstrates how to process a single burst from a S1 SAFE zip:
 
@@ -56,7 +65,7 @@ bursts = s1reader.load_bursts(zip_path, orbit_path, swath_num, pol)
 burst_ids = [x.burst_id for x in bursts]
 ```
 
-### License
+## License
 
 **Copyright (c) 2021** California Institute of Technology (“Caltech”). U.S. Government sponsorship acknowledged.
 
