@@ -6,7 +6,7 @@ data_path = Path(__file__).parent.resolve() / "data"
 
 
 def test_load_rfi():
-    zipname = "S1A_IW_SLC__1SDV_20221016T015043_20221016T015111_045461_056FC0_6681.zip"
+    zipname = "S1A_IW_SLC__1SDV_20230108T135249_20230108T135316_046693_0598D3_BA76.zip"
     zip_path = data_path / zipname
 
     bursts = load_bursts(zip_path, None, 2, pol="vv", flag_apply_eap=False)
