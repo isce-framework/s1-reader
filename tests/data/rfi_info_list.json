@@ -1,0 +1,218 @@
+[
+  {
+    "rfi_mitigation_performed": "BasedOnNoiseMeas",
+    "rfi_mitigation_domain": "TimeAndFrequency",
+    "rfi_burst_report": {
+      "swath": "IW2",
+      "azimuthTime": "2023-01-08T13:52:51.383925",
+      "inBandOutBandPowerRatio": 11.47391,
+      "timeDomainRfiReport": {
+        "percentageAffectedLines": 3.294574,
+        "avgPercentageAffectedSamples": 0.02442056,
+        "maxPercentageAffectedSamples": 0.1737835
+      },
+      "frequencyDomainRfiBurstReport": {
+        "numSubBlocks": 3,
+        "subBlockSize": 583,
+        "isolatedRfiReport": {
+          "percentageAffectedLines": 23.05274,
+          "maxPercentageAffectedBW": 1.545041
+        },
+        "percentageBlocksPersistentRfi": 0.0,
+        "maxPercentageBWAffectedPersistentRfi": 0.0
+      }
+    }
+  },
+  {
+    "rfi_mitigation_performed": "BasedOnNoiseMeas",
+    "rfi_mitigation_domain": "TimeAndFrequency",
+    "rfi_burst_report": {
+      "swath": "IW2",
+      "azimuthTime": "2023-01-08T13:52:54.136315",
+      "inBandOutBandPowerRatio": 14.01646,
+      "timeDomainRfiReport": {
+        "percentageAffectedLines": 3.940568,
+        "avgPercentageAffectedSamples": 0.02333393,
+        "maxPercentageAffectedSamples": 0.3144654
+      },
+      "frequencyDomainRfiBurstReport": {
+        "numSubBlocks": 3,
+        "subBlockSize": 583,
+        "isolatedRfiReport": {
+          "percentageAffectedLines": 35.18761,
+          "maxPercentageAffectedBW": 1.545041
+        },
+        "percentageBlocksPersistentRfi": 0.0,
+        "maxPercentageBWAffectedPersistentRfi": 0.0
+      }
+    }
+  },
+  {
+    "rfi_mitigation_performed": "BasedOnNoiseMeas",
+    "rfi_mitigation_domain": "TimeAndFrequency",
+    "rfi_burst_report": {
+      "swath": "IW2",
+      "azimuthTime": "2023-01-08T13:52:56.896927",
+      "inBandOutBandPowerRatio": 13.98859,
+      "timeDomainRfiReport": {
+        "percentageAffectedLines": 2.906977,
+        "avgPercentageAffectedSamples": 0.03484865,
+        "maxPercentageAffectedSamples": 0.3227408
+      },
+      "frequencyDomainRfiBurstReport": {
+        "numSubBlocks": 3,
+        "subBlockSize": 583,
+        "isolatedRfiReport": {
+          "percentageAffectedLines": 35.01028,
+          "maxPercentageAffectedBW": 1.324321
+        },
+        "percentageBlocksPersistentRfi": 0.0,
+        "maxPercentageBWAffectedPersistentRfi": 0.0
+      }
+    }
+  },
+  {
+    "rfi_mitigation_performed": "BasedOnNoiseMeas",
+    "rfi_mitigation_domain": "TimeAndFrequency",
+    "rfi_burst_report": {
+      "swath": "IW2",
+      "azimuthTime": "2023-01-08T13:52:59.651372",
+      "inBandOutBandPowerRatio": 13.0918,
+      "timeDomainRfiReport": {
+        "percentageAffectedLines": 10.40052,
+        "avgPercentageAffectedSamples": 0.02243611,
+        "maxPercentageAffectedSamples": 0.4675604
+      },
+      "frequencyDomainRfiBurstReport": {
+        "numSubBlocks": 3,
+        "subBlockSize": 583,
+        "isolatedRfiReport": {
+          "percentageAffectedLines": 31.74833,
+          "maxPercentageAffectedBW": 1.765761
+        },
+        "percentageBlocksPersistentRfi": 0.0,
+        "maxPercentageBWAffectedPersistentRfi": 0.0
+      }
+    }
+  },
+  {
+    "rfi_mitigation_performed": "BasedOnNoiseMeas",
+    "rfi_mitigation_domain": "TimeAndFrequency",
+    "rfi_burst_report": {
+      "swath": "IW2",
+      "azimuthTime": "2023-01-08T13:53:02.407873",
+      "inBandOutBandPowerRatio": 5.794073,
+      "timeDomainRfiReport": {
+        "percentageAffectedLines": 17.18346,
+        "avgPercentageAffectedSamples": 0.04702359,
+        "maxPercentageAffectedSamples": 0.7985766
+      },
+      "frequencyDomainRfiBurstReport": {
+        "numSubBlocks": 3,
+        "subBlockSize": 583,
+        "isolatedRfiReport": {
+          "percentageAffectedLines": 37.24544,
+          "maxPercentageAffectedBW": 1.986481
+        },
+        "percentageBlocksPersistentRfi": 0.0,
+        "maxPercentageBWAffectedPersistentRfi": 0.0
+      }
+    }
+  },
+  {
+    "rfi_mitigation_performed": "BasedOnNoiseMeas",
+    "rfi_mitigation_domain": "TimeAndFrequency",
+    "rfi_burst_report": {
+      "swath": "IW2",
+      "azimuthTime": "2023-01-08T13:53:05.174652",
+      "inBandOutBandPowerRatio": 2.921171,
+      "timeDomainRfiReport": {
+        "percentageAffectedLines": 42.44186,
+        "avgPercentageAffectedSamples": 0.02507813,
+        "maxPercentageAffectedSamples": 1.07994
+      },
+      "frequencyDomainRfiBurstReport": {
+        "numSubBlocks": 3,
+        "subBlockSize": 583,
+        "isolatedRfiReport": {
+          "percentageAffectedLines": 45.42183,
+          "maxPercentageAffectedBW": 2.207201
+        },
+        "percentageBlocksPersistentRfi": 0.0,
+        "maxPercentageBWAffectedPersistentRfi": 0.0
+      }
+    }
+  },
+  {
+    "rfi_mitigation_performed": "BasedOnNoiseMeas",
+    "rfi_mitigation_domain": "TimeAndFrequency",
+    "rfi_burst_report": {
+      "swath": "IW2",
+      "azimuthTime": "2023-01-08T13:53:07.931153",
+      "inBandOutBandPowerRatio": 2.63871,
+      "timeDomainRfiReport": {
+        "percentageAffectedLines": 46.96382,
+        "avgPercentageAffectedSamples": 0.02266915,
+        "maxPercentageAffectedSamples": 0.8358159
+      },
+      "frequencyDomainRfiBurstReport": {
+        "numSubBlocks": 3,
+        "subBlockSize": 583,
+        "isolatedRfiReport": {
+          "percentageAffectedLines": 27.90569,
+          "maxPercentageAffectedBW": 2.427921
+        },
+        "percentageBlocksPersistentRfi": 0.0,
+        "maxPercentageBWAffectedPersistentRfi": 0.0
+      }
+    }
+  },
+  {
+    "rfi_mitigation_performed": "BasedOnNoiseMeas",
+    "rfi_mitigation_domain": "TimeAndFrequency",
+    "rfi_burst_report": {
+      "swath": "IW2",
+      "azimuthTime": "2023-01-08T13:53:10.687654",
+      "inBandOutBandPowerRatio": 1.866867,
+      "timeDomainRfiReport": {
+        "percentageAffectedLines": 65.50388,
+        "avgPercentageAffectedSamples": 0.02337353,
+        "maxPercentageAffectedSamples": 0.6041046
+      },
+      "frequencyDomainRfiBurstReport": {
+        "numSubBlocks": 3,
+        "subBlockSize": 583,
+        "isolatedRfiReport": {
+          "percentageAffectedLines": 11.50073,
+          "maxPercentageAffectedBW": 1.324321
+        },
+        "percentageBlocksPersistentRfi": 0.0,
+        "maxPercentageBWAffectedPersistentRfi": 0.0
+      }
+    }
+  },
+  {
+    "rfi_mitigation_performed": "BasedOnNoiseMeas",
+    "rfi_mitigation_domain": "TimeAndFrequency",
+    "rfi_burst_report": {
+      "swath": "IW2",
+      "azimuthTime": "2023-01-08T13:53:13.444155",
+      "inBandOutBandPowerRatio": 2.292773,
+      "timeDomainRfiReport": {
+        "percentageAffectedLines": 51.29199,
+        "avgPercentageAffectedSamples": 0.02335144,
+        "maxPercentageAffectedSamples": 0.9723602
+      },
+      "frequencyDomainRfiBurstReport": {
+        "numSubBlocks": 3,
+        "subBlockSize": 583,
+        "isolatedRfiReport": {
+          "percentageAffectedLines": 44.62619,
+          "maxPercentageAffectedBW": 1.986481
+        },
+        "percentageBlocksPersistentRfi": 0.0,
+        "maxPercentageBWAffectedPersistentRfi": 0.0
+      }
+    }
+  }
+]
