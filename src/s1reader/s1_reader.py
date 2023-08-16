@@ -19,7 +19,7 @@ from scipy.interpolate import InterpolatedUnivariateSpline
 from nisar.workflows.stage_dem import check_dateline
 
 from s1reader import s1_annotation  # to access __file__
-from s1reader.s1_annotation import ProductAnnotation, NoiseAnnotation,\
+from s1reader.s1_annotation import RFI_INFO_AVAILABLE_FROM, ProductAnnotation, NoiseAnnotation,\
                                    CalibrationAnnotation, AuxCal,\
                                    BurstCalibration, BurstEAP, BurstNoise,\
                                    BurstExtendedCoeffs, SwathRfiInfo, SwathMiscMetadata
@@ -680,6 +680,9 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
                                                             ipf_version)
 
         except (FileNotFoundError, KeyError):
+            if ipf_version >= RFI_INFO_AVAILABLE_FROM:
+                warnings.warn(f"RFI annotation expected (IPF version={ipf_version}"
+                              f" >= {RFI_INFO_AVAILABLE_FROM}), but not loaded.")
             burst_rfi_info_swath = None
 
         # Load the miscellaneous metadata for CARD4L-NRB
