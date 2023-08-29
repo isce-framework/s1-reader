@@ -1,8 +1,10 @@
 import pathlib
-import pytest
 import types
 
+import pytest
+
 from s1reader import s1_reader
+
 
 @pytest.fixture(scope="session")
 def test_paths():
