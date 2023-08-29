@@ -113,7 +113,7 @@ def test_anx_time(test_paths):
     assert abs(diff_ascending_node_time_seconds) < 0.5
 
 
-def test_orbit_concat(tmp_path, test_paths):
+def test_combine_xml_orbit_elements(tmp_path, test_paths):
     slc_file = tmp_path / "S1A_IW_SLC__1SDV_20230823T154908_20230823T154935_050004_060418_521B.SAFE"
     slc_file.write_text("")
     # test_paths.orbit_dir = f"{test_path}/data/orbits"
