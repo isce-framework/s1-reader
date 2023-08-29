@@ -341,3 +341,97 @@ def get_orbit_file_from_list(zip_path: str, orbit_file_list: list) -> str:
         warnings.warn(msg)
 
     return orbit_file_final
+
+
+def combine_xml_orbit_elements(
+    file1: str, file2: str, write_output: bool = True
+) -> ElementTree.ElementTree:
+    """Combine the orbit elements from two XML files.
+
+    Parameters
+    ----------
+    file1 : str
+        The path to the first .EOF file.
+    file2 : str
+        The path to the second .EOF file.
+    write_output : bool, default = True
+        Create a new .EOF file with the combined results.
+        Output is named with the start_datetime and stop_datetime changed, with
+        the same base as `file1`.
+
+    Returns
+    -------
+    ET.ElementTree
+        Combined XML structure.
+    """
+
+    def get_dt(root: ElementTree.ElementTree, tag_name: str) -> datetime:
+        time_str = root.find(f".//{tag_name}").text.split("=")[-1]
+        return datetime.fromisoformat(time_str)
+
+    # Parse the XML files
+    tree1 = ElementTree.parse(file1)
+    tree2 = ElementTree.parse(file2)
+
+    root1 = tree1.getroot()
+    root2 = tree2.getroot()
+
+    # Extract the Validity_Start and Validity_Stop timestamps from both files
+    start_time1 = get_dt(root1, "Validity_Start")
+    stop_time1 = get_dt(root1, "Validity_Start")
+    start_time2 = get_dt(root2, "Validity_Start")
+    stop_time2 = get_dt(root2, "Validity_Start")
+
+    # Determine the new Validity_Start and Validity_Stop values
+    new_start_dt = min(start_time1, start_time2)
+    new_stop_dt = max(stop_time1, stop_time2)
+
+    # Update the Validity_Start and Validity_Stop timestamps in the first XML
+    root1.find(".//Validity_Start").text = "UTC=" + new_start_dt.strftime(
+        "%Y-%m-%dT%H:%M:%S"
+    )
+    root1.find(".//Validity_Stop").text = "UTC=" + new_stop_dt.strftime(
+        "%Y-%m-%dT%H:%M:%S"
+    )
+
+    # Combine the <OSV> elements
+    list_of_osvs1 = root1.find(".//List_of_OSVs")
+    list_of_osvs2 = root2.find(".//List_of_OSVs")
+
+    for osv in list_of_osvs2.findall("OSV"):
+        list_of_osvs1.append(osv)
+
+    # Adjust the count attribute in <List_of_OSVs>
+    new_count = len(list_of_osvs1.findall("OSV"))
+    list_of_osvs1.set("count", str(new_count))
+
+    if write_output:
+        outfile = _generate_filename(file1, new_start_dt, new_stop_dt)
+        tree1.write(outfile, encoding="UTF-8", xml_declaration=True)
+    return tree1
+
+
+def _generate_filename(file_base: str, new_start: datetime, new_stop: datetime) -> str:
+    """Generate a new filename based on the two provided filenames.
+
+    Parameters
+    ----------
+    file_base : str
+        The name of one of the concatenated files
+    new_start : datetime
+        The new first datetime of the updated orbital elements
+    new_stop : datetime
+        The new final datetime of the updated orbital elements
+
+    Returns
+    -------
+    str
+        Generated filename.
+    """
+    product_name = Path(file_base).name
+    # >>> 'S1A_OPER_AUX_PREORB_OPOD_20200325T131800_V20200325T121452_20200325T184952'.index('V')
+    # 41
+    fmt = "%Y%m%dT%H%M%S"
+    new_start_stop_str = new_start.strftime(fmt) + "_" + new_stop.strftime(fmt)
+    new_product_name = product_name[:42] + new_start_stop_str
+    return str(file_base).replace(product_name, new_product_name)
