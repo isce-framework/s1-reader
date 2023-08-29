@@ -6,6 +6,7 @@ import glob
 import os
 import requests
 import warnings
+from pathlib import Path
 
 from xml.etree import ElementTree
 
@@ -343,10 +344,12 @@ def get_orbit_file_from_list(zip_path: str, orbit_file_list: list) -> str:
     return orbit_file_final
 
 
-def combine_xml_orbit_elements(
-    file1: str, file2: str, write_output: bool = True
-) -> ElementTree.ElementTree:
+def combine_xml_orbit_elements(file1: str, file2: str) -> ElementTree.ElementTree:
     """Combine the orbit elements from two XML files.
+
+    Create a new .EOF file with the combined results.
+    Output is named with the start_datetime and stop_datetime changed, with
+    the same base as `file1`.
 
     Parameters
     ----------
@@ -354,20 +357,16 @@ def combine_xml_orbit_elements(
         The path to the first .EOF file.
     file2 : str
         The path to the second .EOF file.
-    write_output : bool, default = True
-        Create a new .EOF file with the combined results.
-        Output is named with the start_datetime and stop_datetime changed, with
-        the same base as `file1`.
 
     Returns
     -------
-    ET.ElementTree
-        Combined XML structure.
+    str
+        Name of the newly created EOF file.
     """
 
-    def get_dt(root: ElementTree.ElementTree, tag_name: str) -> datetime:
+    def get_dt(root: ElementTree.ElementTree, tag_name: str) -> datetime.datetime:
         time_str = root.find(f".//{tag_name}").text.split("=")[-1]
-        return datetime.fromisoformat(time_str)
+        return datetime.datetime.fromisoformat(time_str)
 
     # Parse the XML files
     tree1 = ElementTree.parse(file1)
@@ -378,9 +377,9 @@ def combine_xml_orbit_elements(
 
     # Extract the Validity_Start and Validity_Stop timestamps from both files
     start_time1 = get_dt(root1, "Validity_Start")
-    stop_time1 = get_dt(root1, "Validity_Start")
+    stop_time1 = get_dt(root1, "Validity_Stop")
     start_time2 = get_dt(root2, "Validity_Start")
-    stop_time2 = get_dt(root2, "Validity_Start")
+    stop_time2 = get_dt(root2, "Validity_Stop")
 
     # Determine the new Validity_Start and Validity_Stop values
     new_start_dt = min(start_time1, start_time2)
@@ -405,13 +404,12 @@ def combine_xml_orbit_elements(
     new_count = len(list_of_osvs1.findall("OSV"))
     list_of_osvs1.set("count", str(new_count))
 
-    if write_output:
-        outfile = _generate_filename(file1, new_start_dt, new_stop_dt)
-        tree1.write(outfile, encoding="UTF-8", xml_declaration=True)
-    return tree1
+    outfile = _generate_filename(file1, new_start_dt, new_stop_dt)
+    tree1.write(outfile, encoding="UTF-8", xml_declaration=True)
+    return outfile
 
 
-def _generate_filename(file_base: str, new_start: datetime, new_stop: datetime) -> str:
+def _generate_filename(file_base: str, new_start: datetime.datetime, new_stop: datetime.datetime) -> str:
     """Generate a new filename based on the two provided filenames.
 
     Parameters
@@ -434,4 +432,4 @@ def _generate_filename(file_base: str, new_start: datetime, new_stop: datetime) 
     fmt = "%Y%m%dT%H%M%S"
     new_start_stop_str = new_start.strftime(fmt) + "_" + new_stop.strftime(fmt)
     new_product_name = product_name[:42] + new_start_stop_str
-    return str(file_base).replace(product_name, new_product_name)
+    return str(file_base).replace(product_name, new_product_name) + ".EOF"
