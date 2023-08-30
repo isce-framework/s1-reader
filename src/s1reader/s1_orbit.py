@@ -84,7 +84,7 @@ def retrieve_orbit_file(safe_file: str, orbit_dir: str):
         print('Attempting to download and concatenate RESORB files.')
         orbit_dict_earlier = get_orbit_dict(mission_id,
                                             start_time,
-                                            start_time + pad_short, 'AUX_RESORB')
+                                            start_time + 2 * pad_short, 'AUX_RESORB')
 
         orbit_dict_later = get_orbit_dict(mission_id,
                                           start_time + margin_start_time - pad_short,
@@ -481,7 +481,7 @@ def concatenate_resorb_from_list(zip_path: str, orbit_file_list: list) -> str:
         # 2. Try to find the orbit file that covers the sensing start-stop
         # with small padding (like 60 sec.)
         t_swath_start_stop_anx = [t_swath_start_stop[0] - margin_start_time,
-                                  t_swath_start_stop[0] - margin_start_time + pad_1min]
+                                  t_swath_start_stop[0] - margin_start_time + 2*pad_1min]
         if _is_orbitfile_cover_timeframe(resorb_file, t_swath_start_stop_anx) and resorb_filename_earlier is None:
             print('Found RESOEB file covering ANX before sensing start')
             resorb_filename_earlier = resorb_file
