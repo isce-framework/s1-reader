@@ -564,9 +564,6 @@ def get_ascending_node_time_orbit(orbit_state_vector_list: ET,
     # Crop the orbit information before 2 * (orbit period) of sensing time
     if search_length is None:
         search_length = datetime.timedelta(seconds=2 * T_ORBIT)
-    #orbit_until_sensing_time = get_burst_orbit(sensing_time  - search_length,
-    #                                           sensing_time,
-    #                                           orbit_state_vector_list)
 
     # Load the OSVs
     utc_vec_all = [datetime.datetime.fromisoformat(osv.find('UTC').text.replace('UTC=',''))
@@ -576,6 +573,8 @@ def get_ascending_node_time_orbit(orbit_state_vector_list: ET,
                      for osv in orbit_state_vector_list]
     pos_z_vec_all = np.array(pos_z_vec_all)
 
+    # NOTE: tried to apply the same amount of pading in `get_burst_orbit` to
+    # get as similar results as possible.
     pad = datetime.timedelta(seconds=60)
 
     # Constrain the search area
@@ -588,8 +587,6 @@ def get_ascending_node_time_orbit(orbit_state_vector_list: ET,
     # The algorithm was inspired by Scott Staniewicz's PR in the link below:
     # https://github.com/opera-adt/s1-reader/pull/120/
     datetime_ascending_node_crossing_list = []
-    #orbit_time_vec = np.array(orbit_until_sensing_time.time)
-    #orbit_z_vec = orbit_until_sensing_time.position[:, 2]
 
     # Iterate through the z coordinate in orbit object to
     # detect the ascending node crossing
