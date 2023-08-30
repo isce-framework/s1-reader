@@ -569,18 +569,20 @@ def get_ascending_node_time_orbit(orbit_state_vector_list: ET,
     #                                           orbit_state_vector_list)
 
     # Load the OSVs
-    utc_vec_all = np.array([datetime.datetime.fromisoformat(osv.find('UTC').text.replace('UTC=',''))
-               for osv in orbit_state_vector_list])
-    pos_z_vec_all = np.array([float(osv.find('Z').text)
-               for osv in orbit_state_vector_list])
+    utc_vec_all = [datetime.datetime.fromisoformat(osv.find('UTC').text.replace('UTC=',''))
+                   for osv in orbit_state_vector_list]
+    utc_vec_all = np.array(utc_vec_all)
+    pos_z_vec_all = [float(osv.find('Z').text)
+                     for osv in orbit_state_vector_list]
+    pos_z_vec_all = np.array(pos_z_vec_all)
 
     pad = datetime.timedelta(seconds=60)
 
     # Constrain the search area
-    flag_search_area = (utc_vec_all > sensing_time - search_length - pad) & (utc_vec_all < sensing_time + pad)
+    flag_search_area = (utc_vec_all > sensing_time - search_length - pad) & \
+                       (utc_vec_all < sensing_time + pad)
     orbit_time_vec = utc_vec_all[flag_search_area]
     orbit_z_vec = pos_z_vec_all[flag_search_area]
-
 
     # Detect the event of ascending node crossing from the cropped orbit info.
     # The algorithm was inspired by Scott Staniewicz's PR in the link below:
@@ -605,9 +607,10 @@ def get_ascending_node_time_orbit(orbit_state_vector_list: ET,
 
         # Set up spline interpolator and interpolate the time when z is equal to 0.0
         datetime_orbit_ref = time_around_crossing[0]
-        relative_time_around_crossing = [(t - datetime_orbit_ref).seconds for t in time_around_crossing]
+        relative_time_around_crossing = [(t - datetime_orbit_ref).seconds
+                                         for t in time_around_crossing]
 
-        interpolator_time = InterpolatedUnivariateSpline(z_around_crossing,       
+        interpolator_time = InterpolatedUnivariateSpline(z_around_crossing,
                                                          relative_time_around_crossing,
                                                          k=1)
         relative_t_interp = interpolator_time(0.0)
