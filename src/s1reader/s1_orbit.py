@@ -473,7 +473,7 @@ def concatenate_resorb_from_list(zip_path: str, orbit_file_list: list) -> str | 
         # sensing time - margin_start_time
         t_swath_start_stop_safe = [t_swath_start_stop[0] - pad_1min,
                                    t_swath_start_stop[1] + pad_1min]
-        if _is_orbitfile_cover_timeframe(resorb_file, t_swath_start_stop_safe) and resorb_filename_later is None:
+        if _covers_timeframe(resorb_file, t_swath_start_stop_safe) and resorb_filename_later is None:
             print('Found RESOEB file covering the S1 SAFE frame.')
             resorb_filename_later = resorb_file
             continue
@@ -482,7 +482,7 @@ def concatenate_resorb_from_list(zip_path: str, orbit_file_list: list) -> str | 
         # with small padding (like 60 sec.)
         t_swath_start_stop_anx = [t_swath_start_stop[0] - margin_start_time,
                                   t_swath_start_stop[0] - margin_start_time + 2*pad_1min]
-        if _is_orbitfile_cover_timeframe(resorb_file, t_swath_start_stop_anx) and resorb_filename_earlier is None:
+        if _covers_timeframe(resorb_file, t_swath_start_stop_anx) and resorb_filename_earlier is None:
             print('Found RESOEB file covering ANX before sensing start')
             resorb_filename_earlier = resorb_file
             continue
