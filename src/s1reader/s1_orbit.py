@@ -27,9 +27,12 @@ scihub_user = 'gnssguest'
 scihub_password = 'gnssguest'
 
 
-def download_orbit(safe_file: str, orbit_dir: str):
+def retrieve_orbit_file(safe_file: str, orbit_dir: str):
     '''
-    Download orbits for S1-A/B SAFE "safe_file"
+    Download or concatenate orbits for S1-A/B SAFE "safe_file"
+    If no RESORB orbit file covers the time range [start_time - margin_start_time, end_time], then
+    download two RESORB file that has overlap with the time range above, and
+    concatenate them
 
     Parameters
     ----------
@@ -57,16 +60,49 @@ def download_orbit(safe_file: str, orbit_dir: str):
     # Find precise orbit first
     orbit_dict = get_orbit_dict(mission_id, start_time,
                                 end_time, 'AUX_POEORB')
+
     # If orbit dict is empty, find restituted orbits
     if orbit_dict is None:
         orbit_dict = get_orbit_dict(mission_id, start_time,
                                     end_time, 'AUX_RESORB')
-    # Download orbit file
-    orbit_file = os.path.join(orbit_dir, f"{orbit_dict['orbit_name']}.EOF")
-    if not os.path.exists(orbit_file):
-        download_orbit_file(orbit_dir, orbit_dict['orbit_url'])
 
-    return orbit_file
+    # Download orbit file
+    if orbit_dict is not None:
+        orbit_file = os.path.join(orbit_dir, f"{orbit_dict['orbit_name']}.EOF")
+        if not os.path.exists(orbit_file):
+            download_orbit_file(orbit_dir, orbit_dict['orbit_url'])
+
+        return orbit_file
+
+    # POEORB is not found, or there is no RESORB file that
+    # covers the sensing period + margin at the starting time.
+    # Try to find two subsequent RESORB files that covers the
+    # sensing period + margins at the startint time.
+    if orbit_dict is None:
+
+        print('Attempting to concatenate RESORB')
+        orbit_dict_earlier = get_orbit_dict(mission_id, start_time,
+                                    start_time + datetime.timedelta(seconds = 30), 'AUX_RESORB')
+
+        orbit_dict_later = get_orbit_dict(mission_id,
+                                          start_time + margin_start_time, end_time,
+                                          'AUX_RESORB')
+
+        orbit_dict_list = [orbit_dict_earlier, orbit_dict_later]
+
+        if orbit_dict_list:
+            orbit_file_indv_list = []
+            for orbit_dict in orbit_dict_list:
+                orbit_file = os.path.join(orbit_dir, f"{orbit_dict['orbit_name']}.EOF")
+                if not os.path.exists(orbit_file):
+                    download_orbit_file(orbit_dir, orbit_dict['orbit_url'])
+                orbit_file_indv_list.append(orbit_file)
+
+            # concatenate the RESORB xml file
+            #concat_resorb_file = combine_xml_orbit_elements(orbit_file_indv_list[0], orbit_file_indv_list[1])
+            concat_resorb_file = combine_xml_orbit_elements(orbit_file_indv_list[1], orbit_file_indv_list[0])  # test code to see if sorting works
+
+    return concat_resorb_file
 
 
 def check_internet_connection():
@@ -278,7 +314,7 @@ def get_orbit_file_from_dir(zip_path: str, orbit_dir: str, auto_download: bool =
         return
 
     # Attempt auto download
-    orbit_file = download_orbit(zip_path, orbit_dir)
+    orbit_file = retrieve_orbit_file(zip_path, orbit_dir)
     return orbit_file
 
 
@@ -344,7 +380,7 @@ def get_orbit_file_from_list(zip_path: str, orbit_file_list: list) -> str:
     return orbit_file_final
 
 
-def combine_xml_orbit_elements(file1: str, file2: str) -> ElementTree.ElementTree:
+def combine_xml_orbit_elements(file1: str, file2: str) -> str:
     """Combine the orbit elements from two XML files.
 
     Create a new .EOF file with the combined results.
@@ -397,8 +433,22 @@ def combine_xml_orbit_elements(file1: str, file2: str) -> ElementTree.ElementTre
     list_of_osvs1 = root1.find(".//List_of_OSVs")
     list_of_osvs2 = root2.find(".//List_of_OSVs")
 
+    # Extract the UTC from the OSV of the first XML
+    osv1_utc_list = [datetime.datetime.fromisoformat(osv1.find('UTC').text.replace('UTC=',''))
+                     for osv1 in list_of_osvs1]
+
+    min_utc_osv1 = min(osv1_utc_list)
+    max_utc_osv1 = max(osv1_utc_list)
+
     for osv in list_of_osvs2.findall("OSV"):
+        utc_osv2 = datetime.datetime.fromisoformat(osv.find('UTC').text.replace('UTC=',''))
+
+        if min_utc_osv1 < utc_osv2 < max_utc_osv1:
+            continue
         list_of_osvs1.append(osv)
+
+    # sort the OSVs in the conatenated OSV
+    list_of_osvs1 = _sort_list_of_osv(list_of_osvs1)
 
     # Adjust the count attribute in <List_of_OSVs>
     new_count = len(list_of_osvs1.findall("OSV"))
@@ -433,3 +483,31 @@ def _generate_filename(file_base: str, new_start: datetime.datetime, new_stop: d
     new_start_stop_str = new_start.strftime(fmt) + "_" + new_stop.strftime(fmt)
     new_product_name = product_name[:42] + new_start_stop_str
     return str(file_base).replace(product_name, new_product_name) + ".EOF"
+
+
+def _sort_list_of_osv(list_of_osvs):
+    '''
+    Sort the OSV with respect to the UTC time
+
+    Parameters
+    ----------
+    list_of_osvs: ET.ElementTree
+        OSVs as XML ET
+
+    Returns
+    -------
+    list_of_osvs: ET.ElementTree
+        Sorted OSVs with respect to UTC
+    '''
+    utc_osv_list = [datetime.datetime.fromisoformat(osv.find('UTC').text.replace('UTC=',''))
+                    for osv in list_of_osvs]
+
+    sorted_index_list = [index for index, _ in sorted(enumerate(utc_osv_list), key=lambda x: x[1])]
+
+    list_of_osvs_copy = list_of_osvs.__copy__()
+
+    for i_osv, _ in enumerate(list_of_osvs_copy):
+        index_to_replace = sorted_index_list[i_osv]
+        list_of_osvs[i_osv] = list_of_osvs_copy[index_to_replace]
+
+    return list_of_osvs
