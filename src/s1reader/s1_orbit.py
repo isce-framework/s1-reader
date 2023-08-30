@@ -182,8 +182,6 @@ def get_file_name_tokens(zip_path: str) -> [str, list[datetime.datetime]]:
     Returns
     -------
     mission_id: ('S1A', 'S1B')
-    orbit_path : str
-        Path the orbit file.
     t_swath_start_stop: list[datetime.datetime]
         Swath start/stop times
     '''
