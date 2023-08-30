@@ -120,15 +120,17 @@ def test_combine_xml_orbit_elements(tmp_path, test_paths):
     orbit_dir = Path(test_paths.orbit_dir)
 
     f1 = "S1A_OPER_AUX_RESORB_OPOD_20230823T162050_V20230823T123139_20230823T154909.EOF"
-    f2 = "S1A_OPER_AUX_RESORB_OPOD_20230823T192850_V20230823T154908_20230823T190638.EOF"
+    f2 = "S1A_OPER_AUX_RESORB_OPOD_20230823T174849_V20230823T141024_20230823T172754.EOF"
     shutil.copy(orbit_dir / f1, tmp_path)
     shutil.copy(orbit_dir / f2, tmp_path)
 
     assert len(list(tmp_path.glob("*RESORB*.EOF"))) == 2
-    # The first attempt with only the normal RESORB files will fail
-    assert get_orbit_file_from_dir(slc_file, tmp_path) is None
+    # The first attempt with only the normal RESORB files will fail,
+    # because concatenation is turned off
+    assert get_orbit_file_from_dir(slc_file, tmp_path, concat_resorb=False) is None
 
-    new_resorb_file = combine_xml_orbit_elements(tmp_path / f1, tmp_path / f2)
+    orbit_filename = get_orbit_file_from_dir(slc_file, tmp_path, concat_resorb=True)
+    new_resorb_file = combine_xml_orbit_elements(tmp_path / f2, tmp_path / f1)
     assert len(list(tmp_path.glob("*RESORB*.EOF"))) == 3
+    assert orbit_filename == new_resorb_file
     assert get_orbit_file_from_dir(slc_file, tmp_path) == new_resorb_file
-
