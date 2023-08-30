@@ -564,24 +564,30 @@ def get_ascending_node_time_orbit(orbit_state_vector_list: ET,
     # Crop the orbit information before 2 * (orbit period) of sensing time
     if search_length is None:
         search_length = datetime.timedelta(seconds=2 * T_ORBIT)
-    orbit_until_sensing_time = get_burst_orbit(sensing_time  - search_length,
-                                               sensing_time,
-                                               orbit_state_vector_list)
+    #orbit_until_sensing_time = get_burst_orbit(sensing_time  - search_length,
+    #                                           sensing_time,
+    #                                           orbit_state_vector_list)
 
-    # Convert the ISCE3 orbit reference datetime into a python object
-    datetime_orbit_ref = datetime.datetime(
-        orbit_until_sensing_time.reference_epoch.year,
-        orbit_until_sensing_time.reference_epoch.month,
-        orbit_until_sensing_time.reference_epoch.day)
-    datetime_orbit_ref += datetime.timedelta(
-        seconds=orbit_until_sensing_time.reference_epoch.seconds_of_day())
+    # Load the OSVs
+    utc_vec_all = np.array([datetime.datetime.fromisoformat(osv.find('UTC').text.replace('UTC=',''))
+               for osv in orbit_state_vector_list])
+    pos_z_vec_all = np.array([float(osv.find('Z').text)
+               for osv in orbit_state_vector_list])
+
+    pad = datetime.timedelta(seconds=60)
+
+    # Constrain the search area
+    flag_search_area = (utc_vec_all > sensing_time - search_length - pad) & (utc_vec_all < sensing_time + pad)
+    orbit_time_vec = utc_vec_all[flag_search_area]
+    orbit_z_vec = pos_z_vec_all[flag_search_area]
+
 
     # Detect the event of ascending node crossing from the cropped orbit info.
     # The algorithm was inspired by Scott Staniewicz's PR in the link below:
     # https://github.com/opera-adt/s1-reader/pull/120/
     datetime_ascending_node_crossing_list = []
-    orbit_time_vec = np.array(orbit_until_sensing_time.time)
-    orbit_z_vec = orbit_until_sensing_time.position[:, 2]
+    #orbit_time_vec = np.array(orbit_until_sensing_time.time)
+    #orbit_z_vec = orbit_until_sensing_time.position[:, 2]
 
     # Iterate through the z coordinate in orbit object to
     # detect the ascending node crossing
@@ -598,15 +604,18 @@ def get_ascending_node_time_orbit(orbit_state_vector_list: ET,
         time_around_crossing = orbit_time_vec[index_from : index_to]
 
         # Set up spline interpolator and interpolate the time when z is equal to 0.0
-        interpolator_time = InterpolatedUnivariateSpline(z_around_crossing,
-                                                            time_around_crossing,
-                                                            k=1)
-        t_interp = interpolator_time(0.0)
+        datetime_orbit_ref = time_around_crossing[0]
+        relative_time_around_crossing = [(t - datetime_orbit_ref).seconds for t in time_around_crossing]
+
+        interpolator_time = InterpolatedUnivariateSpline(z_around_crossing,       
+                                                         relative_time_around_crossing,
+                                                         k=1)
+        relative_t_interp = interpolator_time(0.0)
 
         # Convert the interpolated time into datetime
         # Add the ascending node crossing time if it's before the sensing time
         datetime_ascending_crossing = (datetime_orbit_ref
-                                        + datetime.timedelta(seconds=float(t_interp)))
+                                        + datetime.timedelta(seconds=float(relative_t_interp)))
         if datetime_ascending_crossing < sensing_time:
             datetime_ascending_node_crossing_list.append(datetime_ascending_crossing)
 
