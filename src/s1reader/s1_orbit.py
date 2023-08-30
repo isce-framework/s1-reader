@@ -78,7 +78,7 @@ def retrieve_orbit_file(safe_file: str, orbit_dir: str):
     # POEORB is not found, or there is no RESORB file that
     # covers the sensing period + margin at the starting time.
     # Try to find two subsequent RESORB files that covers the
-    # sensing period + margins at the startint time.
+    # sensing period + margins at the starting time.
     if orbit_dict is None:
         pad_short = datetime.timedelta(seconds = PADDING_SHORT)
         print('Attempting to download and concatenate RESORB files.')
@@ -294,7 +294,7 @@ def get_orbit_file_from_dir(zip_path: str, orbit_dir: str, auto_download: bool =
     auto_download : bool
         Automatically download the orbit file if not exist in the orbit_dir.
     concat_resorb : bool
-        try to concatenate two RESORB files if there is no songle RESORB file that
+        try to concatenate two RESORB files if there is no single RESORB file that
         covers the time frame with the margin added
 
     Returns:
@@ -400,7 +400,7 @@ def get_orbit_file_from_list(zip_path: str, orbit_file_list: list) -> str:
     return orbit_file_final
 
 
-def _is_orbitfile_cover_timeframe(orbit_file: str, t_start_stop_frame: list):
+def _covers_timeframe(orbit_file: str, t_start_stop_frame: list) -> bool:
     '''
     Check if `orbitfile` covers `t_start_stop_frame`
     Copied from `get_orbit_file_from_list()` and modified
@@ -432,7 +432,7 @@ def _is_orbitfile_cover_timeframe(orbit_file: str, t_start_stop_frame: list):
     return all(t_orbit_start < t < t_orbit_stop for t in t_start_stop_frame)
 
 
-def concatenate_resorb_from_list(zip_path: str, orbit_file_list: list) -> str:
+def concatenate_resorb_from_list(zip_path: str, orbit_file_list: list) -> str | None:
     '''
     Find if there are TWO RESORB files that covers [start - margin_start_time, end]
     If found, try to concatenate
@@ -450,7 +450,7 @@ def concatenate_resorb_from_list(zip_path: str, orbit_file_list: list) -> str:
     Returns:
     --------
     orbit_file : str
-        Path to the orbit file, or an empty string if no orbit file was found.
+        Path to the orbit file, or `None` if no orbit file was found.
     '''
     # check the existence of input file path and directory
     if not os.path.exists(zip_path):
