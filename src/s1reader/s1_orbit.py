@@ -565,6 +565,14 @@ def combine_xml_orbit_elements(file1: str, file2: str) -> str:
     list_of_osvs1 = root1.find(".//List_of_OSVs")
     list_of_osvs2 = root2.find(".//List_of_OSVs")
 
+    merge_osv_list(list_of_osvs1, list_of_osvs2)
+
+    outfile = _generate_filename(file1, new_start_dt, new_stop_dt)
+    tree1.write(outfile, encoding="UTF-8", xml_declaration=True)
+    return outfile
+
+
+def merge_osv_list(list_of_osvs1, list_of_osvs2):
     # Extract the UTC from the OSV of the first XML
     osv1_utc_list = [datetime.datetime.fromisoformat(osv1.find('UTC').text.replace('UTC=',''))
                      for osv1 in list_of_osvs1]
@@ -586,9 +594,7 @@ def combine_xml_orbit_elements(file1: str, file2: str) -> str:
     new_count = len(list_of_osvs1.findall("OSV"))
     list_of_osvs1.set("count", str(new_count))
 
-    outfile = _generate_filename(file1, new_start_dt, new_stop_dt)
-    tree1.write(outfile, encoding="UTF-8", xml_declaration=True)
-    return outfile
+    return list_of_osvs1
 
 
 def _generate_filename(file_base: str, new_start: datetime.datetime, new_stop: datetime.datetime) -> str:
@@ -640,6 +646,11 @@ def _sort_list_of_osv(list_of_osvs):
 
     for i_osv, _ in enumerate(list_of_osvs_copy):
         index_to_replace = sorted_index_list[i_osv]
-        list_of_osvs[i_osv] = list_of_osvs_copy[index_to_replace]
+
+        # NOTE: The code right below seems to pop the elements in the right side.
+        # Using __copy__() instead.
+        #list_of_osvs[i_osv] = list_of_osvs_copy[index_to_replace]
+
+        list_of_osvs[i_osv] = list_of_osvs_copy[index_to_replace].__copy__()
 
     return list_of_osvs
