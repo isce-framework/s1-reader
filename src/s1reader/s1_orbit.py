@@ -278,7 +278,9 @@ def download_orbit_file(output_folder, orbit_url):
     return orbit_file
 
 
-def get_orbit_file_from_dir(zip_path: str, orbit_dir: str, auto_download: bool = False, concat_resorb=True) -> str:
+def get_orbit_file_from_dir(zip_path: str, orbit_dir: str,
+                            auto_download: bool = False,
+                            concat_resorb=False) -> str | list | None:
     '''Get orbit state vector list for a given swath.
 
     Parameters:
@@ -319,10 +321,10 @@ def get_orbit_file_from_dir(zip_path: str, orbit_dir: str, auto_download: bool =
 
     orbit_file = get_orbit_file_from_list(zip_path, orbit_file_list)
 
-    # if no orbit file in the list, try to find RESORB files and concatenate
-    if not orbit_file and concat_resorb:
-        print('Attempting to concatenate RESORB files in the orbit file list.')
-        orbit_file = concatenate_resorb_from_list(zip_path, orbit_file_list)
+    # if no orbit file in the list, try to find RESORB files
+    if not orbit_file:
+        print('Attempting to find RESORB files in the orbit file list.')
+        orbit_file = get_resorb_pair_from_list(zip_path, orbit_file_list, concat_resorb)
 
     if orbit_file:
         return orbit_file
@@ -331,7 +333,7 @@ def get_orbit_file_from_dir(zip_path: str, orbit_dir: str, auto_download: bool =
         msg = (f'No orbit file was found for {os.path.basename(zip_path)} '
                 f'from the directory provided: {orbit_dir}')
         warnings.warn(msg)
-        return
+        return None
 
     # Attempt auto download
     orbit_file = retrieve_orbit_file(zip_path, orbit_dir)
@@ -432,7 +434,8 @@ def _covers_timeframe(orbit_file: str, t_start_stop_frame: list) -> bool:
     return all(t_orbit_start < t < t_orbit_stop for t in t_start_stop_frame)
 
 
-def concatenate_resorb_from_list(zip_path: str, orbit_file_list: list) -> str | None:
+def get_resorb_pair_from_list(zip_path: str, orbit_file_list: list,
+                               concatenate_resorb: bool=False) -> list | str | None:
     '''
     Find if there are TWO RESORB files that covers [start - margin_start_time, end]
     If found, try to concatenate
@@ -473,7 +476,8 @@ def concatenate_resorb_from_list(zip_path: str, orbit_file_list: list) -> str | 
         # sensing time - margin_start_time
         t_swath_start_stop_safe = [t_swath_start_stop[0] - pad_1min,
                                    t_swath_start_stop[1] + pad_1min]
-        if _covers_timeframe(resorb_file, t_swath_start_stop_safe) and resorb_filename_later is None:
+        if _covers_timeframe(resorb_file, t_swath_start_stop_safe) and \
+            resorb_filename_later is None:
             print('Found RESOEB file covering the S1 SAFE frame.')
             resorb_filename_later = resorb_file
             continue
@@ -482,26 +486,30 @@ def concatenate_resorb_from_list(zip_path: str, orbit_file_list: list) -> str | 
         # with small padding (like 60 sec.)
         t_swath_start_stop_anx = [t_swath_start_stop[0] - margin_start_time,
                                   t_swath_start_stop[0] - margin_start_time + 2*pad_1min]
-        if _covers_timeframe(resorb_file, t_swath_start_stop_anx) and resorb_filename_earlier is None:
+        if _covers_timeframe(resorb_file, t_swath_start_stop_anx) and \
+            resorb_filename_earlier is None:
             print('Found RESOEB file covering ANX before sensing start')
             resorb_filename_earlier = resorb_file
             continue
-        
+
         # break out of the for loop when the RESORB files are found
         if resorb_filename_earlier and resorb_filename_later:
             break
 
     # if 1. and 2. are successful, then try to concatenate them
     if resorb_filename_earlier and resorb_filename_later:
-        # BE CAREFUL ABOUT THE ORDER HOW THEY ARE CONCATENATED.
-        # See NOTE in retrieve_orbit_file() for detail.
-        concat_resorb_filename = combine_xml_orbit_elements(resorb_filename_later,
-                                                            resorb_filename_earlier)
-        print('RESORB Concatenation successful.')
-        return concat_resorb_filename
-    else:
-        print('Cannot find RESORB files that meets the time frame criteria.')
-        return None
+        if concatenate_resorb:
+            # BE CAREFUL ABOUT THE ORDER HOW THEY ARE CONCATENATED.
+            # See NOTE in retrieve_orbit_file() for detail.
+            concat_resorb_filename = combine_xml_orbit_elements(resorb_filename_later,
+                                                                resorb_filename_earlier)
+            print('RESORB Concatenation successful.')
+            return concat_resorb_filename
+        else:
+            return [resorb_filename_earlier, resorb_filename_later]
+
+    print('Cannot find RESORB files that meets the time frame criteria.')
+    return None
 
 
 def combine_xml_orbit_elements(file1: str, file2: str) -> str:
