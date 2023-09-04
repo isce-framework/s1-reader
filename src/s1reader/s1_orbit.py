@@ -319,12 +319,12 @@ def get_orbit_file_from_dir(zip_path: str, orbit_dir: str,
     # search for orbit file
     orbit_file_list = glob.glob(os.path.join(orbit_dir, 'S1*.EOF'))
 
-    orbit_file = get_orbit_file_from_list(zip_path, orbit_file_list)
+    orbit_file = get_orbit_file_from_list(zip_path, orbit_file_list, concat_resorb)
 
     # if no orbit file in the list, try to find RESORB files
-    if not orbit_file:
-        print('Attempting to find RESORB files in the orbit file list.')
-        orbit_file = get_resorb_pair_from_list(zip_path, orbit_file_list, concat_resorb)
+    #if not orbit_file:
+    #    print('Attempting to find RESORB files in the orbit file list.')
+    #    orbit_file = get_resorb_pair_from_list(zip_path, orbit_file_list, concat_resorb)
 
     if orbit_file:
         return orbit_file
@@ -340,7 +340,7 @@ def get_orbit_file_from_dir(zip_path: str, orbit_dir: str,
     return orbit_file
 
 
-def get_orbit_file_from_list(zip_path: str, orbit_file_list: list) -> str:
+def get_orbit_file_from_list(zip_path: str, orbit_file_list: list, concat_resorb: bool=False) -> str | list | None:
     '''Get orbit file for a given S-1 swath from a list of files
 
     Parameters
@@ -396,7 +396,13 @@ def get_orbit_file_from_list(zip_path: str, orbit_file_list: list) -> str:
             break
 
     if not orbit_file_final:
-        msg = 'No orbit file was found in the file list provided.'
+        msg = ('No single orbit file was found in the file list provided. '
+               'Attempting to find set of RESORB files that covers the time period.')
+        warnings.warn(msg)
+        orbit_file_final = get_resorb_pair_from_list(zip_path, orbit_file_list, concat_resorb)
+
+    if not orbit_file_final:
+        msg = ('No single orbit file was found in the file list provided.')
         warnings.warn(msg)
 
     return orbit_file_final
