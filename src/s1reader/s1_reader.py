@@ -28,10 +28,12 @@ from s1reader.s1_annotation import (RFI_INFO_AVAILABLE_FROM, ProductAnnotation,
 
 from s1reader.s1_burst_slc import Doppler, Sentinel1BurstSlc
 from s1reader.s1_burst_id import S1BurstId
-from s1reader.s1_orbit import T_ORBIT
+from s1reader.s1_orbit import (T_ORBIT, merge_osv_list)
+from s1reader.s1_orbit import FMT as orbitfile_datetime_format
 
 # Tolerance of the ascending node crossing time in seconds
 ASCENDING_NODE_TIME_TOLERANCE_IN_SEC = 1.0
+PADDING_TIME_ORBIT = 60.0
 esa_track_burst_id_file = f"{os.path.dirname(os.path.realpath(__file__))}/data/sentinel1_track_burst_id.txt"
 
 # TODO evaluate if it make sense to combine below into a class
@@ -173,7 +175,7 @@ def get_burst_orbit(sensing_start, sensing_stop, osv_list: ET.Element):
     '''
     orbit_sv = []
     # add start & end padding to ensure sufficient number of orbit points
-    pad = datetime.timedelta(seconds=60)
+    pad = datetime.timedelta(seconds=PADDING_TIME_ORBIT)
     for osv in osv_list:
         t_orbit = as_datetime(osv[1].text[4:])
 
@@ -577,7 +579,7 @@ def get_ascending_node_time_orbit(orbit_state_vector_list: ET,
 
     # NOTE: tried to apply the same amount of pading in `get_burst_orbit` to
     # get as similar results as possible.
-    pad = datetime.timedelta(seconds=60)
+    pad = datetime.timedelta(seconds=PADDING_TIME_ORBIT)
 
     # Constrain the search area
     flag_search_area = (utc_vec_all > sensing_time - search_length - pad) & \
@@ -637,6 +639,97 @@ def get_ascending_node_time_orbit(orbit_state_vector_list: ET,
 
     return anx_time_orbit
 
+
+def get_osv_list_from_orbit(orbit_file: str | list,
+                            swath_start: datetime.datetime,
+                            swath_stop: datetime.datetime):
+    '''
+    Get the OSV list ET from `orbit file`
+
+    - when `orbit_file` is list, then all of the OSV lists are
+      get merged and sorted. The merging is done by concatenating
+      the OSVs to the "base OSV list".
+    - The "base OSV list" is the one that covers
+      the swath's start / stop time with padding applied,
+      so that the equal time spacing is guaranteed during that time perdiod.
+
+    Parameters
+    ----------
+    orbit_file: str | list
+    orbit file's name, or list of the orbit file's nane
+
+    swath_start: datetime.datetime
+        Sensing start time of the swath
+    swath_stop: datetime.datetime
+        Sensing start time of the swath
+
+    Returns
+    -------
+    orbit_state_vector_list: ET
+        Orbit state vector list
+    '''
+    if isinstance(orbit_file, str):
+        orbit_tree = ET.parse(orbit_file)
+        orbit_state_vector_list = orbit_tree.find('Data_Block/List_of_OSVs')
+        return orbit_state_vector_list
+
+    elif isinstance(orbit_file, list) and len(orbit_file):
+        # Concatenate the orbit files' OSV lists
+
+        #S1A_OPER_AUX_RESORB_OPOD_20230823T162050_V20230823T123139_20230823T154909.EOF
+        padding = datetime.timedelta(seconds=PADDING_TIME_ORBIT)
+        n_orbit_file = len(orbit_file)
+
+        orbit_start_time_list = []
+        orbit_stop_time_list = []
+
+        for filename in orbit_file:
+            start_time_str = \
+                os.path.basename(filename).split('_')[6].replace('V','')
+            orbit_start_time_list.append(datetime.datetime.strptime(start_time_str,
+                                                                    orbitfile_datetime_format))
+            stop_time_str = \
+                os.path.basename(filename).split('_')[7].replace('V','').replace('.EOF','')
+            orbit_stop_time_list.append(datetime.datetime.strptime(stop_time_str,
+                                                                   orbitfile_datetime_format))
+
+        base_orbit_file_index = None
+        for i in range(n_orbit_file):
+            if (orbit_start_time_list[i] < swath_start - padding) and \
+               (swath_stop + padding < orbit_stop_time_list[i]):
+                base_orbit_file_index = i
+                break
+        if base_orbit_file_index is None:
+            warnings.warn('Cannot find base orbit file that '
+                          'covers sensing start / stop with '
+                          f'{PADDING_TIME_ORBIT} seconds of padding. '
+                          'Using the latest orbit as the base.')
+
+            sorted_index_list = [index for index, _ in
+                                sorted(enumerate(orbit_start_time_list), key=lambda x: x[1])]
+
+            orbit_list_ordered = [orbit_file[index] for index in sorted_index_list]
+
+            # Load the last orbit file's OSV list
+            base_orbit_file_index = orbit_list_ordered[-1]
+
+        # Load the base orbit file
+        base_orbit_tree = ET.parse(orbit_file[base_orbit_file_index])
+        orbit_state_vector_list = base_orbit_tree.find('Data_Block/List_of_OSVs')
+
+        for i_orbit, src_orbit_filename in enumerate(orbit_file):
+            if i_orbit == base_orbit_file_index:
+                continue
+            src_orbit_tree = ET.parse(src_orbit_filename)
+            src_osv_vector_list = src_orbit_tree.find('Data_Block/List_of_OSVs')
+            orbit_state_vector_list = merge_osv_list(orbit_state_vector_list,
+                                                     src_osv_vector_list)
+
+        return orbit_state_vector_list
+
+    else:
+        raise RuntimeError('Invalid orbit information provided. '
+                           'It has to be filename or the list of filename.')
 
 def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
                    iw2_annotation_path: str, open_method=open,
@@ -765,6 +858,7 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
         ascending_node_time_annotation =\
             as_datetime(image_info_element.find('ascendingNodeTime').text)
         first_line_utc_time = as_datetime(image_info_element.find('productFirstLineUtcTime').text)
+        last_line_utc_time = as_datetime(image_info_element.find('productLastLineUtcTime').text)
 
         downlink_element = tree.find('generalAnnotation/downlinkInformationList/'
                                      'downlinkInformation')
@@ -809,8 +903,11 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
 
     # find orbit state vectors in 'Data_Block/List_of_OSVs'
     if orbit_path:
-        orbit_tree = ET.parse(orbit_path)
-        orbit_state_vector_list = orbit_tree.find('Data_Block/List_of_OSVs')
+        #orbit_tree = ET.parse(orbit_path)
+        #orbit_state_vector_list = orbit_tree.find('Data_Block/List_of_OSVs')
+        orbit_state_vector_list = get_osv_list_from_orbit(orbit_path,
+                                                          first_line_utc_time,
+                                                          last_line_utc_time)
 
         # Calculate ascending node crossing time from orbit;
         # compare with the info from annotation
