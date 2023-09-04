@@ -3,15 +3,17 @@ Unit tests for orbit
 '''
 
 import datetime
-import zipfile
-import shutil
+import os
 from pathlib import Path
+import shutil
+import zipfile
 
 import isce3
 import lxml.etree as ET
 import numpy as np
 import pytest
 from shapely.geometry import Point
+
 
 from s1reader.s1_orbit import get_orbit_file_from_dir, combine_xml_orbit_elements
 from s1reader.s1_reader import as_datetime, get_ascending_node_time_orbit
@@ -121,14 +123,24 @@ def test_combine_xml_orbit_elements(tmp_path, test_paths):
 
     f1 = "S1A_OPER_AUX_RESORB_OPOD_20230823T162050_V20230823T123139_20230823T154909.EOF"
     f2 = "S1A_OPER_AUX_RESORB_OPOD_20230823T174849_V20230823T141024_20230823T172754.EOF"
+
+    # The first attempt with only the normal RESORB files will fail,
+    # because there is no RESORB file in the directory
+    assert get_orbit_file_from_dir(slc_file, tmp_path, concat_resorb=False) is None
+
     shutil.copy(orbit_dir / f1, tmp_path)
     shutil.copy(orbit_dir / f2, tmp_path)
 
     assert len(list(tmp_path.glob("*RESORB*.EOF"))) == 2
-    # The first attempt with only the normal RESORB files will fail,
-    # because concatenation is turned off
-    assert get_orbit_file_from_dir(slc_file, tmp_path, concat_resorb=False) is None
 
+    # When `concat_resorb` is False, then it returns the list of orbit files that
+    # covers the sensing time + last ANX time before sensing start
+    resorb_file_list = get_orbit_file_from_dir(slc_file, tmp_path, concat_resorb=False)
+    resorb_file_basename_list = [os.path.basename(filename) for filename in resorb_file_list]
+    resorb_file_basename_list.sort()
+    assert resorb_file_basename_list == [f1, f2]
+
+    # When `concat_resorb` is True, when it combines two orbit file into two
     orbit_filename = get_orbit_file_from_dir(slc_file, tmp_path, concat_resorb=True)
     new_resorb_file = combine_xml_orbit_elements(tmp_path / f2, tmp_path / f1)
     assert len(list(tmp_path.glob("*RESORB*.EOF"))) == 3
