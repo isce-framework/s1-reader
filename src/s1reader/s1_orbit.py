@@ -102,16 +102,17 @@ def retrieve_orbit_file(safe_file: str, orbit_dir: str):
                 orbit_file_indv_list.append(orbit_file)
 
             # concatenate the RESORB xml file.
-            # NOTE Careful about the order how the RESORBs are concatenated
-            # to avoid the non-uniform spacing of OSVs during the sensing times
-            # 1111111111111111111111111                                    2222222222222222222222222
-            #                2222222222222222222222222      1111111111111111111111111
-            # 1111111111111112222222222222222222222222      1111111111111111111111111222222222222222
-            #                 |---sensing time---|                          |---sensing time---|
-            #    CASE 1: adding earlier RESORB to latter            CASE 2: Adding latter RESORB to earlier
-            #                                                       (non-uniform temporal spacing takes place
-            #                                                      between `1` and `2` during the sensing time)
-
+            # NOTE Careful about the order how the RESORBs are concatenated to avoid
+            # the non-uniform spacing of OSVs during the sensing times
+            # 11111111111111111111111                                    2222222222222222222222
+            #                2222222222222222222222      11111111111111111111111
+            # 1111111111111112222222222222222222222      11111111111111111111111222222222222222
+            #  |              |---sensing time---|        |               |---sensing time---|
+            # ANX crossing                               ANX crossing
+            # CASE 1: adding earlier RESORB to latter    CASE 2: Adding latter RESORB to earlier
+            #                                            (non-uniform temporal spacing takes place
+            #                                          between `1` and `2` during the sensing time)
+            #
             # adding earlier RESORB to latter (i.e. CASE 1 above)
             concat_resorb_file = combine_xml_orbit_elements(orbit_file_indv_list[1],
                                                             orbit_file_indv_list[0])
