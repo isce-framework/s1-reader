@@ -608,7 +608,7 @@ def get_ascending_node_time_orbit(orbit_state_vector_list: ET,
 
         # Set up spline interpolator and interpolate the time when z is equal to 0.0
         datetime_orbit_ref = time_around_crossing[0]
-        relative_time_around_crossing = [(t - datetime_orbit_ref).seconds
+        relative_time_around_crossing = [(t - datetime_orbit_ref).total_seconds()
                                          for t in time_around_crossing]
 
         interpolator_time = InterpolatedUnivariateSpline(z_around_crossing,
