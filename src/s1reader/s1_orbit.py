@@ -82,24 +82,25 @@ def retrieve_orbit_file(safe_file: str, orbit_dir: str, concatenate: bool=False)
     if orbit_dict is None:
         pad_short = datetime.timedelta(seconds = PADDING_SHORT)
         print('Attempting to download RESORB files.')
-        orbit_dict_earlier = get_orbit_dict(mission_id,
+        resorb_dict_earlier = get_orbit_dict(mission_id,
                                             start_time,
                                             start_time + 2 * pad_short, 'AUX_RESORB')
 
-        orbit_dict_later = get_orbit_dict(mission_id,
+        resorb_dict_later = get_orbit_dict(mission_id,
                                           start_time + margin_start_time - pad_short,
                                           end_time + pad_short,
                                           'AUX_RESORB')
 
-        orbit_dict_list = [orbit_dict_earlier, orbit_dict_later]
+        resorb_dict_list = [resorb_dict_earlier, resorb_dict_later]
 
-        if orbit_dict_list:
-            orbit_file_indv_list = []
-            for orbit_dict in orbit_dict_list:
-                orbit_file = os.path.join(orbit_dir, f"{orbit_dict['orbit_name']}.EOF")
-                if not os.path.exists(orbit_file):
-                    download_orbit_file(orbit_dir, orbit_dict['orbit_url'])
-                orbit_file_indv_list.append(orbit_file)
+        if all(resorb_dict_list):
+            # Either conctenate the orbit, or return the RESORB pair
+            resorb_file_list = []
+            for resorb_dict in resorb_dict_list:
+                resorb_file = os.path.join(orbit_dir, f"{resorb_dict['orbit_name']}.EOF")
+                if not os.path.exists(resorb_file):
+                    download_orbit_file(orbit_dir, resorb_dict['orbit_url'])
+                resorb_file_list.append(resorb_file)
 
             # concatenate the RESORB xml file.
             # NOTE Careful about the order how the RESORBs are concatenated to avoid
@@ -115,11 +116,14 @@ def retrieve_orbit_file(safe_file: str, orbit_dir: str, concatenate: bool=False)
             #
             # adding earlier RESORB to latter (i.e. CASE 1 above)
             if concatenate:
-                concat_resorb_file = combine_xml_orbit_elements(orbit_file_indv_list[1],
-                                                                orbit_file_indv_list[0])
+                concat_resorb_file = combine_xml_orbit_elements(resorb_file_list[1],
+                                                                resorb_file_list[0])
                 return concat_resorb_file
 
-            return orbit_file_indv_list
+            return resorb_file_list
+
+        warnings.warn('Cannot find RESORB pair that covers the timeframe in the query')
+        return None
 
 
 def check_internet_connection():
