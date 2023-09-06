@@ -28,7 +28,7 @@ scihub_user = 'gnssguest'
 scihub_password = 'gnssguest'
 
 
-def retrieve_orbit_file(safe_file: str, orbit_dir: str):
+def retrieve_orbit_file(safe_file: str, orbit_dir: str, concatenate: bool=False):
     '''
     Download or concatenate orbits for S1-A/B SAFE "safe_file"
     If no RESORB orbit file covers the time range [start_time - margin_start_time, end_time], then
@@ -81,7 +81,7 @@ def retrieve_orbit_file(safe_file: str, orbit_dir: str):
     # sensing period + margins at the starting time.
     if orbit_dict is None:
         pad_short = datetime.timedelta(seconds = PADDING_SHORT)
-        print('Attempting to download and concatenate RESORB files.')
+        print('Attempting to download RESORB files.')
         orbit_dict_earlier = get_orbit_dict(mission_id,
                                             start_time,
                                             start_time + 2 * pad_short, 'AUX_RESORB')
@@ -114,10 +114,12 @@ def retrieve_orbit_file(safe_file: str, orbit_dir: str):
             #                                          between `1` and `2` during the sensing time)
             #
             # adding earlier RESORB to latter (i.e. CASE 1 above)
-            concat_resorb_file = combine_xml_orbit_elements(orbit_file_indv_list[1],
-                                                            orbit_file_indv_list[0])
+            if concatenate:
+                concat_resorb_file = combine_xml_orbit_elements(orbit_file_indv_list[1],
+                                                                orbit_file_indv_list[0])
+                return concat_resorb_file
 
-    return concat_resorb_file
+            return orbit_file_indv_list
 
 
 def check_internet_connection():
@@ -280,7 +282,7 @@ def download_orbit_file(output_folder, orbit_url):
 
 
 def get_orbit_file_from_dir(zip_path: str, orbit_dir: str,
-                            auto_download: bool = False,
+                            auto_download: bool=False,
                             concat_resorb=False) -> str | list | None:
     '''Get orbit state vector list for a given swath.
 
@@ -337,7 +339,7 @@ def get_orbit_file_from_dir(zip_path: str, orbit_dir: str,
         return None
 
     # Attempt auto download
-    orbit_file = retrieve_orbit_file(zip_path, orbit_dir)
+    orbit_file = retrieve_orbit_file(zip_path, orbit_dir, concat_resorb)
     return orbit_file
 
 
@@ -515,7 +517,7 @@ def get_resorb_pair_from_list(zip_path: str, orbit_file_list: list,
         else:
             return [resorb_filename_earlier, resorb_filename_later]
 
-    print('Cannot find RESORB files that meets the time frame criteria.')
+    print('Cannot find single RESORB file that meets the time frame criteria.')
     return None
 
 
