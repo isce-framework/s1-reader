@@ -139,7 +139,7 @@ def test_combine_xml_orbit_elements(tmp_path, test_paths):
     resorb_file_basename_list.sort()
     assert resorb_file_basename_list == [f1, f2]
 
-    # When `concat_resorb` is `True`, when it combines two orbit file into two
+    # When `concat_resorb` is `True`, then it combines the two orbit file into one
     orbit_filename = get_orbit_file_from_dir(slc_file, tmp_path, concat_resorb=True)
     new_resorb_file = combine_xml_orbit_elements(tmp_path / f2, tmp_path / f1)
     assert len(list(tmp_path.glob("*RESORB*.EOF"))) == 3

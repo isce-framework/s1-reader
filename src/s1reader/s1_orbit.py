@@ -626,11 +626,12 @@ def _generate_filename(file_base: str, new_start: datetime.datetime, new_stop: d
         Generated filename.
     """
     product_name = Path(file_base).name
+    index_prefix = product_name.index("_V")
     # >>> 'S1A_OPER_AUX_PREORB_OPOD_20200325T131800_V20200325T121452_20200325T184952'.index('V')
     # 41
     fmt = "%Y%m%dT%H%M%S"
     new_start_stop_str = new_start.strftime(fmt) + "_" + new_stop.strftime(fmt)
-    new_product_name = product_name[:42] + new_start_stop_str
+    new_product_name = product_name[:index_prefix + 2] + new_start_stop_str
     return str(file_base).replace(product_name, new_product_name) + ".EOF"
 
 
