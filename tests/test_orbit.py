@@ -118,7 +118,6 @@ def test_anx_time(test_paths):
 def test_combine_xml_orbit_elements(tmp_path, test_paths):
     slc_file = tmp_path / "S1A_IW_SLC__1SDV_20230823T154908_20230823T154935_050004_060418_521B.SAFE"
     slc_file.write_text("")
-    # test_paths.orbit_dir = f"{test_path}/data/orbits"
     orbit_dir = Path(test_paths.orbit_dir)
 
     f1 = "S1A_OPER_AUX_RESORB_OPOD_20230823T162050_V20230823T123139_20230823T154909.EOF"
@@ -133,14 +132,14 @@ def test_combine_xml_orbit_elements(tmp_path, test_paths):
 
     assert len(list(tmp_path.glob("*RESORB*.EOF"))) == 2
 
-    # When `concat_resorb` is False, then it returns the list of orbit files that
+    # When `concat_resorb` is `False`, then it returns the list of orbit files that
     # covers the sensing time + last ANX time before sensing start
     resorb_file_list = get_orbit_file_from_dir(slc_file, tmp_path, concat_resorb=False)
     resorb_file_basename_list = [os.path.basename(filename) for filename in resorb_file_list]
     resorb_file_basename_list.sort()
     assert resorb_file_basename_list == [f1, f2]
 
-    # When `concat_resorb` is True, when it combines two orbit file into two
+    # When `concat_resorb` is `True`, when it combines two orbit file into two
     orbit_filename = get_orbit_file_from_dir(slc_file, tmp_path, concat_resorb=True)
     new_resorb_file = combine_xml_orbit_elements(tmp_path / f2, tmp_path / f1)
     assert len(list(tmp_path.glob("*RESORB*.EOF"))) == 3

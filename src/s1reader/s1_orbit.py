@@ -328,11 +328,6 @@ def get_orbit_file_from_dir(zip_path: str, orbit_dir: str,
 
     orbit_file = get_orbit_file_from_list(zip_path, orbit_file_list, concat_resorb)
 
-    # if no orbit file in the list, try to find RESORB files
-    #if not orbit_file:
-    #    print('Attempting to find RESORB files in the orbit file list.')
-    #    orbit_file = get_resorb_pair_from_list(zip_path, orbit_file_list, concat_resorb)
-
     if orbit_file:
         return orbit_file
 
@@ -340,7 +335,7 @@ def get_orbit_file_from_dir(zip_path: str, orbit_dir: str,
         msg = (f'No orbit file was found for {os.path.basename(zip_path)} '
                 f'from the directory provided: {orbit_dir}')
         warnings.warn(msg)
-        return None
+        return
 
     # Attempt auto download
     orbit_file = retrieve_orbit_file(zip_path, orbit_dir, concat_resorb)
@@ -417,19 +412,20 @@ def get_orbit_file_from_list(zip_path: str, orbit_file_list: list, concat_resorb
 
 def _covers_timeframe(orbit_file: str, t_start_stop_frame: list) -> bool:
     '''
-    Check if `orbitfile` covers `t_start_stop_frame`
+    Check if `orbit_file` covers `t_start_stop_frame`
     Copied from `get_orbit_file_from_list()` and modified
 
-    Parameter
-    ---------
+    Parameters
+    ----------
     orbit_file: str
+        Orbit file
 
     t_start_stop_frame: list(datetime.datetime)
 
     Returns
     -------
     _: Bool
-        `True` if the orbit file covers the time range; False otherwise
+        `True` if the orbit file covers the time range; `False`, otherwise
     '''
 
     # get file name and extract state vector start/end time strings
@@ -454,17 +450,17 @@ def get_resorb_pair_from_list(zip_path: str, orbit_file_list: list,
     If found, try to concatenate
     Based on `get_orbit_file_from_list()`
 
-    Parameters:
-    -----------
+    Parameters
+    ----------
     zip_path : string
-        Path to Sentinel1 SAFE zip file. Base names required to adhere to the
+        Path to the Sentinel-1 SAFE zip file. Base names required to adhere to the
         format described here:
         https://sentinel.esa.int/web/sentinel/user-guides/sentinel-1-sar/naming-conventions
     orbit_file_list : list
-        List of the orbit files that exists in the system.
+        List of the orbit files that exist in the system.
 
-    Returns:
-    --------
+    Returns
+    -------
     orbit_file : str
         Path to the orbit file, or `None` if no orbit file was found.
     '''
@@ -489,8 +485,8 @@ def get_resorb_pair_from_list(zip_path: str, orbit_file_list: list,
         # sensing time - margin_start_time
         t_swath_start_stop_safe = [t_swath_start_stop[0] - pad_1min,
                                    t_swath_start_stop[1] + pad_1min]
-        if _covers_timeframe(resorb_file, t_swath_start_stop_safe) and \
-            resorb_filename_later is None:
+        if (_covers_timeframe(resorb_file, t_swath_start_stop_safe) and
+                resorb_filename_later is None):
             print('Found RESOEB file covering the S1 SAFE frame.')
             resorb_filename_later = resorb_file
             continue
@@ -499,8 +495,8 @@ def get_resorb_pair_from_list(zip_path: str, orbit_file_list: list,
         # with small padding (like 60 sec.)
         t_swath_start_stop_anx = [t_swath_start_stop[0] - margin_start_time,
                                   t_swath_start_stop[0] - margin_start_time + 2*pad_1min]
-        if _covers_timeframe(resorb_file, t_swath_start_stop_anx) and \
-            resorb_filename_earlier is None:
+        if (_covers_timeframe(resorb_file, t_swath_start_stop_anx) and
+                resorb_filename_earlier is None):
             print('Found RESOEB file covering ANX before sensing start')
             resorb_filename_earlier = resorb_file
             continue
@@ -522,7 +518,7 @@ def get_resorb_pair_from_list(zip_path: str, orbit_file_list: list,
             return [resorb_filename_earlier, resorb_filename_later]
 
     print('Cannot find single RESORB file that meets the time frame criteria.')
-    return None
+    return
 
 
 def combine_xml_orbit_elements(file1: str, file2: str) -> str:
@@ -541,7 +537,7 @@ def combine_xml_orbit_elements(file1: str, file2: str) -> str:
 
     Returns
     -------
-    str
+    _ : str
         Name of the newly created EOF file.
     """
 
@@ -638,17 +634,17 @@ def _generate_filename(file_base: str, new_start: datetime.datetime, new_stop: d
 
 def _sort_list_of_osv(list_of_osvs):
     '''
-    Sort the OSV with respect to the UTC time
+    Sort the orbit state vectors (OSV) with respect to the UTC time
 
     Parameters
     ----------
     list_of_osvs: ET.ElementTree
-        OSVs as XML ET
+        Orbit state vectors (OSVs) as XML ElementTree (ET) objects
 
     Returns
     -------
     list_of_osvs: ET.ElementTree
-        Sorted OSVs with respect to UTC
+        Sorted orbit state vectors (OSVs) with respect to UTC time
     '''
     utc_osv_list = [datetime.datetime.fromisoformat(osv.find('UTC').text.replace('UTC=',''))
                     for osv in list_of_osvs]

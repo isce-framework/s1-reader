@@ -644,24 +644,24 @@ def get_osv_list_from_orbit(orbit_file: str | list,
                             swath_start: datetime.datetime,
                             swath_stop: datetime.datetime):
     '''
-    Get the OSV list ET from `orbit file`
+    Get the list of orbit state vectors as ElementTree (ET) objects from the orbit file `orbit_file`
 
-    - when `orbit_file` is list, then all of the OSV lists are
-      get merged and sorted. The merging is done by concatenating
+    - When `orbit_file` is a list, then all of the OSV lists are
+      merged and sorted. The merging is done by concatenating
       the OSVs to the "base OSV list".
     - The "base OSV list" is the one that covers
       the swath's start / stop time with padding applied,
-      so that the equal time spacing is guaranteed during that time perdiod.
+      so that the equal time spacing is guaranteed during that time period.
 
     Parameters
     ----------
     orbit_file: str | list
-    orbit file's name, or list of the orbit file's nane
+        Orbit file name, or list of the orbit file names
 
     swath_start: datetime.datetime
         Sensing start time of the swath
     swath_stop: datetime.datetime
-        Sensing start time of the swath
+        Sensing stop time of the swath
 
     Returns
     -------
@@ -676,7 +676,6 @@ def get_osv_list_from_orbit(orbit_file: str | list,
     elif isinstance(orbit_file, list) and len(orbit_file):
         # Concatenate the orbit files' OSV lists
 
-        #S1A_OPER_AUX_RESORB_OPOD_20230823T162050_V20230823T123139_20230823T154909.EOF
         padding = datetime.timedelta(seconds=PADDING_TIME_ORBIT)
         n_orbit_file = len(orbit_file)
 
@@ -903,8 +902,6 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
 
     # find orbit state vectors in 'Data_Block/List_of_OSVs'
     if orbit_path:
-        #orbit_tree = ET.parse(orbit_path)
-        #orbit_state_vector_list = orbit_tree.find('Data_Block/List_of_OSVs')
         orbit_state_vector_list = get_osv_list_from_orbit(orbit_path,
                                                           first_line_utc_time,
                                                           last_line_utc_time)
