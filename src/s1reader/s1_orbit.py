@@ -421,6 +421,7 @@ def _covers_timeframe(orbit_file: str, t_start_stop_frame: list) -> bool:
         Orbit file
 
     t_start_stop_frame: list(datetime.datetime)
+        start / stop time of the time frame as a list.
 
     Returns
     -------
@@ -446,9 +447,10 @@ def _covers_timeframe(orbit_file: str, t_start_stop_frame: list) -> bool:
 def get_resorb_pair_from_list(zip_path: str, orbit_file_list: list,
                                concatenate_resorb: bool=False) -> list | str | None:
     '''
-    Find if there are TWO RESORB files that covers [start - margin_start_time, end]
-    If found, try to concatenate
-    Based on `get_orbit_file_from_list()`
+    Find if there are TWO RESORB files that cover [start - margin_start_time, end]
+    If found, try to concatenate them when `concatenate_resorb` is `True`
+
+    Code based on `get_orbit_file_from_list()`
 
     Parameters
     ----------
