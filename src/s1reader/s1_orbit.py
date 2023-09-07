@@ -81,6 +81,13 @@ def retrieve_orbit_file(safe_file: str, orbit_dir: str, concatenate: bool=False)
     # covers the sensing period + margin at the starting time.
     # Try to find two subsequent RESORB files that covers the
     # sensing period + margins at the starting time.
+    #
+    # NOTE about timing design of RESORB files based on the investigation in 09/2023
+    # Duration (H:M:S):                                     3:17:30
+    # Overlap between the subsequent RESORB  (H:M:S):       1:38:46
+    # Time shifting between the subsequent RESORB  (H:M:S): 1:38:44
+    # T_orb  (H:M:S):                                       1:38:44.57
+
     print('Attempting to download RESORB files.')
     resorb_dict_earlier = get_orbit_dict(mission_id,
                                         search_start_time,
