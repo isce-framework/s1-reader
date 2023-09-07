@@ -367,13 +367,16 @@ def get_orbit_file_from_list(zip_path: str, orbit_file_list: list, concat_resorb
 
     # Apply temporal margin to the start time of the frame
     # 1st element: start time, 2nd element: end time
-    t_swath_start_stop[0] = t_swath_start_stop[0] - margin_start_time
+    #t_swath_start_stop[0] = t_swath_start_stop[0] - margin_start_time
+    t_search_window = [t_swath_start_stop[0] - margin_start_time,
+                       t_swath_start_stop[1]]
 
-    # initiate output
-    orbit_file_final = ''
+    # Sort the orbit files for reproducibility in the search result
+    orbit_file_list_sorted = sorted(orbit_file_list,
+                                    key=lambda x: os.path.basename(x))
 
     # search for orbit file
-    for orbit_file in orbit_file_list:
+    for orbit_file in orbit_file_list_sorted:
         # check if file validity
         if not os.path.isfile(orbit_file):
             continue
@@ -392,7 +395,7 @@ def get_orbit_file_from_list(zip_path: str, orbit_file_list: list, concat_resorb
         # check if:
         # 1. swath start and stop time > orbit file start time
         # 2. swath start and stop time < orbit file stop time
-        if all([t_orbit_start < t < t_orbit_stop for t in t_swath_start_stop]):
+        if all([t_orbit_start < t < t_orbit_stop for t in t_search_window]):
             orbit_file_final = orbit_file
             break
 
@@ -400,7 +403,9 @@ def get_orbit_file_from_list(zip_path: str, orbit_file_list: list, concat_resorb
         msg = ('No single orbit file was found in the file list provided. '
                'Attempting to find set of RESORB files that covers the time period.')
         warnings.warn(msg)
-        orbit_file_final = get_resorb_pair_from_list(zip_path, orbit_file_list, concat_resorb)
+        orbit_file_final = get_resorb_pair_from_list(zip_path,
+                                                     orbit_file_list_sorted,
+                                                     concat_resorb)
 
     if not orbit_file_final:
         msg = ('No single orbit file was found in the file list provided.')
