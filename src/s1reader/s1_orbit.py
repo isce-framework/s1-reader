@@ -375,6 +375,9 @@ def get_orbit_file_from_list(zip_path: str, orbit_file_list: list, concat_resorb
     orbit_file_list_sorted = sorted(orbit_file_list,
                                     key=lambda x: os.path.basename(x))
 
+    # initiate output
+    orbit_file_final = ''
+
     # search for orbit file
     for orbit_file in orbit_file_list_sorted:
         # check if file validity
