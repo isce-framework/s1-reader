@@ -225,10 +225,8 @@ def get_orbit_dict(mission_id, start_time, end_time, orbit_type):
         err_msg = f'{orbit_type} not a valid orbit type'
         raise ValueError(err_msg)
 
-    # Add a 30 min margin to start_time and end_time
-    pad_30_min = datetime.timedelta(hours=0.5)
-    pad_start_time = start_time - pad_30_min
-    pad_end_time = end_time + pad_30_min
+    pad_start_time = start_time
+    pad_end_time = end_time
     new_start_time = pad_start_time.strftime('%Y-%m-%dT%H:%M:%S')
     new_end_time = pad_end_time.strftime('%Y-%m-%dT%H:%M:%S')
     query_string = f"startswith(Name,'{mission_id}') and substringof('{orbit_type}',Name) " \
@@ -341,7 +339,9 @@ def get_orbit_file_from_dir(zip_path: str, orbit_dir: str,
     return orbit_file
 
 
-def get_orbit_file_from_list(zip_path: str, orbit_file_list: list, concat_resorb: bool=False) -> str | list | None:
+def get_orbit_file_from_list(zip_path: str,
+                             orbit_file_list: list,
+                             concat_resorb: bool=False) -> str | list | None:
     '''Get orbit file for a given S-1 swath from a list of files
 
     Parameters
