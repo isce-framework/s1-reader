@@ -32,7 +32,7 @@ def retrieve_orbit_file(safe_file: str, orbit_dir: str, concatenate: bool=False)
     '''
     Download or concatenate orbits for S1-A/B SAFE "safe_file"
     If no RESORB orbit file covers the time range [start_time - margin_start_time, end_time], then
-    download two RESORB file that has overlap with the time range above, and
+    download two RESORB files to cover the time range, and
     concatenate them
 
     Parameters
@@ -96,7 +96,7 @@ def retrieve_orbit_file(safe_file: str, orbit_dir: str, concatenate: bool=False)
         warnings.warn('Cannot find RESORB pair that covers the timeframe in the query')
         return
 
-    # Either conctenate the orbit, or return the RESORB pair
+    # Either concatenate the orbit, or return the RESORB pair
     resorb_file_list = []
     for resorb_dict in resorb_dict_list:
         resorb_file = os.path.join(orbit_dir, f"{resorb_dict['orbit_name']}.EOF")
@@ -116,7 +116,7 @@ def retrieve_orbit_file(safe_file: str, orbit_dir: str, concatenate: bool=False)
     #                                            (non-uniform temporal spacing takes place
     #                                          between `1` and `2` during the sensing time)
     #
-    # adding earlier RESORB to latter (i.e. CASE 1 above)
+    # CASE 1 is favorable down stream processing with ISCE3 and therefore in the following we concatenate the two orbits using CASE 1 approach which is adding earlier RESORB to latter (i.e. CASE 1 above)
     if concatenate:
         concat_resorb_file = combine_xml_orbit_elements(resorb_file_list[1],
                                                         resorb_file_list[0])
@@ -412,7 +412,7 @@ def get_orbit_file_from_list(zip_path: str, orbit_file_list: list, concat_resorb
 def _covers_timeframe(orbit_file: str, t_start_stop_frame: list) -> bool:
     '''
     Check if `orbit_file` covers `t_start_stop_frame`
-    Copied from `get_orbit_file_from_list()` and modified
+    
 
     Parameters
     ----------
