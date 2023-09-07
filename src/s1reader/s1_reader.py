@@ -673,51 +673,22 @@ def get_osv_list_from_orbit(orbit_file: str | list,
         orbit_state_vector_list = orbit_tree.find('Data_Block/List_of_OSVs')
         return orbit_state_vector_list
 
-    elif isinstance(orbit_file, list) and len(orbit_file):
+    elif isinstance(orbit_file, list) and len(orbit_file) == 1:
+        orbit_tree = ET.parse(orbit_file[0])
+        orbit_state_vector_list = orbit_tree.find('Data_Block/List_of_OSVs')
+        return orbit_state_vector_list
+
+    elif isinstance(orbit_file, list) and len(orbit_file) > 1:
         # Concatenate the orbit files' OSV lists
-
-        padding = datetime.timedelta(seconds=PADDING_TIME_ORBIT)
-        n_orbit_file = len(orbit_file)
-
-        orbit_start_time_list = []
-        orbit_stop_time_list = []
-
-        for filename in orbit_file:
-            start_time_str = \
-                os.path.basename(filename).split('_')[6].replace('V','')
-            orbit_start_time_list.append(datetime.datetime.strptime(start_time_str,
-                                                                    orbitfile_datetime_format))
-            stop_time_str = \
-                os.path.basename(filename).split('_')[7].replace('V','').replace('.EOF','')
-            orbit_stop_time_list.append(datetime.datetime.strptime(stop_time_str,
-                                                                   orbitfile_datetime_format))
-
-        base_orbit_file_index = None
-        for i in range(n_orbit_file):
-            if (orbit_start_time_list[i] < swath_start - padding) and \
-               (swath_stop + padding < orbit_stop_time_list[i]):
-                base_orbit_file_index = i
-                break
-        if base_orbit_file_index is None:
-            warnings.warn('Cannot find base orbit file that '
-                          'covers sensing start / stop with '
-                          f'{PADDING_TIME_ORBIT} seconds of padding. '
-                          'Using the latest orbit as the base.')
-
-            sorted_index_list = [index for index, _ in
-                                sorted(enumerate(orbit_start_time_list), key=lambda x: x[1])]
-
-            orbit_list_ordered = [orbit_file[index] for index in sorted_index_list]
-
-            # Load the last orbit file's OSV list
-            base_orbit_file_index = orbit_list_ordered[-1]
+        # Assuming that the orbit was sorted, and the last orbit in the list if the one that
+        # covers the sensing start / stop with padding (i.e. the base orbit file in this function)
 
         # Load the base orbit file
-        base_orbit_tree = ET.parse(orbit_file[base_orbit_file_index])
+        base_orbit_tree = ET.parse(orbit_file[-1])
         orbit_state_vector_list = base_orbit_tree.find('Data_Block/List_of_OSVs')
 
         for i_orbit, src_orbit_filename in enumerate(orbit_file):
-            if i_orbit == base_orbit_file_index:
+            if i_orbit == len(orbit_file) -1:
                 continue
             src_orbit_tree = ET.parse(src_orbit_filename)
             src_osv_vector_list = src_orbit_tree.find('Data_Block/List_of_OSVs')
