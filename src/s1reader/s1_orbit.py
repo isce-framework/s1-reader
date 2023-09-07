@@ -118,7 +118,9 @@ def retrieve_orbit_file(safe_file: str, orbit_dir: str, concatenate: bool=False)
     #                                            (non-uniform temporal spacing takes place
     #                                          between `1` and `2` during the sensing time)
     #
-    # CASE 1 is favorable down stream processing with ISCE3 and therefore in the following we concatenate the two orbits using CASE 1 approach which is adding earlier RESORB to latter (i.e. CASE 1 above)
+    # CASE 1 is favorable down stream processing with ISCE3 and therefore in the following
+    # we concatenate the two orbits using CASE 1 approach which is
+    # adding earlier RESORB to latter (i.e. CASE 1 above)
     if concatenate:
         concat_resorb_file = combine_xml_orbit_elements(resorb_file_list[1],
                                                         resorb_file_list[0])
@@ -141,7 +143,9 @@ def check_internet_connection():
 def parse_safe_filename(safe_filename):
     '''
     Extract info from S1-A/B SAFE filename
-    SAFE filename structure: S1A_IW_SLC__1SDV_20150224T114043_20150224T114111_004764_005E86_AD02.SAFE
+    SAFE filename structure:
+    S1A_IW_SLC__1SDV_20150224T114043_20150224T114111_004764_005E86_AD02.SAFE
+
     Parameters
     -----------
     safe_filename: string
@@ -422,7 +426,6 @@ def get_orbit_file_from_list(zip_path: str,
 def _covers_timeframe(orbit_file: str, t_start_stop_frame: list) -> bool:
     '''
     Check if `orbit_file` covers `t_start_stop_frame`
-    
 
     Parameters
     ----------
@@ -448,7 +451,7 @@ def _covers_timeframe(orbit_file: str, t_start_stop_frame: list) -> bool:
     t_orbit_stop = datetime.datetime.strptime(t_orbit_stop[:-4], FMT)
 
     # check if:
-    # 1. swath start and stop time > orbit file start time
+    # 1. swath start and stop time > orbit file start time, and
     # 2. swath start and stop time < orbit file stop time
     return all(t_orbit_start < t < t_orbit_stop for t in t_start_stop_frame)
 
@@ -492,6 +495,20 @@ def get_resorb_pair_from_list(zip_path: str, orbit_file_list: list,
         if mission_id not in os.path.basename(resorb_file):
             continue
 
+        # NOTE: the size of the search window was set to be small to avoid
+        # the potential edge case like below:
+        #1111111111 1111111111| |
+        #         |2222222222 2222222222
+        #         |          3333333333 3333333333
+        #         |           | |
+        #         |-----------|-|
+        #                 |    |
+        #               T_orb  Sensing
+        # In that case, query for the time window `Sensing` time window can find
+        # some orbit file, but the query for `T_orb` has a risk of not finding any orbits,
+        # depending on the sensing start time's relative position wrt. orbit 1, and
+        # the length of the padding.
+
         # 1. Try to find the orbit file that covers the sensing start-stop
         # with small padding (like 60 sec.)
         t_swath_start_stop_safe = [t_swath_start_stop[0] - pad_1min,
@@ -516,7 +533,8 @@ def get_resorb_pair_from_list(zip_path: str, orbit_file_list: list,
         if resorb_filename_earlier and resorb_filename_later:
             break
 
-    # if 1. and 2. are successful, then try to concatenate them
+    # if 1. and 2. are successful return the result as a list of orbit file, or
+    # as a concatenated RESORB file
     if resorb_filename_earlier and resorb_filename_later:
         if concatenate_resorb:
             # BE CAREFUL ABOUT THE ORDER HOW THEY ARE CONCATENATED.
