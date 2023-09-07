@@ -21,6 +21,7 @@ PADDING_SHORT = 60
 # Temporal margin to apply to the start time of a frame
 #  to make sure that the ascending node crossing is
 #    included when choosing the orbit file
+padding_short = datetime.timedelta(seconds = PADDING_SHORT)
 margin_start_time = datetime.timedelta(seconds=T_ORBIT + PADDING_SHORT)
 
 # Scihub guest credential
@@ -53,19 +54,20 @@ def retrieve_orbit_file(safe_file: str, orbit_dir: str, concatenate: bool=False)
     check_internet_connection()
 
     # Parse info from SAFE file name
-    mission_id, _, start_time, end_time, _ = parse_safe_filename(safe_file)
+    mission_id, _, sensing_start_time, sensing_end_time, _ = parse_safe_filename(safe_file)
 
     # Apply margin to the start time
-    start_time = start_time - margin_start_time
+    search_start_time = sensing_start_time - margin_start_time
+    search_end_time = sensing_end_time + padding_short
 
     # Find precise orbit first
-    orbit_dict = get_orbit_dict(mission_id, start_time,
-                                end_time, 'AUX_POEORB')
+    orbit_dict = get_orbit_dict(mission_id, search_start_time,
+                                search_end_time, 'AUX_POEORB')
 
     # If orbit dict is empty, find restituted orbits
     if orbit_dict is None:
-        orbit_dict = get_orbit_dict(mission_id, start_time,
-                                    end_time, 'AUX_RESORB')
+        orbit_dict = get_orbit_dict(mission_id, search_start_time,
+                                    search_end_time, 'AUX_RESORB')
 
     # Download orbit file
     if orbit_dict is not None:
@@ -79,16 +81,16 @@ def retrieve_orbit_file(safe_file: str, orbit_dir: str, concatenate: bool=False)
     # covers the sensing period + margin at the starting time.
     # Try to find two subsequent RESORB files that covers the
     # sensing period + margins at the starting time.
-    pad_short = datetime.timedelta(seconds = PADDING_SHORT)
     print('Attempting to download RESORB files.')
     resorb_dict_earlier = get_orbit_dict(mission_id,
-                                        start_time,
-                                        start_time + 2 * pad_short, 'AUX_RESORB')
+                                        search_start_time,
+                                        search_start_time + 2 * padding_short,
+                                        'AUX_RESORB')
 
     resorb_dict_later = get_orbit_dict(mission_id,
-                                        start_time + margin_start_time - pad_short,
-                                        end_time + pad_short,
-                                        'AUX_RESORB')
+                                       sensing_start_time - padding_short,
+                                       sensing_end_time + padding_short,
+                                       'AUX_RESORB')
 
     resorb_dict_list = [resorb_dict_earlier, resorb_dict_later]
 
