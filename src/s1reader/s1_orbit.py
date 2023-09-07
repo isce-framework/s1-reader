@@ -79,51 +79,50 @@ def retrieve_orbit_file(safe_file: str, orbit_dir: str, concatenate: bool=False)
     # covers the sensing period + margin at the starting time.
     # Try to find two subsequent RESORB files that covers the
     # sensing period + margins at the starting time.
-    if orbit_dict is None:
-        pad_short = datetime.timedelta(seconds = PADDING_SHORT)
-        print('Attempting to download RESORB files.')
-        resorb_dict_earlier = get_orbit_dict(mission_id,
-                                            start_time,
-                                            start_time + 2 * pad_short, 'AUX_RESORB')
+    pad_short = datetime.timedelta(seconds = PADDING_SHORT)
+    print('Attempting to download RESORB files.')
+    resorb_dict_earlier = get_orbit_dict(mission_id,
+                                        start_time,
+                                        start_time + 2 * pad_short, 'AUX_RESORB')
 
-        resorb_dict_later = get_orbit_dict(mission_id,
-                                          start_time + margin_start_time - pad_short,
-                                          end_time + pad_short,
-                                          'AUX_RESORB')
+    resorb_dict_later = get_orbit_dict(mission_id,
+                                        start_time + margin_start_time - pad_short,
+                                        end_time + pad_short,
+                                        'AUX_RESORB')
 
-        resorb_dict_list = [resorb_dict_earlier, resorb_dict_later]
+    resorb_dict_list = [resorb_dict_earlier, resorb_dict_later]
 
-        if all(resorb_dict_list):
-            # Either conctenate the orbit, or return the RESORB pair
-            resorb_file_list = []
-            for resorb_dict in resorb_dict_list:
-                resorb_file = os.path.join(orbit_dir, f"{resorb_dict['orbit_name']}.EOF")
-                if not os.path.exists(resorb_file):
-                    download_orbit_file(orbit_dir, resorb_dict['orbit_url'])
-                resorb_file_list.append(resorb_file)
-
-            # concatenate the RESORB xml file.
-            # NOTE Careful about the order how the RESORBs are concatenated to avoid
-            # the non-uniform spacing of OSVs during the sensing times
-            # 11111111111111111111111                                    2222222222222222222222
-            #                2222222222222222222222      11111111111111111111111
-            # 1111111111111112222222222222222222222      11111111111111111111111222222222222222
-            #  |              |---sensing time---|        |               |---sensing time---|
-            # ANX crossing                               ANX crossing
-            # CASE 1: adding earlier RESORB to latter    CASE 2: Adding latter RESORB to earlier
-            #                                            (non-uniform temporal spacing takes place
-            #                                          between `1` and `2` during the sensing time)
-            #
-            # adding earlier RESORB to latter (i.e. CASE 1 above)
-            if concatenate:
-                concat_resorb_file = combine_xml_orbit_elements(resorb_file_list[1],
-                                                                resorb_file_list[0])
-                return concat_resorb_file
-
-            return resorb_file_list
-
+    if not all(resorb_dict_list):
         warnings.warn('Cannot find RESORB pair that covers the timeframe in the query')
-        return None
+        return
+
+    # Either conctenate the orbit, or return the RESORB pair
+    resorb_file_list = []
+    for resorb_dict in resorb_dict_list:
+        resorb_file = os.path.join(orbit_dir, f"{resorb_dict['orbit_name']}.EOF")
+        if not os.path.exists(resorb_file):
+            download_orbit_file(orbit_dir, resorb_dict['orbit_url'])
+        resorb_file_list.append(resorb_file)
+
+    # concatenate the RESORB xml file.
+    # NOTE Careful about the order how the RESORBs are concatenated to avoid
+    # the non-uniform spacing of OSVs during the sensing times
+    # 11111111111111111111111                                    2222222222222222222222
+    #                2222222222222222222222      11111111111111111111111
+    # 1111111111111112222222222222222222222      11111111111111111111111222222222222222
+    #  |              |---sensing time---|        |               |---sensing time---|
+    # ANX crossing                               ANX crossing
+    # CASE 1: adding earlier RESORB to latter    CASE 2: Adding latter RESORB to earlier
+    #                                            (non-uniform temporal spacing takes place
+    #                                          between `1` and `2` during the sensing time)
+    #
+    # adding earlier RESORB to latter (i.e. CASE 1 above)
+    if concatenate:
+        concat_resorb_file = combine_xml_orbit_elements(resorb_file_list[1],
+                                                        resorb_file_list[0])
+        return concat_resorb_file
+
+    return resorb_file_list
 
 
 def check_internet_connection():
