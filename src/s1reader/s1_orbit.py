@@ -487,8 +487,8 @@ def get_resorb_pair_from_list(zip_path: str, orbit_file_list: list,
         if mission_id not in os.path.basename(resorb_file):
             continue
 
-        # 1. Try to find the orbit file that covers
-        # sensing time - margin_start_time
+        # 1. Try to find the orbit file that covers the sensing start-stop
+        # with small padding (like 60 sec.)
         t_swath_start_stop_safe = [t_swath_start_stop[0] - pad_1min,
                                    t_swath_start_stop[1] + pad_1min]
         if (_covers_timeframe(resorb_file, t_swath_start_stop_safe) and
@@ -497,8 +497,8 @@ def get_resorb_pair_from_list(zip_path: str, orbit_file_list: list,
             resorb_filename_later = resorb_file
             continue
 
-        # 2. Try to find the orbit file that covers the sensing start-stop
-        # with small padding (like 60 sec.)
+        # 2. Try to find the orbit file that covers
+        # sensing time - T_orb with small padding
         t_swath_start_stop_anx = [t_swath_start_stop[0] - margin_start_time,
                                   t_swath_start_stop[0] - margin_start_time + 2*pad_1min]
         if (_covers_timeframe(resorb_file, t_swath_start_stop_anx) and
