@@ -302,7 +302,7 @@ def get_orbit_file_from_dir(zip_path: str, orbit_dir: str,
     auto_download : bool
         Automatically download the orbit file if not exist in the orbit_dir.
     concat_resorb : bool
-        try to concatenate two RESORB files if there is no single RESORB file that
+        Concatenate two RESORB files if there is no single RESORB file that
         covers the time frame with the margin added
 
     Returns:
@@ -446,7 +446,7 @@ def _covers_timeframe(orbit_file: str, t_start_stop_frame: list) -> bool:
 def get_resorb_pair_from_list(zip_path: str, orbit_file_list: list,
                                concatenate_resorb: bool=False) -> list | str | None:
     '''
-    Find if there are TWO RESORB files that cover [start - margin_start_time, end]
+    Find if there are two RESORB files that cover [start - margin_start_time, end]
     If found, try to concatenate them when `concatenate_resorb` is `True`
 
     Code based on `get_orbit_file_from_list()`
@@ -518,7 +518,7 @@ def get_resorb_pair_from_list(zip_path: str, orbit_file_list: list,
         else:
             return [resorb_filename_earlier, resorb_filename_later]
 
-    print('Cannot find single RESORB file that meets the time frame criteria.')
+    print('Cannot find a single RESORB file that meets the time frame criteria.')
     return
 
 
