@@ -4,11 +4,11 @@ import cgi
 import datetime
 import glob
 import os
-import requests
-import warnings
 from pathlib import Path
+import warnings
 
 from xml.etree import ElementTree
+import requests
 
 # date format used in file names
 FMT = "%Y%m%dT%H%M%S"
