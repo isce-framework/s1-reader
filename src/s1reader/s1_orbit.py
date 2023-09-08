@@ -42,6 +42,9 @@ def retrieve_orbit_file(safe_file: str, orbit_dir: str, concatenate: bool=False)
         File path to SAFE file for which download the orbits
     orbit_dir: str
         File path to directory where to store downloaded orbits
+    concatenate : bool
+        Concatenate two RESORB files if there is no single RESORB file that
+        covers the time frame with the margin added
 
     Returns
     -------
@@ -300,8 +303,8 @@ def get_orbit_file_from_dir(zip_path: str, orbit_dir: str,
                             concat_resorb=False) -> str | list | None:
     '''Get orbit state vector list for a given swath.
 
-    Parameters:
-    -----------
+    Parameters
+    ----------
     zip_path : string
         Path to Sentinel1 SAFE zip file. Base names required to adhere to the
         format described here:
@@ -316,8 +319,8 @@ def get_orbit_file_from_dir(zip_path: str, orbit_dir: str,
         Concatenate two RESORB files if there is no single RESORB file that
         covers the time frame with the margin added
 
-    Returns:
-    --------
+    Returns
+    -------
     orbit_file : str
         Path to the orbit file.
     '''
@@ -365,6 +368,9 @@ def get_orbit_file_from_list(zip_path: str,
         https://sentinel.esa.int/web/sentinel/user-guides/sentinel-1-sar/naming-conventions
     orbit_file_list : list
         List of the orbit files that exists in the system.
+    concat_resorb : bool
+        Concatenate two RESORB files if there is no single RESORB file that
+        covers the time frame with the margin added
 
     Returns
     -------
@@ -479,6 +485,9 @@ def get_resorb_pair_from_list(zip_path: str, orbit_file_list: list,
         https://sentinel.esa.int/web/sentinel/user-guides/sentinel-1-sar/naming-conventions
     orbit_file_list : list
         List of the orbit files that exist in the system.
+    concatenate_resorb : bool
+        Concatenate two RESORB files if there is no single RESORB file that
+        covers the time frame with the margin added
 
     Returns
     -------
