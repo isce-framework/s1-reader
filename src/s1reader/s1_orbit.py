@@ -444,7 +444,6 @@ def _covers_timeframe(orbit_file: str, t_start_stop_frame: list) -> bool:
     ----------
     orbit_file: str
         Orbit file
-
     t_start_stop_frame: list(datetime.datetime)
         start / stop time of the time frame as a list.
 
@@ -453,7 +452,6 @@ def _covers_timeframe(orbit_file: str, t_start_stop_frame: list) -> bool:
     _: Bool
         `True` if the orbit file covers the time range; `False`, otherwise
     '''
-
     # get file name and extract state vector start/end time strings
     t_orbit_start, t_orbit_stop = os.path.basename(orbit_file).split('_')[-2:]
 
@@ -546,12 +544,12 @@ def get_resorb_pair_from_list(zip_path: str, orbit_file_list: list,
             continue
 
         # break out of the for loop when the RESORB files are found
-        if resorb_filename_earlier and resorb_filename_later:
+        if resorb_filename_earlier is not None and resorb_filename_later is not None:
             break
 
     # if 1. and 2. are successful return the result as a list of orbit file, or
     # as a concatenated RESORB file
-    if resorb_filename_earlier and resorb_filename_later:
+    if resorb_filename_earlier is not None and resorb_filename_later is not None:
         if concatenate_resorb:
             # BE CAREFUL ABOUT THE ORDER HOW THEY ARE CONCATENATED.
             # See NOTE in retrieve_orbit_file() for detail.
@@ -627,6 +625,25 @@ def combine_xml_orbit_elements(file1: str, file2: str) -> str:
 
 
 def merge_osv_list(list_of_osvs1, list_of_osvs2):
+    '''
+    Merge the two orvit state vector list (OSV list) in orbit files into one.
+    Apply sorting to make sure the OSVs are in chronological order
+    `list_of_osvs1` will be the "base OSV list" while the OSVs in
+    `list_of_osvs2` not in the time range of the base OSV list will be
+    appended.
+
+    Parameters
+    ---------
+        list_of_osv1: ElementTree
+            Based OSV list
+        list_of_osve2: ElementTree
+            OSV list to be augmented to the base OSV list
+
+    Returns
+    -------
+        list_of_osvs1: ElementTree
+            Merged OSV list
+    '''
     # Extract the UTC from the OSV of the first XML
     osv1_utc_list = [datetime.datetime.fromisoformat(osv1.find('UTC').text.replace('UTC=',''))
                      for osv1 in list_of_osvs1]
