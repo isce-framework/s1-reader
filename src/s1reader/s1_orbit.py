@@ -718,11 +718,6 @@ def _sort_list_of_osv(list_of_osvs):
 
     for i_osv, _ in enumerate(list_of_osvs_copy):
         index_to_replace = sorted_index_list[i_osv]
-
-        # NOTE: The code right below seems to pop the elements in the right side.
-        # Using __copy__() instead.
-        #list_of_osvs[i_osv] = list_of_osvs_copy[index_to_replace]
-
         list_of_osvs[i_osv] = list_of_osvs_copy[index_to_replace].__copy__()
 
     return list_of_osvs
