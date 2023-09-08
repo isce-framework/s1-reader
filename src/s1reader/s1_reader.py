@@ -28,12 +28,10 @@ from s1reader.s1_annotation import (RFI_INFO_AVAILABLE_FROM,
 
 from s1reader.s1_burst_slc import Doppler, Sentinel1BurstSlc
 from s1reader.s1_burst_id import S1BurstId
-from s1reader.s1_orbit import (T_ORBIT, merge_osv_list)
-from s1reader.s1_orbit import FMT as orbitfile_datetime_format
+from s1reader.s1_orbit import (T_ORBIT, PADDING_SHORT, merge_osv_list)
 
 # Tolerance of the ascending node crossing time in seconds
 ASCENDING_NODE_TIME_TOLERANCE_IN_SEC = 1.0
-PADDING_TIME_ORBIT = 60.0
 esa_track_burst_id_file = f"{os.path.dirname(os.path.realpath(__file__))}/data/sentinel1_track_burst_id.txt"
 
 # TODO evaluate if it make sense to combine below into a class
@@ -175,7 +173,7 @@ def get_burst_orbit(sensing_start, sensing_stop, osv_list: ET.Element):
     '''
     orbit_sv = []
     # add start & end padding to ensure sufficient number of orbit points
-    pad = datetime.timedelta(seconds=PADDING_TIME_ORBIT)
+    pad = datetime.timedelta(seconds=PADDING_SHORT)
     for osv in osv_list:
         t_orbit = as_datetime(osv[1].text[4:])
 
@@ -579,7 +577,7 @@ def get_ascending_node_time_orbit(orbit_state_vector_list: ET,
 
     # NOTE: tried to apply the same amount of pading in `get_burst_orbit` to
     # get as similar results as possible.
-    pad = datetime.timedelta(seconds=PADDING_TIME_ORBIT)
+    pad = datetime.timedelta(seconds=PADDING_SHORT)
 
     # Constrain the search area
     flag_search_area = (utc_vec_all > sensing_time - search_length - pad) & \
