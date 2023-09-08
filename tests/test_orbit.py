@@ -11,7 +11,6 @@ import zipfile
 import isce3
 import lxml.etree as ET
 import numpy as np
-import pytest
 from shapely.geometry import Point
 
 

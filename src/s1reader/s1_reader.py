@@ -19,12 +19,12 @@ from scipy.interpolate import InterpolatedUnivariateSpline
 from nisar.workflows.stage_dem import check_dateline
 
 from s1reader import s1_annotation  # to access __file__
-from s1reader.s1_annotation import (RFI_INFO_AVAILABLE_FROM, ProductAnnotation,
-                                    NoiseAnnotation, CalibrationAnnotation,
+from s1reader.s1_annotation import (RFI_INFO_AVAILABLE_FROM, 
+                                    CalibrationAnnotation,
                                     AuxCal, BurstCalibration,
-                                    BurstEAP, BurstNoise,
-                                    BurstExtendedCoeffs, SwathRfiInfo,
-                                    SwathMiscMetadata)
+                                    BurstEAP, BurstNoise, BurstExtendedCoeffs,
+                                    NoiseAnnotation, ProductAnnotation,
+                                    SwathRfiInfo, SwathMiscMetadata)
 
 from s1reader.s1_burst_slc import Doppler, Sentinel1BurstSlc
 from s1reader.s1_burst_id import S1BurstId
@@ -657,7 +657,6 @@ def get_osv_list_from_orbit(orbit_file: str | list,
     ----------
     orbit_file: str | list
         Orbit file name, or list of the orbit file names
-
     swath_start: datetime.datetime
         Sensing start time of the swath
     swath_stop: datetime.datetime
@@ -699,7 +698,7 @@ def get_osv_list_from_orbit(orbit_file: str | list,
 
     else:
         raise RuntimeError('Invalid orbit information provided. '
-                           'It has to be filename or the list of filename.')
+                           'It has to be filename or the list of filenames.')
 
 def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
                    iw2_annotation_path: str, open_method=open,
