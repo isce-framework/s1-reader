@@ -645,14 +645,13 @@ def merge_osv_list(list_of_osvs1, list_of_osvs2):
             Merged OSV list
     '''
     # Extract the UTC from the OSV of the first XML
-    osv1_utc_list = [datetime.datetime.fromisoformat(osv1.find('UTC').text.replace('UTC=',''))
-                     for osv1 in list_of_osvs1]
+    osv1_utc_list = [_get_uct_time_from_osv(osv1) for osv1 in list_of_osvs1]
 
     min_utc_osv1 = min(osv1_utc_list)
     max_utc_osv1 = max(osv1_utc_list)
 
     for osv in list_of_osvs2.findall("OSV"):
-        utc_osv2 = datetime.datetime.fromisoformat(osv.find('UTC').text.replace('UTC=',''))
+        utc_osv2 = _get_uct_time_from_osv(osv)
 
         if min_utc_osv1 < utc_osv2 < max_utc_osv1:
             continue
@@ -709,8 +708,7 @@ def _sort_list_of_osv(list_of_osvs):
     list_of_osvs: ET.ElementTree
         Sorted orbit state vectors (OSVs) with respect to UTC time
     '''
-    utc_osv_list = [datetime.datetime.fromisoformat(osv.find('UTC').text.replace('UTC=',''))
-                    for osv in list_of_osvs]
+    utc_osv_list = [_get_uct_time_from_osv(osv) for osv in list_of_osvs]
 
     sorted_index_list = [index for index, _ in sorted(enumerate(utc_osv_list), key=lambda x: x[1])]
 
@@ -721,3 +719,21 @@ def _sort_list_of_osv(list_of_osvs):
         list_of_osvs[i_osv] = list_of_osvs_copy[index_to_replace].__copy__()
 
     return list_of_osvs
+
+def _get_uct_time_from_osv(osv):
+    '''
+    Extract the UTC time from orbit state vector element in orbit file
+
+    Parameters
+    ----------
+    osv: ElementTree
+        orbit state vector parsed as .xml
+
+    Returns
+    -------
+    datetime_utc: datetime.datetime
+        Orbit state vector's UTC time
+    '''
+    utc_osv_string = osv.find('UTC').text.replace('UTC=','')
+    datetime_utc = datetime.datetime.fromisoformat(utc_osv_string)
+    return datetime_utc
