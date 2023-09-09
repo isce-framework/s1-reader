@@ -19,14 +19,16 @@ from scipy.interpolate import InterpolatedUnivariateSpline
 from nisar.workflows.stage_dem import check_dateline
 
 from s1reader import s1_annotation  # to access __file__
-from s1reader.s1_annotation import RFI_INFO_AVAILABLE_FROM, ProductAnnotation, NoiseAnnotation,\
-                                   CalibrationAnnotation, AuxCal,\
-                                   BurstCalibration, BurstEAP, BurstNoise,\
-                                   BurstExtendedCoeffs, SwathRfiInfo, SwathMiscMetadata
+from s1reader.s1_annotation import (RFI_INFO_AVAILABLE_FROM, 
+                                    CalibrationAnnotation,
+                                    AuxCal, BurstCalibration,
+                                    BurstEAP, BurstNoise, BurstExtendedCoeffs,
+                                    NoiseAnnotation, ProductAnnotation,
+                                    SwathRfiInfo, SwathMiscMetadata)
 
 from s1reader.s1_burst_slc import Doppler, Sentinel1BurstSlc
 from s1reader.s1_burst_id import S1BurstId
-from s1reader.s1_orbit import T_ORBIT
+from s1reader.s1_orbit import (T_ORBIT, PADDING_SHORT, merge_osv_list)
 
 # Tolerance of the ascending node crossing time in seconds
 ASCENDING_NODE_TIME_TOLERANCE_IN_SEC = 1.0
@@ -171,7 +173,7 @@ def get_burst_orbit(sensing_start, sensing_stop, osv_list: ET.Element):
     '''
     orbit_sv = []
     # add start & end padding to ensure sufficient number of orbit points
-    pad = datetime.timedelta(seconds=60)
+    pad = datetime.timedelta(seconds=PADDING_SHORT)
     for osv in osv_list:
         t_orbit = as_datetime(osv[1].text[4:])
 
@@ -564,24 +566,29 @@ def get_ascending_node_time_orbit(orbit_state_vector_list: ET,
     # Crop the orbit information before 2 * (orbit period) of sensing time
     if search_length is None:
         search_length = datetime.timedelta(seconds=2 * T_ORBIT)
-    orbit_until_sensing_time = get_burst_orbit(sensing_time  - search_length,
-                                               sensing_time,
-                                               orbit_state_vector_list)
 
-    # Convert the ISCE3 orbit reference datetime into a python object
-    datetime_orbit_ref = datetime.datetime(
-        orbit_until_sensing_time.reference_epoch.year,
-        orbit_until_sensing_time.reference_epoch.month,
-        orbit_until_sensing_time.reference_epoch.day)
-    datetime_orbit_ref += datetime.timedelta(
-        seconds=orbit_until_sensing_time.reference_epoch.seconds_of_day())
+    # Load the OSVs
+    utc_vec_all = [datetime.datetime.fromisoformat(osv.find('UTC').text.replace('UTC=',''))
+                   for osv in orbit_state_vector_list]
+    utc_vec_all = np.array(utc_vec_all)
+    pos_z_vec_all = [float(osv.find('Z').text)
+                     for osv in orbit_state_vector_list]
+    pos_z_vec_all = np.array(pos_z_vec_all)
+
+    # NOTE: tried to apply the same amount of pading in `get_burst_orbit` to
+    # get as similar results as possible.
+    pad = datetime.timedelta(seconds=PADDING_SHORT)
+
+    # Constrain the search area
+    flag_search_area = (utc_vec_all > sensing_time - search_length - pad) & \
+                       (utc_vec_all < sensing_time + pad)
+    orbit_time_vec = utc_vec_all[flag_search_area]
+    orbit_z_vec = pos_z_vec_all[flag_search_area]
 
     # Detect the event of ascending node crossing from the cropped orbit info.
     # The algorithm was inspired by Scott Staniewicz's PR in the link below:
     # https://github.com/opera-adt/s1-reader/pull/120/
     datetime_ascending_node_crossing_list = []
-    orbit_time_vec = np.array(orbit_until_sensing_time.time)
-    orbit_z_vec = orbit_until_sensing_time.position[:, 2]
 
     # Iterate through the z coordinate in orbit object to
     # detect the ascending node crossing
@@ -598,15 +605,19 @@ def get_ascending_node_time_orbit(orbit_state_vector_list: ET,
         time_around_crossing = orbit_time_vec[index_from : index_to]
 
         # Set up spline interpolator and interpolate the time when z is equal to 0.0
+        datetime_orbit_ref = time_around_crossing[0]
+        relative_time_around_crossing = [(t - datetime_orbit_ref).total_seconds()
+                                         for t in time_around_crossing]
+
         interpolator_time = InterpolatedUnivariateSpline(z_around_crossing,
-                                                            time_around_crossing,
-                                                            k=1)
-        t_interp = interpolator_time(0.0)
+                                                         relative_time_around_crossing,
+                                                         k=1)
+        relative_t_interp = interpolator_time(0.0)
 
         # Convert the interpolated time into datetime
         # Add the ascending node crossing time if it's before the sensing time
         datetime_ascending_crossing = (datetime_orbit_ref
-                                        + datetime.timedelta(seconds=float(t_interp)))
+                                        + datetime.timedelta(seconds=float(relative_t_interp)))
         if datetime_ascending_crossing < sensing_time:
             datetime_ascending_node_crossing_list.append(datetime_ascending_crossing)
 
@@ -626,6 +637,66 @@ def get_ascending_node_time_orbit(orbit_state_vector_list: ET,
 
     return anx_time_orbit
 
+
+def get_osv_list_from_orbit(orbit_file: str | list,
+                            swath_start: datetime.datetime,
+                            swath_stop: datetime.datetime):
+    '''
+    Get the list of orbit state vectors as ElementTree (ET) objects from the orbit file `orbit_file`
+
+    - When `orbit_file` is a list, then all of the OSV lists are
+      merged and sorted. The merging is done by concatenating
+      the OSVs to the "base OSV list".
+    - The "base OSV list" is the one that covers
+      the swath's start / stop time with padding applied,
+      so that the equal time spacing is guaranteed during that time period.
+
+    Parameters
+    ----------
+    orbit_file: str | list
+        Orbit file name, or list of the orbit file names
+    swath_start: datetime.datetime
+        Sensing start time of the swath
+    swath_stop: datetime.datetime
+        Sensing stop time of the swath
+
+    Returns
+    -------
+    orbit_state_vector_list: ET
+        Orbit state vector list
+    '''
+    if isinstance(orbit_file, str):
+        orbit_tree = ET.parse(orbit_file)
+        orbit_state_vector_list = orbit_tree.find('Data_Block/List_of_OSVs')
+        return orbit_state_vector_list
+
+    elif isinstance(orbit_file, list) and len(orbit_file) == 1:
+        orbit_tree = ET.parse(orbit_file[0])
+        orbit_state_vector_list = orbit_tree.find('Data_Block/List_of_OSVs')
+        return orbit_state_vector_list
+
+    elif isinstance(orbit_file, list) and len(orbit_file) > 1:
+        # Concatenate the orbit files' OSV lists
+        # Assuming that the orbit was sorted, and the last orbit in the list if the one that
+        # covers the sensing start / stop with padding (i.e. the base orbit file in this function)
+
+        # Load the base orbit file
+        base_orbit_tree = ET.parse(orbit_file[-1])
+        orbit_state_vector_list = base_orbit_tree.find('Data_Block/List_of_OSVs')
+
+        for i_orbit, src_orbit_filename in enumerate(orbit_file):
+            if i_orbit == len(orbit_file) -1:
+                continue
+            src_orbit_tree = ET.parse(src_orbit_filename)
+            src_osv_vector_list = src_orbit_tree.find('Data_Block/List_of_OSVs')
+            orbit_state_vector_list = merge_osv_list(orbit_state_vector_list,
+                                                     src_osv_vector_list)
+
+        return orbit_state_vector_list
+
+    else:
+        raise RuntimeError('Invalid orbit information provided. '
+                           'It has to be filename or the list of filenames.')
 
 def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
                    iw2_annotation_path: str, open_method=open,
@@ -754,6 +825,7 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
         ascending_node_time_annotation =\
             as_datetime(image_info_element.find('ascendingNodeTime').text)
         first_line_utc_time = as_datetime(image_info_element.find('productFirstLineUtcTime').text)
+        last_line_utc_time = as_datetime(image_info_element.find('productLastLineUtcTime').text)
 
         downlink_element = tree.find('generalAnnotation/downlinkInformationList/'
                                      'downlinkInformation')
@@ -798,8 +870,9 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
 
     # find orbit state vectors in 'Data_Block/List_of_OSVs'
     if orbit_path:
-        orbit_tree = ET.parse(orbit_path)
-        orbit_state_vector_list = orbit_tree.find('Data_Block/List_of_OSVs')
+        orbit_state_vector_list = get_osv_list_from_orbit(orbit_path,
+                                                          first_line_utc_time,
+                                                          last_line_utc_time)
 
         # Calculate ascending node crossing time from orbit;
         # compare with the info from annotation

@@ -3,6 +3,9 @@ Unit tests for orbit
 '''
 
 import datetime
+import os
+from pathlib import Path
+import shutil
 import zipfile
 
 import isce3
@@ -10,7 +13,8 @@ import lxml.etree as ET
 import numpy as np
 from shapely.geometry import Point
 
-from s1reader.s1_orbit import get_orbit_file_from_dir
+
+from s1reader.s1_orbit import get_orbit_file_from_dir, combine_xml_orbit_elements
 from s1reader.s1_reader import as_datetime, get_ascending_node_time_orbit
 
 def test_get_orbit_file(test_paths):
@@ -100,10 +104,43 @@ def test_anx_time(test_paths):
     orbit_state_vector_list = orbit_tree.find('Data_Block/List_of_OSVs')
 
     ascending_node_time_orbit = get_ascending_node_time_orbit(
-                                            orbit_state_vector_list,
-                                            first_line_utc_time,
-                                            ascending_node_time_annotation)
+        orbit_state_vector_list,
+        first_line_utc_time,
+        ascending_node_time_annotation
+    )
     diff_ascending_node_time_seconds = (ascending_node_time_orbit
                                         - ascending_node_time_annotation).total_seconds()
 
     assert abs(diff_ascending_node_time_seconds) < 0.5
+
+
+def test_combine_xml_orbit_elements(tmp_path, test_paths):
+    slc_file = tmp_path / "S1A_IW_SLC__1SDV_20230823T154908_20230823T154935_050004_060418_521B.SAFE"
+    slc_file.write_text("")
+    orbit_dir = Path(test_paths.orbit_dir)
+
+    f1 = "S1A_OPER_AUX_RESORB_OPOD_20230823T162050_V20230823T123139_20230823T154909.EOF"
+    f2 = "S1A_OPER_AUX_RESORB_OPOD_20230823T174849_V20230823T141024_20230823T172754.EOF"
+
+    # The first attempt with only the normal RESORB files will fail,
+    # because there is no RESORB file in the directory
+    assert get_orbit_file_from_dir(slc_file, tmp_path, concat_resorb=False) is None
+
+    shutil.copy(orbit_dir / f1, tmp_path)
+    shutil.copy(orbit_dir / f2, tmp_path)
+
+    assert len(list(tmp_path.glob("*RESORB*.EOF"))) == 2
+
+    # When `concat_resorb` is `False`, then it returns the list of orbit files that
+    # covers the sensing time + last ANX time before sensing start
+    resorb_file_list = get_orbit_file_from_dir(slc_file, tmp_path, concat_resorb=False)
+    resorb_file_basename_list = [os.path.basename(filename) for filename in resorb_file_list]
+    resorb_file_basename_list.sort()
+    assert resorb_file_basename_list == [f1, f2]
+
+    # When `concat_resorb` is `True`, then it combines the two orbit file into one
+    orbit_filename = get_orbit_file_from_dir(slc_file, tmp_path, concat_resorb=True)
+    new_resorb_file = combine_xml_orbit_elements(tmp_path / f2, tmp_path / f1)
+    assert len(list(tmp_path.glob("*RESORB*.EOF"))) == 3
+    assert orbit_filename == new_resorb_file
+    assert get_orbit_file_from_dir(slc_file, tmp_path) == new_resorb_file
