@@ -565,9 +565,11 @@ def get_resorb_pair_from_list(zip_path: str, orbit_file_list: list,
 def combine_xml_orbit_elements(file1: str, file2: str) -> str:
     """Combine the orbit elements from two XML files.
 
+    `file1` is the "base" of the output: All of the orbit state vectors from `file1` are used, 
+    and only the OSVs from `file2` which do fall within the time range of `file1` are included.
+
     Create a new .EOF file with the combined results.
-    Output is named with the start_datetime and stop_datetime changed, with
-    the same base as `file1`.
+    Output is named with the start_datetime and stop_datetime changed..
 
     Parameters
     ----------
@@ -624,7 +626,7 @@ def combine_xml_orbit_elements(file1: str, file2: str) -> str:
 
 def merge_osv_list(list_of_osvs1, list_of_osvs2):
     '''
-    Merge the two orvit state vector list (OSV list) in orbit files into one.
+    Merge the two orbit state vector list (OSV list) in orbit files into one.
     Apply sorting to make sure the OSVs are in chronological order
     `list_of_osvs1` will be the "base OSV list" while the OSVs in
     `list_of_osvs2` not in the time range of the base OSV list will be
