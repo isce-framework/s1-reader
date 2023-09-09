@@ -54,29 +54,29 @@ def retrieve_orbit_file(safe_file: str, orbit_dir: str, concatenate: bool=False)
 
     # Create output directory & check internet connection
     os.makedirs(orbit_dir, exist_ok=True)
-    check_internet_connection()
+    _check_internet_connection()
 
     # Parse info from SAFE file name
-    mission_id, _, sensing_start_time, sensing_end_time, _ = parse_safe_filename(safe_file)
+    mission_id, _, sensing_start_time, sensing_end_time, _ = _parse_safe_filename(safe_file)
 
     # Apply margin to the start time
     search_start_time = sensing_start_time - margin_start_time
     search_end_time = sensing_end_time + padding_short
 
     # Find precise orbit first
-    orbit_dict = get_orbit_dict(mission_id, search_start_time,
+    orbit_dict = _get_orbit_dict(mission_id, search_start_time,
                                 search_end_time, 'AUX_POEORB')
 
     # If orbit dict is empty, find restituted orbits
     if orbit_dict is None:
-        orbit_dict = get_orbit_dict(mission_id, search_start_time,
+        orbit_dict = _get_orbit_dict(mission_id, search_start_time,
                                     search_end_time, 'AUX_RESORB')
 
     # Download orbit file
     if orbit_dict is not None:
         orbit_file = os.path.join(orbit_dir, f"{orbit_dict['orbit_name']}.EOF")
         if not os.path.exists(orbit_file):
-            download_orbit_file(orbit_dir, orbit_dict['orbit_url'])
+            _download_orbit_file(orbit_dir, orbit_dict['orbit_url'])
 
         return orbit_file
 
@@ -92,12 +92,12 @@ def retrieve_orbit_file(safe_file: str, orbit_dir: str, concatenate: bool=False)
     # T_orb  (H:M:S):                                       1:38:44.57
 
     print('Attempting to download RESORB files.')
-    resorb_dict_earlier = get_orbit_dict(mission_id,
+    resorb_dict_earlier = _get_orbit_dict(mission_id,
                                         search_start_time,
                                         search_start_time + 2 * padding_short,
                                         'AUX_RESORB')
 
-    resorb_dict_later = get_orbit_dict(mission_id,
+    resorb_dict_later = _get_orbit_dict(mission_id,
                                        sensing_start_time - padding_short,
                                        sensing_end_time + padding_short,
                                        'AUX_RESORB')
@@ -113,7 +113,7 @@ def retrieve_orbit_file(safe_file: str, orbit_dir: str, concatenate: bool=False)
     for resorb_dict in resorb_dict_list:
         resorb_file = os.path.join(orbit_dir, f"{resorb_dict['orbit_name']}.EOF")
         if not os.path.exists(resorb_file):
-            download_orbit_file(orbit_dir, resorb_dict['orbit_url'])
+            _download_orbit_file(orbit_dir, resorb_dict['orbit_url'])
         resorb_file_list.append(resorb_file)
 
     # concatenate the RESORB xml file.
@@ -139,7 +139,7 @@ def retrieve_orbit_file(safe_file: str, orbit_dir: str, concatenate: bool=False)
     return resorb_file_list
 
 
-def check_internet_connection():
+def _check_internet_connection():
     '''
     Check connection availability
     '''
@@ -150,7 +150,7 @@ def check_internet_connection():
         raise ConnectionError(f'Unable to reach {url}: {exception}')
 
 
-def parse_safe_filename(safe_filename):
+def _parse_safe_filename(safe_filename):
     '''
     Extract info from S1-A/B SAFE filename
     SAFE filename structure:
@@ -191,7 +191,7 @@ def parse_safe_filename(safe_filename):
     return [mission_id, sensor_mode, start_datetime, end_datetime, abs_orb_num]
 
 
-def get_file_name_tokens(zip_path: str) -> [str, list[datetime.datetime]]:
+def _get_file_name_tokens(zip_path: str) -> [str, list[datetime.datetime]]:
     '''Extract swath platform ID and start/stop times from SAFE zip file path.
 
     Parameters
@@ -207,11 +207,11 @@ def get_file_name_tokens(zip_path: str) -> [str, list[datetime.datetime]]:
     t_swath_start_stop: list[datetime.datetime]
         Swath start/stop times
     '''
-    mission_id, _, start_time, end_time, _ = parse_safe_filename(zip_path)
+    mission_id, _, start_time, end_time, _ = _parse_safe_filename(zip_path)
     return mission_id, [start_time, end_time]
 
 
-def get_orbit_dict(mission_id, start_time, end_time, orbit_type):
+def _get_orbit_dict(mission_id, start_time, end_time, orbit_type):
     '''
     Query Copernicus GNSS API to find latest orbit file
     Parameters
@@ -268,7 +268,7 @@ def get_orbit_dict(mission_id, start_time, end_time, orbit_type):
     return orbit_dict
 
 
-def download_orbit_file(output_folder, orbit_url):
+def _download_orbit_file(output_folder, orbit_url):
     '''
     Download S1-A/B orbits
     Parameters
@@ -380,7 +380,7 @@ def get_orbit_file_from_list(zip_path: str,
         raise FileNotFoundError(f"{zip_path} does not exist")
 
     # extract platform id, start and end times from swath file name
-    mission_id, t_swath_start_stop = get_file_name_tokens(zip_path)
+    mission_id, t_swath_start_stop = _get_file_name_tokens(zip_path)
 
     # Apply temporal margin to the start time of the frame
     # 1st element: start time, 2nd element: end time
@@ -495,7 +495,7 @@ def get_resorb_pair_from_list(zip_path: str, orbit_file_list: list,
         raise FileNotFoundError(f"{zip_path} does not exist")
 
     # extract platform id, start and end times from swath file name
-    mission_id, t_swath_start_stop = get_file_name_tokens(zip_path)
+    mission_id, t_swath_start_stop = _get_file_name_tokens(zip_path)
 
     # choose the RESORB file only
     resorb_file_list = [orbit_file for orbit_file in orbit_file_list
@@ -645,13 +645,13 @@ def merge_osv_list(list_of_osvs1, list_of_osvs2):
             Merged OSV list
     '''
     # Extract the UTC from the OSV of the first XML
-    osv1_utc_list = [_get_uct_time_from_osv(osv1) for osv1 in list_of_osvs1]
+    osv1_utc_list = [_get_utc_time_from_osv(osv1) for osv1 in list_of_osvs1]
 
     min_utc_osv1 = min(osv1_utc_list)
     max_utc_osv1 = max(osv1_utc_list)
 
     for osv in list_of_osvs2.findall("OSV"):
-        utc_osv2 = _get_uct_time_from_osv(osv)
+        utc_osv2 = _get_utc_time_from_osv(osv)
 
         if min_utc_osv1 < utc_osv2 < max_utc_osv1:
             continue
@@ -667,7 +667,8 @@ def merge_osv_list(list_of_osvs1, list_of_osvs2):
     return list_of_osvs1
 
 
-def _generate_filename(file_base: str, new_start: datetime.datetime, new_stop: datetime.datetime) -> str:
+def _generate_filename(file_base: str,
+                       new_start: datetime.datetime, new_stop: datetime.datetime) -> str:
     """Generate a new filename based on the two provided filenames.
 
     Parameters
@@ -708,7 +709,7 @@ def _sort_list_of_osv(list_of_osvs):
     list_of_osvs: ET.ElementTree
         Sorted orbit state vectors (OSVs) with respect to UTC time
     '''
-    utc_osv_list = [_get_uct_time_from_osv(osv) for osv in list_of_osvs]
+    utc_osv_list = [_get_utc_time_from_osv(osv) for osv in list_of_osvs]
 
     sorted_index_list = [index for index, _ in sorted(enumerate(utc_osv_list), key=lambda x: x[1])]
 
@@ -720,7 +721,7 @@ def _sort_list_of_osv(list_of_osvs):
 
     return list_of_osvs
 
-def _get_uct_time_from_osv(osv):
+def _get_utc_time_from_osv(osv):
     '''
     Extract the UTC time from orbit state vector element in orbit file
 
