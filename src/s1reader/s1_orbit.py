@@ -219,9 +219,9 @@ def get_orbit_dict(mission_id, start_time, end_time, orbit_type):
     mission_id: str
         Sentinel satellite identifier ('S1A' or 'S1B')
     start_time: datetime object
-        Sentinel start acquisition time
+        Starting time for search query
     end_time: datetime object
-        Sentinel end acquisition time
+        Ending time  for search query
     orbit_type: str
         Type of orbit to download (AUX_POEORB: precise, AUX_RESORB: restituted)
 
@@ -241,10 +241,8 @@ def get_orbit_dict(mission_id, start_time, end_time, orbit_type):
         err_msg = f'{orbit_type} not a valid orbit type'
         raise ValueError(err_msg)
 
-    pad_start_time = start_time
-    pad_end_time = end_time
-    new_start_time = pad_start_time.strftime('%Y-%m-%dT%H:%M:%S')
-    new_end_time = pad_end_time.strftime('%Y-%m-%dT%H:%M:%S')
+    new_start_time = start_time.strftime('%Y-%m-%dT%H:%M:%S')
+    new_end_time = end_time.strftime('%Y-%m-%dT%H:%M:%S')
     query_string = f"startswith(Name,'{mission_id}') and substringof('{orbit_type}',Name) " \
                    f"and ContentDate/Start lt datetime'{new_start_time}' and ContentDate/End gt datetime'{new_end_time}'"
     query_params = {'$top': 1, '$orderby': 'ContentDate/Start asc',
