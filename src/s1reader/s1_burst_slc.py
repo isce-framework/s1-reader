@@ -914,12 +914,14 @@ class Sentinel1BurstSlc:
         interpolator_tau0_ka = InterpolatedUnivariateSpline(
                                         fm_rate_aztime_sec_vec,
                                         self.extended_coeffs.fm_rate_tau0_vec,
+                                        ext=3,
                                         k=1)
         tau0_ka_interp = interpolator_tau0_ka(vec_t)[..., np.newaxis]
 
         interpolator_tau0_fdc_interp = InterpolatedUnivariateSpline(
                                         dc_aztime_sec_vec,
                                         self.extended_coeffs.dc_tau0_vec,
+                                        ext=3,
                                         k=1)
         tau0_fdc_interp = interpolator_tau0_fdc_interp(vec_t)[..., np.newaxis]
 
