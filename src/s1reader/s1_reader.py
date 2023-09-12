@@ -14,6 +14,7 @@ from packaging import version
 import isce3
 import numpy as np
 import shapely
+from shapely.affinity import translate 
 
 from scipy.interpolate import InterpolatedUnivariateSpline
 from nisar.workflows.stage_dem import check_dateline
@@ -221,7 +222,7 @@ def calculate_centroid(lons, lats):
 
     return shapely.geometry.Point(llh_centroid[:2])
 
-def get_burst_centers_and_boundaries(tree):
+def get_burst_centers_and_boundaries(tree, num_bursts=None):
     '''Parse grid points list and calculate burst center lat and lon
 
     Parameters:
@@ -236,6 +237,7 @@ def get_burst_centers_and_boundaries(tree):
     boundary_pts : list
         List of burst boundaries as shapely Polygons
     '''
+    
     # find element tree
     grid_pt_list = tree.find('geolocationGrid/geolocationGridPointList')
 
@@ -252,6 +254,9 @@ def get_burst_centers_and_boundaries(tree):
         lons[i] = float(grid_pt[5].text)
 
     unique_line_indices = np.unique(lines)
+
+    if num_bursts is None:
+        num_bursts = len(unique_line_indices) - 1
     n_bursts = len(unique_line_indices) - 1
     center_pts = [[]] * n_bursts
     boundary_pts = [[]] * n_bursts
@@ -272,6 +277,21 @@ def get_burst_centers_and_boundaries(tree):
 
         poly = shapely.geometry.Polygon(zip(burst_lons, burst_lats))
         boundary_pts[i] = check_dateline(poly)
+
+    if num_bursts != len(unique_line_indices) - 1:
+        print('Inconsistency between # bursts in subswath, and the # polygons. '
+              'Extrapolating the polygons.')
+        # compute the shifting to extrapolate the polygon and the center point
+        shift_x = center_pts[-1].x - center_pts[-2].x
+        shift_y = center_pts[-1].y - center_pts[-2].y
+
+        extrapolated_center_point = translate(center_pts[-1], xoff=shift_x, yoff=shift_y)
+        extrapolated_bound = []
+        for poly in boundary_pts[-1]:
+            extrapolated_bound.append(translate(poly, xoff=shift_x, yoff=shift_y))
+
+        center_pts.append(extrapolated_center_point)
+        boundary_pts.append(extrapolated_bound)
 
     return center_pts, boundary_pts
 
@@ -853,8 +873,6 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
 
         orbit_number = int(tree.find('adsHeader/absoluteOrbitNumber').text)
 
-        center_pts, boundary_pts = get_burst_centers_and_boundaries(tree)
-
     wavelength = isce3.core.speed_of_light / radar_freq
     starting_range = slant_range_time * isce3.core.speed_of_light / 2
     range_pxl_spacing = isce3.core.speed_of_light / (2 * range_sampling_rate)
@@ -911,6 +929,8 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
     burst_list_elements = tree.find('swathTiming/burstList')
     n_bursts = int(burst_list_elements.attrib['count'])
     bursts = [[]] * n_bursts
+
+    center_pts, boundary_pts = get_burst_centers_and_boundaries(tree, num_bursts=n_bursts)
 
     for i, burst_list_element in enumerate(burst_list_elements):
         # Zero Doppler azimuth time of the first line of this burst
