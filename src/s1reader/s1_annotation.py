@@ -1246,6 +1246,20 @@ class BurstExtendedCoeffs:
 
         # Scale factor to convert range (in meters) to seconds (tau)
         range_to_tau = 2.0 / speed_of_light
+
+        # Take care of the case when the az. time of the polynomial list does not cover
+        # the sensing start/stop
+        if index_end == index_start:
+            #      0--1--2--3--4--5 <- az. time of polynomial list (index shown on the left)
+            #|--|                   <- sensing start / stop
+            if index_start == 0:
+                index_end += 1
+
+            # 0--1--2--3--4--5      <- az. time of polynomial list (index shown on the left)
+            #                  |--| <- sensing start / stop
+            else:
+                index_start -= 1
+
         for poly in polynomial_list[index_start:index_end+1]:
             vec_aztime_sequence.append(poly[0])
             arr_coeff_sequence.append(poly[1].coeffs)
