@@ -1180,13 +1180,15 @@ class BurstExtendedCoeffs:
          fm_rate_coeff_burst_arr,
          fm_rate_tau0_burst_vec) = cls.extract_polynomial_sequence(az_fm_rate_list,
                                                                    sensing_start,
-                                                                   sensing_end)
+                                                                   sensing_end,
+                                                                   handle_out_of_range=True)
 
         (dc_aztime_burst_vec,
          dc_coeff_burst_arr,
          dc_tau0_burst_vec) = cls.extract_polynomial_sequence(doppler_centroid_list,
                                                               sensing_start,
-                                                              sensing_end)
+                                                              sensing_end,
+                                                              handle_out_of_range=True)
 
         return cls(fm_rate_aztime_burst_vec, fm_rate_coeff_burst_arr, fm_rate_tau0_burst_vec,
                    dc_aztime_burst_vec, dc_coeff_burst_arr, dc_tau0_burst_vec)
@@ -1195,7 +1197,8 @@ class BurstExtendedCoeffs:
     @classmethod
     def extract_polynomial_sequence(cls, polynomial_list: list,
                                     datetime_start: datetime.datetime,
-                                    datetime_end: datetime.datetime):
+                                    datetime_end: datetime.datetime,
+                                    handle_out_of_range=True):
         '''
         Scan `vec_azimuth_time` end find indices of the vector
         that covers the period defined with
@@ -1249,7 +1252,7 @@ class BurstExtendedCoeffs:
 
         # Take care of the case when the az. time of the polynomial list does not cover
         # the sensing start/stop
-        if index_end == index_start:
+        if (index_end == index_start) and handle_out_of_range:
             #      0--1--2--3--4--5 <- az. time of polynomial list (index shown on the left)
             #|--|                   <- sensing start / stop
             if index_start == 0:

@@ -911,6 +911,8 @@ class Sentinel1BurstSlc:
                              for datetime_vec in self.extended_coeffs.dc_aztime_vec]
 
         # calculate splined interpolation of the coeffs. and tau_0s
+        if len(fm_rate_aztime_sec_vec) <=1:
+            return isce3.core.LUT2d()
         interpolator_tau0_ka = InterpolatedUnivariateSpline(
                                         fm_rate_aztime_sec_vec,
                                         self.extended_coeffs.fm_rate_tau0_vec,
@@ -918,6 +920,8 @@ class Sentinel1BurstSlc:
                                         k=1)
         tau0_ka_interp = interpolator_tau0_ka(vec_t)[..., np.newaxis]
 
+        if len(dc_aztime_sec_vec) <=1:
+            return isce3.core.LUT2d()
         interpolator_tau0_fdc_interp = InterpolatedUnivariateSpline(
                                         dc_aztime_sec_vec,
                                         self.extended_coeffs.dc_tau0_vec,
