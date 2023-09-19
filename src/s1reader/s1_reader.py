@@ -225,19 +225,22 @@ def calculate_centroid(lons, lats):
 def get_burst_centers_and_boundaries(tree, num_bursts=None):
     '''Parse grid points list and calculate burst center lat and lon
 
-    Parameters:
-    -----------
+    Parameters
+    ----------
     tree : Element
         Element containing geolocation grid points.
-
-    Returns:
-    --------
+    num_bursts: int or None
+        Expected number of bursts in the subswath.
+        To check if the # of polygon is the same as the parsed polygons.
+        When it's None, the number of burst is the same as # polygons found in this function.
+    
+    Returns
+    -------
     center_pts : list
         List of burst centroids ass shapely Points
     boundary_pts : list
         List of burst boundaries as shapely Polygons
-    '''
-    
+    '''    
     # find element tree
     grid_pt_list = tree.find('geolocationGrid/geolocationGridPointList')
 
@@ -278,20 +281,13 @@ def get_burst_centers_and_boundaries(tree, num_bursts=None):
         poly = shapely.geometry.Polygon(zip(burst_lons, burst_lats))
         boundary_pts[i] = check_dateline(poly)
 
-    if num_bursts != len(unique_line_indices) - 1:
-        print('Inconsistency between # bursts in subswath, and the # polygons. '
-              'Extrapolating the polygons.')
-        # compute the shifting to extrapolate the polygon and the center point
-        shift_x = center_pts[-1].x - center_pts[-2].x
-        shift_y = center_pts[-1].y - center_pts[-2].y
+    num_border_polygon = len(unique_line_indices) - 1
+    if num_bursts > num_border_polygon:
+        warnings.warn('Inconsistency between # bursts in subswath, and the # polygons. ')
+        num_missing_polygons = num_bursts - num_border_polygon
 
-        extrapolated_center_point = translate(center_pts[-1], xoff=shift_x, yoff=shift_y)
-        extrapolated_bound = []
-        for poly in boundary_pts[-1]:
-            extrapolated_bound.append(translate(poly, xoff=shift_x, yoff=shift_y))
-
-        center_pts.append(extrapolated_center_point)
-        boundary_pts.append(extrapolated_bound)
+        center_pts += [None] * num_missing_polygons
+        boundary_pts += [None] * num_missing_polygons
 
     return center_pts, boundary_pts
 
