@@ -240,7 +240,7 @@ def get_burst_centers_and_boundaries(tree, num_bursts=None):
         List of burst centroids ass shapely Points
     boundary_pts : list
         List of burst boundaries as shapely Polygons
-    '''    
+    '''
     # find element tree
     grid_pt_list = tree.find('geolocationGrid/geolocationGridPointList')
 
