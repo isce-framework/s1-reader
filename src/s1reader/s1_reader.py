@@ -286,8 +286,8 @@ def get_burst_centers_and_boundaries(tree, num_bursts=None):
         warnings.warn('Inconsistency between # bursts in subswath, and the # polygons. ')
         num_missing_polygons = num_bursts - num_border_polygon
 
-        center_pts += [None] * num_missing_polygons
-        boundary_pts += [None] * num_missing_polygons
+        center_pts += [shapely.Point()] * num_missing_polygons
+        boundary_pts += [[shapely.Polygon()]] * num_missing_polygons
 
     return center_pts, boundary_pts
 
