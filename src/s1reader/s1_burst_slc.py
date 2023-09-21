@@ -914,6 +914,7 @@ class Sentinel1BurstSlc:
         if len(fm_rate_aztime_sec_vec) <= 1:
             # Interpolator object cannot be created with only one set of polynomials.
             # Such case happens when there is no polygon that falls between a burst's start / stop
+            # which was found from very few Sentinel-1 IW SLCs processed by IPF 002.36
             # Return an empty LUT2d in that case
             return isce3.core.LUT2d()
         interpolator_tau0_ka = InterpolatedUnivariateSpline(
@@ -926,6 +927,7 @@ class Sentinel1BurstSlc:
         if len(dc_aztime_sec_vec) <=1:
             # Interpolator object cannot be created with only one set of polynomials.
             # Such case happens when there is no polygon that falls between a burst's start / stop
+            # which was found from very few Sentinel-1 IW SLCs processed by IPF 002.36
             # Return an empty LUT2d in that case
             return isce3.core.LUT2d()
         interpolator_tau0_fdc_interp = InterpolatedUnivariateSpline(
