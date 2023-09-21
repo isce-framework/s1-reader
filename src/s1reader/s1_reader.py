@@ -14,13 +14,12 @@ from packaging import version
 import isce3
 import numpy as np
 import shapely
-from shapely.affinity import translate 
 
 from scipy.interpolate import InterpolatedUnivariateSpline
 from nisar.workflows.stage_dem import check_dateline
 
 from s1reader import s1_annotation  # to access __file__
-from s1reader.s1_annotation import (RFI_INFO_AVAILABLE_FROM, 
+from s1reader.s1_annotation import (RFI_INFO_AVAILABLE_FROM,
                                     CalibrationAnnotation,
                                     AuxCal, BurstCalibration,
                                     BurstEAP, BurstNoise, BurstExtendedCoeffs,
