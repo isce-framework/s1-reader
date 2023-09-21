@@ -912,6 +912,9 @@ class Sentinel1BurstSlc:
 
         # calculate splined interpolation of the coeffs. and tau_0s
         if len(fm_rate_aztime_sec_vec) <= 1:
+            # Interpolator object cannot be created with only one set of polynomials.
+            # Such case happens when there is no polygon that falls between a burst's start / stop
+            # Return an empty LUT2d in that case
             return isce3.core.LUT2d()
         interpolator_tau0_ka = InterpolatedUnivariateSpline(
                                         fm_rate_aztime_sec_vec,
@@ -921,6 +924,9 @@ class Sentinel1BurstSlc:
         tau0_ka_interp = interpolator_tau0_ka(vec_t)[..., np.newaxis]
 
         if len(dc_aztime_sec_vec) <=1:
+            # Interpolator object cannot be created with only one set of polynomials.
+            # Such case happens when there is no polygon that falls between a burst's start / stop
+            # Return an empty LUT2d in that case
             return isce3.core.LUT2d()
         interpolator_tau0_fdc_interp = InterpolatedUnivariateSpline(
                                         dc_aztime_sec_vec,
