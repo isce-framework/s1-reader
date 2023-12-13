@@ -741,7 +741,7 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
     '''
     _, tail = os.path.split(annotation_path)
     platform_id, subswath, _, pol = [x.upper() for x in tail.split('-')[:4]]
-    safe_filename = os.path.basename(annotation_path.split('.SAFE')[0])
+    # safe_filename = os.path.basename(annotation_path.split('.SAFE')[0])
 
     # parse manifest.safe to retrieve IPF version
     # Also load the Product annotation - for EAP calibration and RFI information
@@ -822,64 +822,77 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
     else:
         # No need to load aux_cal (not applying EAP correction)
         aux_cal_subswath = None
+    
+    tree_lads2 = ''
+    bursts = _bursts_from_et(tree_lads, tree_lads2, tree_manifest, calibration_annotation, noise_annotation,
+                             aux_cal_subswath, orbit_path, tiff_path, burst_rfi_info_swath, swath_misc_metadata)
+    return  bursts
+
+def _bursts_from_et(annotation_et, iw2_annotation_et, manifest_et, calibration_annotation, noise_annotation,
+                    aux_cal_subswath, orbit_path, tiff_path, burst_rfi_info_swath, swath_misc_metadata):
+    # Forrest Added
+    ipf_version = get_ipf_version(manifest_et)
+    # Parse out the start/end track to determine if we have an
+    # equator crossing (for the burst_id calculation).
+    start_track, end_track = get_start_end_track(manifest_et)
+    product_annotation = ProductAnnotation.from_et(annotation_et)
+    
+    annotation_name = ''
+    platform_id, subswath, _, pol = [x.upper() for x in annotation_name.split('-')[:4]]
+    safe_filename = os.path.basename(annotation_name.split('.SAFE')[0])
 
     # Nearly all metadata loaded here is common to all bursts in annotation XML
-    with open_method(annotation_path, 'r') as f:
-        tree = ET.parse(f)
+    product_info_element = annotation_et.find('generalAnnotation/productInformation')
+    azimuth_steer_rate =\
+        np.radians(float(product_info_element.find('azimuthSteeringRate').text))
+    radar_freq = float(product_info_element.find('radarFrequency').text)
+    range_sampling_rate = float(product_info_element.find('rangeSamplingRate').text)
+    orbit_direction = product_info_element.find('pass').text
 
-        product_info_element = tree.find('generalAnnotation/productInformation')
-        azimuth_steer_rate =\
-            np.radians(float(product_info_element.find('azimuthSteeringRate').text))
-        radar_freq = float(product_info_element.find('radarFrequency').text)
-        range_sampling_rate = float(product_info_element.find('rangeSamplingRate').text)
-        orbit_direction = product_info_element.find('pass').text
+    image_info_element = annotation_et.find('imageAnnotation/imageInformation')
+    azimuth_time_interval = float(image_info_element.find('azimuthTimeInterval').text)
+    slant_range_time = float(image_info_element.find('slantRangeTime').text)
+    ascending_node_time_annotation =\
+        as_datetime(image_info_element.find('ascendingNodeTime').text)
+    first_line_utc_time = as_datetime(image_info_element.find('productFirstLineUtcTime').text)
+    last_line_utc_time = as_datetime(image_info_element.find('productLastLineUtcTime').text)
 
-        image_info_element = tree.find('imageAnnotation/imageInformation')
-        azimuth_time_interval = float(image_info_element.find('azimuthTimeInterval').text)
-        slant_range_time = float(image_info_element.find('slantRangeTime').text)
-        ascending_node_time_annotation =\
-            as_datetime(image_info_element.find('ascendingNodeTime').text)
-        first_line_utc_time = as_datetime(image_info_element.find('productFirstLineUtcTime').text)
-        last_line_utc_time = as_datetime(image_info_element.find('productLastLineUtcTime').text)
+    downlink_element = annotation_et.find('generalAnnotation/downlinkInformationList/'
+                                    'downlinkInformation')
+    prf_raw_data = float(downlink_element.find('prf').text)
+    rank = int(downlink_element.find('downlinkValues/rank').text)
+    range_chirp_ramp_rate = float(downlink_element.find('downlinkValues/txPulseRampRate').text)
 
-        downlink_element = tree.find('generalAnnotation/downlinkInformationList/'
-                                     'downlinkInformation')
-        prf_raw_data = float(downlink_element.find('prf').text)
-        rank = int(downlink_element.find('downlinkValues/rank').text)
-        range_chirp_ramp_rate = float(downlink_element.find('downlinkValues/txPulseRampRate').text)
+    n_lines = int(annotation_et.find('swathTiming/linesPerBurst').text)
+    n_samples = int(annotation_et.find('swathTiming/samplesPerBurst').text)
 
-        n_lines = int(tree.find('swathTiming/linesPerBurst').text)
-        n_samples = int(tree.find('swathTiming/samplesPerBurst').text)
+    az_rate_list_element = annotation_et.find('generalAnnotation/azimuthFmRateList')
+    poly_name = 'azimuthFmRatePolynomial'
+    az_fm_rate_list = [parse_polynomial_element(x, poly_name) for x in az_rate_list_element]
 
-        az_rate_list_element = tree.find('generalAnnotation/azimuthFmRateList')
-        poly_name = 'azimuthFmRatePolynomial'
-        az_fm_rate_list = [parse_polynomial_element(x, poly_name) for x in az_rate_list_element]
+    doppler_list_element = annotation_et.find('dopplerCentroid/dcEstimateList')
+    poly_name = 'dataDcPolynomial'
+    doppler_list = [parse_polynomial_element(x, poly_name) for x in doppler_list_element]
 
-        doppler_list_element = tree.find('dopplerCentroid/dcEstimateList')
-        poly_name = 'dataDcPolynomial'
-        doppler_list = [parse_polynomial_element(x, poly_name) for x in doppler_list_element]
+    rng_processing_element = annotation_et.find('imageAnnotation/processingInformation/'
+                                        'swathProcParamsList/swathProcParams/'
+                                        'rangeProcessing')
+    rng_processing_bandwidth = float(rng_processing_element.find('processingBandwidth').text)
+    range_window_type = str(rng_processing_element.find('windowType').text)
+    range_window_coeff = float(rng_processing_element.find('windowCoefficient').text)
 
-        rng_processing_element = tree.find('imageAnnotation/processingInformation/'
-                                           'swathProcParamsList/swathProcParams/'
-                                           'rangeProcessing')
-        rng_processing_bandwidth = float(rng_processing_element.find('processingBandwidth').text)
-        range_window_type = str(rng_processing_element.find('windowType').text)
-        range_window_coeff = float(rng_processing_element.find('windowCoefficient').text)
-
-        orbit_number = int(tree.find('adsHeader/absoluteOrbitNumber').text)
+    orbit_number = int(annotation_et.find('adsHeader/absoluteOrbitNumber').text)
 
     wavelength = isce3.core.speed_of_light / radar_freq
     starting_range = slant_range_time * isce3.core.speed_of_light / 2
     range_pxl_spacing = isce3.core.speed_of_light / (2 * range_sampling_rate)
 
     # calculate the range at mid swath (mid of SM swath, mid of IW2 or mid of EW3)
-    with open_method(iw2_annotation_path, 'r') as iw2_f:
-        iw2_tree = ET.parse(iw2_f)
-        iw2_slant_range_time =\
-            float(iw2_tree.find('imageAnnotation/imageInformation/slantRangeTime').text)
-        iw2_n_samples = int(iw2_tree.find('swathTiming/samplesPerBurst').text)
-        iw2_starting_range = iw2_slant_range_time * isce3.core.speed_of_light / 2
-        iw2_mid_range = iw2_starting_range + 0.5 * iw2_n_samples * range_pxl_spacing
+    iw2_slant_range_time =\
+        float(iw2_annotation_et.find('imageAnnotation/imageInformation/slantRangeTime').text)
+    iw2_n_samples = int(iw2_annotation_et.find('swathTiming/samplesPerBurst').text)
+    iw2_starting_range = iw2_slant_range_time * isce3.core.speed_of_light / 2
+    iw2_mid_range = iw2_starting_range + 0.5 * iw2_n_samples * range_pxl_spacing
 
     # find orbit state vectors in 'Data_Block/List_of_OSVs'
     if orbit_path:
@@ -921,11 +934,11 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
 
     # load individual burst
     half_burst_in_seconds = 0.5 * (n_lines - 1) * azimuth_time_interval
-    burst_list_elements = tree.find('swathTiming/burstList')
+    burst_list_elements = annotation_et.find('swathTiming/burstList')
     n_bursts = int(burst_list_elements.attrib['count'])
     bursts = [[]] * n_bursts
 
-    center_pts, boundary_pts = get_burst_centers_and_boundaries(tree, num_bursts=n_bursts)
+    center_pts, boundary_pts = get_burst_centers_and_boundaries(annotation_et, num_bursts=n_bursts)
 
     for i, burst_list_element in enumerate(burst_list_elements):
         # Zero Doppler azimuth time of the first line of this burst
