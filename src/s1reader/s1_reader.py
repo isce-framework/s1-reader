@@ -741,7 +741,7 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
     '''
     _, tail = os.path.split(annotation_path)
     platform_id, subswath, _, pol = [x.upper() for x in tail.split('-')[:4]]
-    # safe_filename = os.path.basename(annotation_path.split('.SAFE')[0])
+    safe_filename = os.path.basename(annotation_path.split('.SAFE')[0])
 
     # parse manifest.safe to retrieve IPF version
     # Also load the Product annotation - for EAP calibration and RFI information
@@ -775,6 +775,9 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
         swath_misc_metadata = get_swath_misc_metadata(tree_manifest,
                                                       tree_lads,
                                                       product_annotation)
+
+    with open_method(iw2_annotation_path, 'r') as iw2_f:
+        tree_lads2 = ET.parse(iw2_f)
 
     # load the Calibraton annotation
     try:
@@ -823,13 +826,12 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
         # No need to load aux_cal (not applying EAP correction)
         aux_cal_subswath = None
     
-    tree_lads2 = ''
     bursts = _bursts_from_et(tree_lads, tree_lads2, tree_manifest, calibration_annotation, noise_annotation,
-                             aux_cal_subswath, orbit_path, tiff_path, burst_rfi_info_swath, swath_misc_metadata)
+                             aux_cal_subswath, orbit_path, tiff_path, burst_rfi_info_swath, swath_misc_metadata, safe_filename)
     return  bursts
 
 def _bursts_from_et(annotation_et, iw2_annotation_et, manifest_et, calibration_annotation, noise_annotation,
-                    aux_cal_subswath, orbit_path, tiff_path, burst_rfi_info_swath, swath_misc_metadata):
+                    aux_cal_subswath, orbit_path, tiff_path, burst_rfi_info_swath, swath_misc_metadata, safe_filename):
     # Forrest Added
     ipf_version = get_ipf_version(manifest_et)
     # Parse out the start/end track to determine if we have an
@@ -837,9 +839,9 @@ def _bursts_from_et(annotation_et, iw2_annotation_et, manifest_et, calibration_a
     start_track, end_track = get_start_end_track(manifest_et)
     product_annotation = ProductAnnotation.from_et(annotation_et)
     
-    annotation_name = ''
-    platform_id, subswath, _, pol = [x.upper() for x in annotation_name.split('-')[:4]]
-    safe_filename = os.path.basename(annotation_name.split('.SAFE')[0])
+    platform_id = annotation_et.find('adsHeader/missionId').text.upper()
+    subswath = annotation_et.find('adsHeader/swath').text.upper()
+    pol = annotation_et.find('adsHeader/polarisation').text.upper()
 
     # Nearly all metadata loaded here is common to all bursts in annotation XML
     product_info_element = annotation_et.find('generalAnnotation/productInformation')
