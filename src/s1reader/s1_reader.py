@@ -745,6 +745,7 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
 
     # parse manifest.safe to retrieve IPF version
     # Also load the Product annotation - for EAP calibration and RFI information
+    annotation_datasets = {}
     manifest_path = os.path.dirname(annotation_path).replace('annotation','') + 'manifest.safe'
     with open_method(manifest_path, 'r') as f_manifest, open_method(annotation_path, 'r') as f_lads:
         tree_manifest = ET.parse(f_manifest)
@@ -761,7 +762,7 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
         try:
             with open_method(rfi_annotation_path, 'r') as f_rads:
                 tree_rads = ET.parse(f_rads)
-                burst_rfi_info_swath = SwathRfiInfo.from_et(tree_rads,
+                annotation_datasets['burst_rfi_info_swath'] = SwathRfiInfo.from_et(tree_rads,
                                                             tree_lads,
                                                             ipf_version)
 
@@ -769,7 +770,7 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
             if ipf_version >= RFI_INFO_AVAILABLE_FROM:
                 warnings.warn(f"RFI annotation expected (IPF version={ipf_version}"
                               f" >= {RFI_INFO_AVAILABLE_FROM}), but not loaded.")
-            burst_rfi_info_swath = None
+            annotation_datasets['burst_rfi_info_swath'] = None
 
 
     with open_method(iw2_annotation_path, 'r') as iw2_f:
@@ -782,11 +783,11 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
                                     'annotation/calibration/calibration-')
         with open_method(calibration_annotation_path, 'r') as f_cads:
             tree_cads = ET.parse(f_cads)
-            calibration_annotation =\
+            annotation_datasets['calibration_annotation'] =\
                 CalibrationAnnotation.from_et(tree_cads,
                                               calibration_annotation_path)
     except (FileNotFoundError, KeyError):
-        calibration_annotation = None
+        annotation_datasets['calibration_annotation'] = None
 
     # load the Noise annotation
     try:
@@ -794,10 +795,10 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
                                                         'annotation/calibration/noise-')
         with open_method(noise_annotation_path, 'r') as f_nads:
             tree_nads = ET.parse(f_nads)
-            noise_annotation = NoiseAnnotation.from_et(tree_nads, ipf_version,
+            annotation_datasets['noise_annotation'] = NoiseAnnotation.from_et(tree_nads, ipf_version,
                                                        noise_annotation_path)
     except (FileNotFoundError, KeyError):
-        noise_annotation = None
+        annotation_datasets['noise_annotation'] = None
 
 
     # load AUX_CAL annotation
@@ -815,20 +816,147 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
                                     f'config ID: {product_annotation.inst_config_id}')
 
         subswath_id = os.path.basename(annotation_path).split('-')[1]
-        aux_cal_subswath = AuxCal.load_from_zip_file(path_aux_cal,
+        annotation_datasets['aux_cal_subswath'] = AuxCal.load_from_zip_file(path_aux_cal,
                                                      pol,
                                                      subswath_id)
     else:
         # No need to load aux_cal (not applying EAP correction)
-        aux_cal_subswath = None
-    
-    bursts = _bursts_from_et(tree_lads, tree_lads2, tree_manifest, calibration_annotation, noise_annotation,
-                             aux_cal_subswath, orbit_path, tiff_path, burst_rfi_info_swath, safe_filename)
+        annotation_datasets['aux_cal_subswath'] = None
+
+    bursts = _bursts_from_et(tree_lads, tree_lads2, tree_manifest, annotation_datasets, 
+                             orbit_path, tiff_path, safe_filename)
     return  bursts
 
-def _bursts_from_et(annotation_et, iw2_annotation_et, manifest_et, calibration_annotation, noise_annotation,
-                    aux_cal_subswath, orbit_path, tiff_path, burst_rfi_info_swath, safe_filename):
-    # Forrest Added
+def get_subxml_from_burst_metadata(metadata, xml_type, subswath=None, polarization=None):
+    if xml_type == 'manifest':
+        subxml = metadata.find('manifest/{urn:ccsds:schema:xfdu:1}XFDU')
+        return subxml
+    
+    possible_types = ['product', 'noise', 'calibration', 'rfi']
+    if xml_type not in possible_types:
+        raise ValueError(f'Metadata type {xml_type} not one of {" ".join(possible_types)}')
+
+    if subswath is None or polarization is None:
+        raise ValueError('subswath and polarization must be provide for non-manifest files')
+    
+    correct_type = [x for x in metadata.find('metadata').iterchildren() if x.tag == xml_type]
+    correct_swath = [x for x in correct_type if x.find('swath').text == subswath]
+    correct_pol = [x for x in correct_swath if x.find('polarisation').text == polarization]
+
+    if not correct_pol:
+        desired_metadata = None
+    else:
+        desired_metadata = correct_pol[0].find('content')
+
+    return desired_metadata
+    
+
+def burst_from_combined_xml(tiff_path: str, metadata_path, orbit_path: str, open_method=open, flag_apply_eap: bool = True):
+    '''Parse bursts in Sentinel-1 annotation XML.
+
+    Parameters:
+    -----------
+    tiff_path : str
+        Path to tiff file holding Sentinel-1 SLCs.
+    orbit_path : str
+        Path the orbit file.
+    open_method : function
+        Function used to open annotation file.
+    flag_apply_eqp: bool
+        Flag to turn on/off EAP related functionality
+
+    Returns:
+    --------
+    bursts : list
+        List of Sentinel1BurstSlc objects found in annotation XML.
+    '''
+    _, tail = os.path.split(tiff_path)
+    _, _, subswath, _, pol = [x.upper() for x in tail.split('_')[:5]]
+    # safe_filename = os.path.basename(annotation_path.split('.SAFE')[0])
+
+    # parse manifest.safe to retrieve IPF version
+    # Also load the Product annotation - for EAP calibration and RFI information
+    annotation_datasets = {}
+    with open_method(metadata_path, 'r') as metadata_file:
+        tree_metadata = ET.parse(metadata_file).getroot()
+
+    tree_manifest = get_subxml_from_burst_metadata(tree_metadata, 'manifest')
+    ipf_version = get_ipf_version(tree_manifest)
+    # Parse out the start/end track to determine if we have an
+    # equator crossing (for the burst_id calculation).
+    start_track, end_track = get_start_end_track(tree_manifest)
+    
+    tree_lads = get_subxml_from_burst_metadata(tree_metadata, 'product', subswath, pol)
+    product_annotation = ProductAnnotation.from_et(tree_lads)
+    tree_lads2 = get_subxml_from_burst_metadata(tree_metadata, 'product', 'IW2', pol)
+
+    # Load RFI information if available
+    tree_rads = get_subxml_from_burst_metadata(tree_metadata, 'product', subswath, pol)
+    if tree_rads is not None:
+        annotation_datasets['burst_rfi_info_swath'] = SwathRfiInfo.from_et(tree_rads,
+                                                    tree_lads,
+                                                    ipf_version)
+    else:
+        if ipf_version >= RFI_INFO_AVAILABLE_FROM:
+            warnings.warn(f"RFI annotation expected (IPF version={ipf_version}"
+                            f" >= {RFI_INFO_AVAILABLE_FROM}), but not loaded.")
+        annotation_datasets['burst_rfi_info_swath'] = None
+
+    # load the Calibraton annotation
+    tree_cads = get_subxml_from_burst_metadata(tree_metadata, 'calibration', subswath, pol)
+    if tree_rads is not None:
+        # calibration_annotation_path =\
+        #     annotation_path.replace('annotation/', 'annotation/calibration/calibration-')
+        annotation_datasets['calibration_annotation'] = CalibrationAnnotation.from_et(tree_cads, '')
+    else:
+        annotation_datasets['calibration_annotation'] = None
+
+    # load the Noise annotation
+    tree_nads = get_subxml_from_burst_metadata(tree_metadata, 'noise', subswath, pol)
+    try:
+        # noise_annotation_path = annotation_path.replace('annotation/',
+        #                                                 'annotation/calibration/noise-')
+        annotation_datasets['noise_annotation'] = NoiseAnnotation.from_et(tree_nads, ipf_version, '')
+    except (FileNotFoundError, KeyError):
+        annotation_datasets['noise_annotation'] = None
+
+
+    # load AUX_CAL annotation
+    eap_necessity = is_eap_correction_necessary(ipf_version)
+    if eap_necessity.phase_correction and flag_apply_eap:
+        
+        raise ValueError('Phase correction not tested for single burst')
+
+        # TODO implement for single burst        
+        annotation_path = ''
+        platform_id = ''
+        path_aux_cals = os.path.join(f'{os.path.dirname(s1_annotation.__file__)}',
+                                     'data',
+                                     'aux_cal')
+        path_aux_cal = get_path_aux_cal(path_aux_cals, annotation_path)
+
+        # Raise error flag when AUX_CAL file cannot be found
+        if path_aux_cal is None:
+            raise FileNotFoundError(f'Cannot find corresponding AUX_CAL in {path_aux_cals}. '
+                                    f'Platform: {platform_id}, inst, '
+                                    f'config ID: {product_annotation.inst_config_id}')
+
+        subswath_id = os.path.basename(annotation_path).split('-')[1]
+        annotation_datasets['aux_cal_subswath'] = AuxCal.load_from_zip_file(path_aux_cal,
+                                                     pol,
+                                                     subswath_id)
+    else:
+        # No need to load aux_cal (not applying EAP correction)
+        annotation_datasets['aux_cal_subswath'] = None
+    annotation_datasets['aux_cal_subswath'] = None
+    
+    bursts = _bursts_from_et(tree_lads, tree_lads2, tree_manifest, annotation_datasets, 
+                             orbit_path, tiff_path, None)
+
+    return  bursts
+
+def _bursts_from_et(annotation_et, iw2_annotation_et, manifest_et, annotation_datasets,
+                    orbit_path, tiff_path, safe_filename):
     ipf_version = get_ipf_version(manifest_et)
     # Parse out the start/end track to determine if we have an
     # equator crossing (for the burst_id calculation).
@@ -987,26 +1115,26 @@ def _bursts_from_et(annotation_et, iw2_annotation_et, manifest_et, calibration_a
                           last_valid_samples[last_line])
 
         # Extract burst-wise information for Calibration, Noise, and EAP correction
-        if calibration_annotation is None:
+        if annotation_datasets['calibration_annotation'] is None:
             burst_calibration = None
         else:
-            burst_calibration = BurstCalibration.from_calibration_annotation(calibration_annotation,
+            burst_calibration = BurstCalibration.from_calibration_annotation(annotation_datasets['calibration_annotation'],
                                                                              sensing_start)
-        if noise_annotation is None:
+        if annotation_datasets['noise_annotation'] is None:
             burst_noise = None
         else:
-            burst_noise = BurstNoise.from_noise_annotation(noise_annotation,
+            burst_noise = BurstNoise.from_noise_annotation(annotation_datasets['noise_annotation'],
                                                            sensing_start,
                                                            i*n_lines,
                                                            (i+1)*n_lines-1,
                                                            ipf_version)
-        if aux_cal_subswath is None:
+        if annotation_datasets['aux_cal_subswath'] is None:
             # Not applying EAP correction; (IPF high enough or user turned that off)
             # No need to fill in `burst_aux_cal`
             burst_aux_cal = None
         else:
             burst_aux_cal = BurstEAP.from_product_annotation_and_aux_cal(product_annotation,
-                                                                         aux_cal_subswath,
+                                                                         annotation_datasets['aux_cal_subswath'],
                                                                          sensing_start)
 
         # Extended FM and DC coefficient information
@@ -1017,11 +1145,11 @@ def _bursts_from_et(annotation_et, iw2_annotation_et, manifest_et, calibration_a
             sensing_start + sensing_duration)
 
         # RFI information
-        if burst_rfi_info_swath is None:
+        if annotation_datasets['burst_rfi_info_swath'] is None:
             burst_rfi_info = None
         else:
             burst_rfi_info =\
-                burst_rfi_info_swath.extract_by_aztime(sensing_start)
+                annotation_datasets['burst_rfi_info_swath'].extract_by_aztime(sensing_start)
 
         # Miscellaneous burst metadata
         burst_misc_metadata = swath_misc_metadata.extract_by_aztime(sensing_start)
@@ -1065,6 +1193,19 @@ def _is_zip_annotation_xml(path: str, id_str: str) -> bool:
         return True
     return False
 
+def load_single_burst(data_path, metadata_path, orbit_path):
+    if not os.path.exists(data_path):
+        raise FileNotFoundError(f'{data_path} not found')
+    if not os.path.exists(metadata_path):
+        raise FileNotFoundError(f'{metadata_path} not found')
+    if not os.path.exists(orbit_path):
+        raise FileNotFoundError(f'{orbit_path} not found')
+
+    bursts = burst_from_combined_xml(data_path, metadata_path, orbit_path)
+
+    short_id = '_'.join(os.path.basename(data_path).split('_')[1:3]).lower()
+    desired_burst = [x for x in bursts if str(x.burst_id)[5:] == short_id][0]
+    return desired_burst
 
 def load_bursts(path: str, orbit_path: str, swath_num: int, pol: str = 'vv',
                 burst_ids: list[Union[str, S1BurstId]] = None,
