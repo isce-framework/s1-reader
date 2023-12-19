@@ -1,5 +1,5 @@
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import datetime
 import tempfile
 from typing import Optional
@@ -208,7 +208,7 @@ class Doppler:
     poly1d: isce3.core.Poly1d
     lut2d: isce3.core.LUT2d
 
-@dataclass(frozen=True)
+@dataclass(frozen=False)
 class Sentinel1BurstSlc:
     '''Raw values extracted from SAFE XML.
     '''
@@ -263,6 +263,8 @@ class Sentinel1BurstSlc:
     burst_rfi_info: SimpleNamespace
 
     burst_misc_metadata: SimpleNamespace
+
+    is_asf_burst: bool = field(default=False)
 
     def __str__(self):
         return f"Sentinel1BurstSlc: {self.burst_id} at {self.sensing_start}"
@@ -383,6 +385,8 @@ class Sentinel1BurstSlc:
             warnings.warn(warn_str)
             return
 
+        absolute_path = os.path.join(os.getcwd(), self.tiff_path)
+
         line_offset = self.i_burst * self.shape[0]
 
         inwidth = self.last_valid_sample - self.first_valid_sample + 1
@@ -400,11 +404,23 @@ class Sentinel1BurstSlc:
     <VRTRasterBand dataType="CFloat32" band="1">
         <NoDataValue>0.0</NoDataValue>
         <SimpleSource>
-            <SourceFilename relativeToVRT="1">{self.tiff_path}</SourceFilename>
+            <SourceFilename relativeToVRT="0">{absolute_path}</SourceFilename>
             <SourceBand>1</SourceBand>
             <SourceProperties RasterXSize="{fullwidth}" RasterYSize="{fulllength}" DataType="CInt16"/>
             <SrcRect xOff="{xoffset}" yOff="{yoffset}" xSize="{inwidth}" ySize="{inlength}"/>
             <DstRect xOff="{xoffset}" yOff="{localyoffset}" xSize="{inwidth}" ySize="{inlength}"/>
+        </SimpleSource>
+    </VRTRasterBand>
+</VRTDataset>'''
+
+        if self.is_asf_burst:
+            tmpl = f'''<VRTDataset rasterXSize="{outwidth}" rasterYSize="{outlength}">
+    <VRTRasterBand dataType="CFloat32" band="1">
+        <NoDataValue>0.0</NoDataValue>
+        <SimpleSource>
+            <SourceFilename relativeToVRT="0">{absolute_path}</SourceFilename>
+            <SourceBand>1</SourceBand>
+            <SourceProperties RasterXSize="{inwidth}" RasterYSize="{inlength}" DataType="CInt16"/>
         </SimpleSource>
     </VRTRasterBand>
 </VRTDataset>'''
