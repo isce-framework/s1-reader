@@ -1,6 +1,7 @@
 import os
 from dataclasses import dataclass, field
 import datetime
+from lxml import etree
 import tempfile
 from typing import Optional
 import warnings
@@ -264,8 +265,6 @@ class Sentinel1BurstSlc:
 
     burst_misc_metadata: SimpleNamespace
 
-    is_asf_burst: bool = field(default=False)
-
     def __str__(self):
         return f"Sentinel1BurstSlc: {self.burst_id} at {self.sensing_start}"
 
@@ -398,35 +397,23 @@ class Sentinel1BurstSlc:
         gdal_obj = gdal.Open(self.tiff_path, gdal.GA_ReadOnly)
         fullwidth = gdal_obj.RasterXSize
         fulllength = gdal_obj.RasterYSize
+        using_extracted_burst = fulllength == outlength and fullwidth == outwidth
 
-        # TODO maybe cleaner to write with ElementTree
-        tmpl = f'''<VRTDataset rasterXSize="{outwidth}" rasterYSize="{outlength}">
-    <VRTRasterBand dataType="CFloat32" band="1">
-        <NoDataValue>0.0</NoDataValue>
-        <SimpleSource>
-            <SourceFilename relativeToVRT="0">{absolute_path}</SourceFilename>
-            <SourceBand>1</SourceBand>
-            <SourceProperties RasterXSize="{fullwidth}" RasterYSize="{fulllength}" DataType="CInt16"/>
-            <SrcRect xOff="{xoffset}" yOff="{yoffset}" xSize="{inwidth}" ySize="{inlength}"/>
-            <DstRect xOff="{xoffset}" yOff="{localyoffset}" xSize="{inwidth}" ySize="{inlength}"/>
-        </SimpleSource>
-    </VRTRasterBand>
-</VRTDataset>'''
-
-        if self.is_asf_burst:
-            tmpl = f'''<VRTDataset rasterXSize="{outwidth}" rasterYSize="{outlength}">
-    <VRTRasterBand dataType="CFloat32" band="1">
-        <NoDataValue>0.0</NoDataValue>
-        <SimpleSource>
-            <SourceFilename relativeToVRT="0">{absolute_path}</SourceFilename>
-            <SourceBand>1</SourceBand>
-            <SourceProperties RasterXSize="{inwidth}" RasterYSize="{inlength}" DataType="CInt16"/>
-        </SimpleSource>
-    </VRTRasterBand>
-</VRTDataset>'''
-
-        with open(out_path, 'w') as fid:
-            fid.write(tmpl)
+        vrt_dataset = etree.Element('VRTDataset', rasterXSize=str(outwidth), rasterYSize=str(outlength))
+        vrt_raster_band = etree.SubElement(vrt_dataset, 'VRTRasterBand', dataType='CFloat32', band='1')
+        no_data_value = etree.SubElement(vrt_raster_band, 'NoDataValue')
+        no_data_value.text = '0.0'
+        simple_source = etree.SubElement(vrt_raster_band, 'SimpleSource')
+        source_filename = etree.SubElement(simple_source, 'SourceFilename', relativeToVRT='0')
+        source_filename.text = absolute_path
+        source_band = etree.SubElement(simple_source, 'SourceBand')
+        source_band.text = '1'
+        if not using_extracted_burst:
+            etree.SubElement(simple_source, 'SourceProperties', RasterXSize=str(fullwidth), RasterYSize=str(fulllength), DataType='CInt16')
+            etree.SubElement(simple_source, 'SrcRect', xOff=str(xoffset), yOff=str(yoffset), xSize=str(inwidth), ySize=str(inlength))
+            etree.SubElement(simple_source, 'DstRect', xOff=str(xoffset), yOff=str(localyoffset), xSize=str(inwidth), ySize=str(inlength))
+        tree = etree.ElementTree(vrt_dataset)
+        tree.write(out_path, pretty_print=True, xml_declaration=False, encoding='utf-8')
 
     def get_az_carrier_poly(self, offset=0.0, xstep=500, ystep=50,
                             az_order=5, rg_order=3, index_as_coord=False):

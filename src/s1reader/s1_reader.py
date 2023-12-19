@@ -851,7 +851,7 @@ def get_subxml_from_burst_metadata(metadata, xml_type, subswath=None, polarizati
     return desired_metadata
     
 
-def burst_from_combined_xml(tiff_path: str, metadata_path, orbit_path: str, open_method=open, flag_apply_eap: bool = True, is_asf_burst: bool = False):
+def burst_from_combined_xml(tiff_path: str, metadata_path, orbit_path: str, open_method=open, flag_apply_eap: bool = True):
     '''Parse bursts in Sentinel-1 annotation XML.
 
     Parameters:
@@ -951,12 +951,12 @@ def burst_from_combined_xml(tiff_path: str, metadata_path, orbit_path: str, open
     annotation_datasets['aux_cal_subswath'] = None
     
     bursts = _bursts_from_et(tree_lads, tree_lads2, tree_manifest, annotation_datasets, 
-                             orbit_path, tiff_path, None, is_asf_burst=is_asf_burst)
+                             orbit_path, tiff_path, None)
 
     return  bursts
 
 def _bursts_from_et(annotation_et, iw2_annotation_et, manifest_et, annotation_datasets,
-                    orbit_path, tiff_path, safe_filename, is_asf_burst = False):
+                    orbit_path, tiff_path, safe_filename):
     ipf_version = get_ipf_version(manifest_et)
     # Parse out the start/end track to determine if we have an
     # equator crossing (for the burst_id calculation).
@@ -1167,7 +1167,7 @@ def _bursts_from_et(annotation_et, iw2_annotation_et, manifest_et, annotation_da
                                       range_window_type, range_window_coeff,
                                       rank, prf_raw_data, range_chirp_ramp_rate,
                                       burst_calibration, burst_noise, burst_aux_cal,
-                                      extended_coeffs, burst_rfi_info, burst_misc_metadata, is_asf_burst)
+                                      extended_coeffs, burst_rfi_info, burst_misc_metadata)
 
     return bursts
 
@@ -1201,7 +1201,7 @@ def load_single_burst(data_path, metadata_path, orbit_path):
     if not os.path.exists(orbit_path):
         raise FileNotFoundError(f'{orbit_path} not found')
 
-    bursts = burst_from_combined_xml(data_path, metadata_path, orbit_path, is_asf_burst=True)
+    bursts = burst_from_combined_xml(data_path, metadata_path, orbit_path)
 
     short_id = '_'.join(os.path.basename(data_path).split('_')[1:3]).lower()
     desired_burst = [x for x in bursts if str(x.burst_id)[5:] == short_id][0]
