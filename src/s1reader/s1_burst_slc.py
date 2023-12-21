@@ -1,5 +1,5 @@
 import os
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 import datetime
 from lxml import etree
 import tempfile
@@ -209,7 +209,7 @@ class Doppler:
     poly1d: isce3.core.Poly1d
     lut2d: isce3.core.LUT2d
 
-@dataclass(frozen=False)
+@dataclass(frozen=True)
 class Sentinel1BurstSlc:
     '''Raw values extracted from SAFE XML.
     '''

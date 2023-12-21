@@ -849,28 +849,29 @@ def get_subxml_from_burst_metadata(metadata, xml_type, subswath=None, polarizati
     return desired_metadata
     
 
-def burst_from_combined_xml(tiff_path: str, metadata_path, orbit_path: str, open_method=open, flag_apply_eap: bool = True):
-    '''Parse bursts in Sentinel-1 annotation XML.
+def burst_from_combined_xml(tiff_path: str, metadata_path, orbit_path: str, flag_apply_eap: bool = True, open_method=open):
+    '''Parse bursts from a ASF combined Sentinel-1 metadata XML.
 
     Parameters:
     -----------
     tiff_path : str
-        Path to tiff file holding Sentinel-1 SLCs.
+        Path to tiff file holding Sentinel-1 SLC.
+    metadata_path : str
+        Path to ASF combined metadata file.
     orbit_path : str
-        Path the orbit file.
-    open_method : function
-        Function used to open annotation file.
+        Path to orbit file.
     flag_apply_eqp: bool
         Flag to turn on/off EAP related functionality
+    open_method : function
+        Function used to open annotation file.
 
     Returns:
     --------
-    bursts : list
-        List of Sentinel1BurstSlc objects found in annotation XML.
+    burst: Sentinel1BurstSlc
+        Sentinel1BurstSlc object found in combined XML that corresponds to the burst SLC tiff.
     '''
-    _, tail = os.path.split(tiff_path)
-    _, _, subswath, _, pol = [x.upper() for x in tail.split('_')[:5]]
-    # safe_filename = os.path.basename(annotation_path.split('.SAFE')[0])
+    tiff_name = os.path.split(tiff_path)[-1]
+    _, short_burst_id, subswath, _, pol = [x.upper() for x in tiff_name.split('_')[:5]]
 
     # parse manifest.safe to retrieve IPF version
     # Also load the Product annotation - for EAP calibration and RFI information
@@ -943,7 +944,9 @@ def burst_from_combined_xml(tiff_path: str, metadata_path, orbit_path: str, open
     bursts = _bursts_from_et(tree_lads, tree_lads2, tree_manifest, annotation_datasets, 
                              orbit_path, tiff_path, None)
 
-    return  bursts
+    short_id = '_'.join([short_burst_id, subswath]).lower()
+    burst = [x for x in bursts if str(x.burst_id)[5:] == short_id and x.polarization == pol][0]
+    return burst
 
 def _bursts_from_et(annotation_et, iw2_annotation_et, manifest_et, annotation_datasets,
                     orbit_path, tiff_path, safe_filename):
@@ -1183,7 +1186,25 @@ def _is_zip_annotation_xml(path: str, id_str: str) -> bool:
         return True
     return False
 
-def load_single_burst(data_path, metadata_path, orbit_path):
+def load_single_burst(data_path: str, metadata_path: str, orbit_path: str, flag_apply_eap: bool = True):
+    '''Load a burst from an ASF-extracted Sentinel-1 burst SLC data and metadata files.
+
+    Parameters:
+    -----------
+    tiff_path : str
+        Path to tiff file holding Sentinel-1 burst SLC.
+    metadata_path : str
+        Path to ASF combined metadata file.
+    orbit_path : str
+        Path to orbit file.
+    flag_apply_eap: bool
+        Turn on/off EAP related features (AUX_CAL loader)
+
+    Returns:
+    --------
+    burst: Sentinel1BurstSlc
+        Sentinel1BurstSlc object found in combined XML that corresponds to the SLC tiff.
+    '''
     if not os.path.exists(data_path):
         raise FileNotFoundError(f'{data_path} not found')
     if not os.path.exists(metadata_path):
@@ -1191,11 +1212,8 @@ def load_single_burst(data_path, metadata_path, orbit_path):
     if not os.path.exists(orbit_path):
         raise FileNotFoundError(f'{orbit_path} not found')
 
-    bursts = burst_from_combined_xml(data_path, metadata_path, orbit_path)
-
-    short_id = '_'.join(os.path.basename(data_path).split('_')[1:3]).lower()
-    desired_burst = [x for x in bursts if str(x.burst_id)[5:] == short_id][0]
-    return desired_burst
+    burst = burst_from_combined_xml(data_path, metadata_path, orbit_path, flag_apply_eap = flag_apply_eap)
+    return burst
 
 def load_bursts(path: str, orbit_path: str, swath_num: int, pol: str = 'vv',
                 burst_ids: list[Union[str, S1BurstId]] = None,
