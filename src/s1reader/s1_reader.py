@@ -966,8 +966,33 @@ def burst_from_combined_xml(tiff_path: str, metadata_path, orbit_path: str, flag
     burst = [x for x in bursts if str(x.burst_id)[5:] == short_id and x.polarization == pol][0]
     return burst
 
-def _bursts_from_et(annotation_et, iw2_annotation_et, manifest_et, annotation_datasets,
-                    orbit_path, tiff_path, safe_filename):
+def _bursts_from_et(annotation_et: ET.Element, iw2_annotation_et: ET.Element, manifest_et: ET.Element, annotation_datasets: dict,
+                    orbit_path: str, tiff_path: str, safe_filename: str):
+    '''Combine loaded Sentinel-1 SLC metadata into list of Sentinel1BurstSlc objects.
+
+    Parameters:
+    -----------
+    annotation_et : ET.Element
+        Element representing a bursts's annotation file.
+    iw2_annotation_et : ET.Element
+        Element representing a bursts's associated IW2 annoation file.
+    manifest_et : ET.Element
+        Element representing a bursts's associated manifest file.
+    annotation_datasets : dict
+        dictionary containing the various loaded Annotation* classes.
+    orbit_path : str
+        Path to orbit file.
+    tiff_path : str
+        Path to SLC tiff.
+    safe_file : str
+        Name of the bursts's parent SAFE file.
+
+    Returns:
+    --------
+    bursts : list
+        List of Sentinel1BurstSlc objects found in annotation XML.
+    '''
+ 
     ipf_version = get_ipf_version(manifest_et)
     # Parse out the start/end track to determine if we have an
     # equator crossing (for the burst_id calculation).
