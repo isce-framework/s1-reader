@@ -399,7 +399,7 @@ def _get_manifest_pattern(tree: ET, keys: list):
     return f'{xml_meta_path}/{safe_terms}', nsmap
 
 
-def get_path_aux_cal(directory_aux_cal: str, str_annotation: str):
+def get_path_aux_cal(directory_aux_cal: str, str_platform: str, sensing_start: datetime.datetime):
     '''
     Decide which aux_cal to load
     Criteria to select an AUX_CAL:
@@ -416,8 +416,10 @@ def get_path_aux_cal(directory_aux_cal: str, str_annotation: str):
     -----------
     diectory_aux_cal: str
         Directory for the AUX_CAL .zip files
-    str_annotation: str
-        annotation_path that is used in `burst_from_xml()`
+    str_platform: str
+        either s1a or s1b
+    sensing_start: datetime.datetime
+        time when collection of the SLC data began
 
     Return:
     --------
@@ -426,22 +428,13 @@ def get_path_aux_cal(directory_aux_cal: str, str_annotation: str):
         None if the matching AUX_CAL is not found in `directory_aux_cal`
 
     '''
-
-    # extract the date string and platform info from str_annotation
-    str_safe = os.path.basename(str_annotation.split('.SAFE')[0])
-
-    token_safe = str_safe.split('_')
-    str_platform = token_safe[0]
-    str_sensing_start = token_safe[5]
+    format_datetime = '%Y%m%dT%H%M%S'
 
     list_aux_cal = glob.glob(f'{directory_aux_cal}/{str_platform}_AUX_CAL_V*.SAFE.zip')
 
     if len(list_aux_cal) == 0:
         raise ValueError(f'Cannot find AUX_CAL files from {directory_aux_cal} .')
 
-    format_datetime = '%Y%m%dT%H%M%S'
-
-    datetime_sensing_start = datetime.datetime.strptime(str_sensing_start,format_datetime)
 
     # sequentially parse the time info of AUX_CAL and search for the matching file
     id_match = None
@@ -454,8 +447,8 @@ def get_path_aux_cal(directory_aux_cal: str, str_annotation: str):
         datetime_generation = datetime.datetime.strptime(token_aux_cal[4][1:].split('.')[0],
                                                          format_datetime)
 
-        dt_validation = int((datetime_sensing_start - datetime_validation).total_seconds())
-        dt_generation = int((datetime_sensing_start - datetime_generation).total_seconds())
+        dt_validation = int((sensing_start - datetime_validation).total_seconds())
+        dt_generation = int((sensing_start - datetime_generation).total_seconds())
 
         if dt_validation < 0:
             # Validation date is later than the sensing time;
@@ -807,7 +800,10 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
         path_aux_cals = os.path.join(f'{os.path.dirname(s1_annotation.__file__)}',
                                      'data',
                                      'aux_cal')
-        path_aux_cal = get_path_aux_cal(path_aux_cals, annotation_path)
+
+        str_sensing_start = safe_filename[5]
+        sensing_start = datetime.datetime.strptime(str_sensing_start,'%Y%m%dT%H%M%S')
+        path_aux_cal = get_path_aux_cal(path_aux_cals, platform_id, sensing_start)
 
         # Raise error flag when AUX_CAL file cannot be found
         if path_aux_cal is None:
@@ -827,7 +823,7 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
                              orbit_path, tiff_path, safe_filename)
     return  bursts
 
-def get_subxml_from_burst_metadata(metadata, xml_type, subswath=None, polarization=None):
+def get_subxml_from_burst_metadata(metadata, xml_type, subswath=None, polarization=None, retrieve_name_only=False):
     if xml_type == 'manifest':
         subxml = metadata.find('manifest/{urn:ccsds:schema:xfdu:1}XFDU')
         return subxml
@@ -845,6 +841,8 @@ def get_subxml_from_burst_metadata(metadata, xml_type, subswath=None, polarizati
 
     if not correct_pol:
         desired_metadata = None
+    elif retrieve_name_only:
+        desired_metadata = str(correct_pol[0].get('source_filename'))
     else:
         desired_metadata = correct_pol[0].find('content')
 
@@ -905,8 +903,6 @@ def burst_from_combined_xml(tiff_path: str, metadata_path, orbit_path: str, open
     # load the Calibraton annotation
     tree_cads = get_subxml_from_burst_metadata(tree_metadata, 'calibration', subswath, pol)
     if tree_rads is not None:
-        # calibration_annotation_path =\
-        #     annotation_path.replace('annotation/', 'annotation/calibration/calibration-')
         annotation_datasets['calibration_annotation'] = CalibrationAnnotation.from_et(tree_cads, '')
     else:
         annotation_datasets['calibration_annotation'] = None
@@ -914,8 +910,6 @@ def burst_from_combined_xml(tiff_path: str, metadata_path, orbit_path: str, open
     # load the Noise annotation
     tree_nads = get_subxml_from_burst_metadata(tree_metadata, 'noise', subswath, pol)
     try:
-        # noise_annotation_path = annotation_path.replace('annotation/',
-        #                                                 'annotation/calibration/noise-')
         annotation_datasets['noise_annotation'] = NoiseAnnotation.from_et(tree_nads, ipf_version, '')
     except (FileNotFoundError, KeyError):
         annotation_datasets['noise_annotation'] = None
@@ -924,16 +918,14 @@ def burst_from_combined_xml(tiff_path: str, metadata_path, orbit_path: str, open
     # load AUX_CAL annotation
     eap_necessity = is_eap_correction_necessary(ipf_version)
     if eap_necessity.phase_correction and flag_apply_eap:
-        
-        raise ValueError('Phase correction not tested for single burst')
-
-        # TODO implement for single burst        
-        annotation_path = ''
-        platform_id = ''
         path_aux_cals = os.path.join(f'{os.path.dirname(s1_annotation.__file__)}',
                                      'data',
                                      'aux_cal')
-        path_aux_cal = get_path_aux_cal(path_aux_cals, annotation_path)
+        annotation_name = get_subxml_from_burst_metadata(tree_metadata, 'product', subswath, pol, retrieve_name_only=True)
+        platform_id, _, _, _, str_sensing_start = annotation_name.split('-')[0:5]
+        sensing_start = datetime.datetime.strptime(str_sensing_start.upper(), '%Y%m%dT%H%M%S')
+
+        path_aux_cal = get_path_aux_cal(path_aux_cals, platform_id, sensing_start)
 
         # Raise error flag when AUX_CAL file cannot be found
         if path_aux_cal is None:
@@ -941,14 +933,12 @@ def burst_from_combined_xml(tiff_path: str, metadata_path, orbit_path: str, open
                                     f'Platform: {platform_id}, inst, '
                                     f'config ID: {product_annotation.inst_config_id}')
 
-        subswath_id = os.path.basename(annotation_path).split('-')[1]
         annotation_datasets['aux_cal_subswath'] = AuxCal.load_from_zip_file(path_aux_cal,
                                                      pol,
-                                                     subswath_id)
+                                                     subswath)
     else:
         # No need to load aux_cal (not applying EAP correction)
         annotation_datasets['aux_cal_subswath'] = None
-    annotation_datasets['aux_cal_subswath'] = None
     
     bursts = _bursts_from_et(tree_lads, tree_lads2, tree_manifest, annotation_datasets, 
                              orbit_path, tiff_path, None)

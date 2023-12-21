@@ -384,8 +384,6 @@ class Sentinel1BurstSlc:
             warnings.warn(warn_str)
             return
 
-        absolute_path = os.path.join(os.getcwd(), self.tiff_path)
-
         line_offset = self.i_burst * self.shape[0]
 
         inwidth = self.last_valid_sample - self.first_valid_sample + 1
@@ -404,8 +402,8 @@ class Sentinel1BurstSlc:
         no_data_value = etree.SubElement(vrt_raster_band, 'NoDataValue')
         no_data_value.text = '0.0'
         simple_source = etree.SubElement(vrt_raster_band, 'SimpleSource')
-        source_filename = etree.SubElement(simple_source, 'SourceFilename', relativeToVRT='0')
-        source_filename.text = absolute_path
+        source_filename = etree.SubElement(simple_source, 'SourceFilename', relativeToVRT='1')
+        source_filename.text = self.tiff_path
         source_band = etree.SubElement(simple_source, 'SourceBand')
         source_band.text = '1'
         if not using_extracted_burst:
