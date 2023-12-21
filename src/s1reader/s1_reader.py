@@ -823,10 +823,29 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
                              orbit_path, tiff_path, safe_filename)
     return  bursts
 
-def get_subxml_from_burst_metadata(metadata, xml_type, subswath=None, polarization=None, retrieve_name_only=False):
+def get_subxml_from_burst_metadata(metadata: ET.Element, xml_type: str, subswath: str=None, polarization: str=None):
+    '''Extract child xml info from ASF combined metadata file.
+
+    Parameters:
+    -----------
+    metadata : ET.Element
+        lxml Element representing combined metadata XML
+    xml_typ : str
+        Desired type of metadata to obtain (product, noise, calibration, or rfi)
+    subswath : str
+        Desired subswath to obtain data for
+    polarization : str
+        Desired polarization to obtain data for
+
+    Returns:
+    --------
+    (name, desired_data):
+        filename and lxml Element for desired metadata
+    '''
     if xml_type == 'manifest':
-        subxml = metadata.find('manifest/{urn:ccsds:schema:xfdu:1}XFDU')
-        return subxml
+        name = 'manifest.xml'
+        desired_metadata = metadata.find('manifest/{urn:ccsds:schema:xfdu:1}XFDU')
+        return name, desired_metadata
     
     possible_types = ['product', 'noise', 'calibration', 'rfi']
     if xml_type not in possible_types:
@@ -840,13 +859,13 @@ def get_subxml_from_burst_metadata(metadata, xml_type, subswath=None, polarizati
     correct_pol = [x for x in correct_swath if x.find('polarisation').text == polarization]
 
     if not correct_pol:
+        name = None
         desired_metadata = None
-    elif retrieve_name_only:
-        desired_metadata = str(correct_pol[0].get('source_filename'))
     else:
+        name = str(correct_pol[0].get('source_filename'))
         desired_metadata = correct_pol[0].find('content')
 
-    return desired_metadata
+    return name, desired_metadata
     
 
 def burst_from_combined_xml(tiff_path: str, metadata_path, orbit_path: str, flag_apply_eap: bool = True, open_method=open):
@@ -879,18 +898,18 @@ def burst_from_combined_xml(tiff_path: str, metadata_path, orbit_path: str, flag
     with open_method(metadata_path, 'r') as metadata_file:
         tree_metadata = ET.parse(metadata_file).getroot()
 
-    tree_manifest = get_subxml_from_burst_metadata(tree_metadata, 'manifest')
+    tree_manifest = get_subxml_from_burst_metadata(tree_metadata, 'manifest')[1]
     ipf_version = get_ipf_version(tree_manifest)
     # Parse out the start/end track to determine if we have an
     # equator crossing (for the burst_id calculation).
     start_track, end_track = get_start_end_track(tree_manifest)
     
-    tree_lads = get_subxml_from_burst_metadata(tree_metadata, 'product', subswath, pol)
+    name_lads, tree_lads = get_subxml_from_burst_metadata(tree_metadata, 'product', subswath, pol)
     product_annotation = ProductAnnotation.from_et(tree_lads)
-    tree_lads2 = get_subxml_from_burst_metadata(tree_metadata, 'product', 'IW2', pol)
+    tree_lads2 = get_subxml_from_burst_metadata(tree_metadata, 'product', 'IW2', pol)[1]
 
     # Load RFI information if available
-    tree_rads = get_subxml_from_burst_metadata(tree_metadata, 'product', subswath, pol)
+    tree_rads = get_subxml_from_burst_metadata(tree_metadata, 'product', subswath, pol)[1]
     if tree_rads is not None:
         annotation_datasets['burst_rfi_info_swath'] = SwathRfiInfo.from_et(tree_rads,
                                                     tree_lads,
@@ -902,14 +921,14 @@ def burst_from_combined_xml(tiff_path: str, metadata_path, orbit_path: str, flag
         annotation_datasets['burst_rfi_info_swath'] = None
 
     # load the Calibraton annotation
-    tree_cads = get_subxml_from_burst_metadata(tree_metadata, 'calibration', subswath, pol)
+    tree_cads = get_subxml_from_burst_metadata(tree_metadata, 'calibration', subswath, pol)[1]
     if tree_rads is not None:
         annotation_datasets['calibration_annotation'] = CalibrationAnnotation.from_et(tree_cads, '')
     else:
         annotation_datasets['calibration_annotation'] = None
 
     # load the Noise annotation
-    tree_nads = get_subxml_from_burst_metadata(tree_metadata, 'noise', subswath, pol)
+    tree_nads = get_subxml_from_burst_metadata(tree_metadata, 'noise', subswath, pol)[1]
     try:
         annotation_datasets['noise_annotation'] = NoiseAnnotation.from_et(tree_nads, ipf_version, '')
     except (FileNotFoundError, KeyError):
@@ -922,8 +941,7 @@ def burst_from_combined_xml(tiff_path: str, metadata_path, orbit_path: str, flag
         path_aux_cals = os.path.join(f'{os.path.dirname(s1_annotation.__file__)}',
                                      'data',
                                      'aux_cal')
-        annotation_name = get_subxml_from_burst_metadata(tree_metadata, 'product', subswath, pol, retrieve_name_only=True)
-        platform_id, _, _, _, str_sensing_start = annotation_name.split('-')[0:5]
+        platform_id, _, _, _, str_sensing_start = name_lads.split('-')[0:5]
         sensing_start = datetime.datetime.strptime(str_sensing_start.upper(), '%Y%m%dT%H%M%S')
 
         path_aux_cal = get_path_aux_cal(path_aux_cals, platform_id, sensing_start)
