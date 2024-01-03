@@ -909,7 +909,7 @@ def burst_from_combined_xml(tiff_path: str, metadata_path, orbit_path: str, flag
     tree_lads2 = get_subxml_from_burst_metadata(tree_metadata, 'product', 'IW2', pol)[1]
 
     # Load RFI information if available
-    tree_rads = get_subxml_from_burst_metadata(tree_metadata, 'product', subswath, pol)[1]
+    tree_rads = get_subxml_from_burst_metadata(tree_metadata, 'rfi', subswath, pol)[1]
     if tree_rads is not None:
         annotation_datasets['burst_rfi_info_swath'] = SwathRfiInfo.from_et(tree_rads,
                                                     tree_lads,
