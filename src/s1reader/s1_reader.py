@@ -922,7 +922,7 @@ def burst_from_combined_xml(tiff_path: str, metadata_path, orbit_path: str, flag
 
     # load the Calibraton annotation
     tree_cads = get_subxml_from_burst_metadata(tree_metadata, 'calibration', subswath, pol)[1]
-    if tree_rads is not None:
+    if tree_cads is not None:
         annotation_datasets['calibration_annotation'] = CalibrationAnnotation.from_et(tree_cads, '')
     else:
         annotation_datasets['calibration_annotation'] = None
