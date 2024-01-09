@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import cgi
 import datetime
 import glob
 import os
@@ -76,7 +75,7 @@ def retrieve_orbit_file(safe_file: str, orbit_dir: str, concatenate: bool=False)
     if orbit_dict is not None:
         orbit_file = os.path.join(orbit_dir, f"{orbit_dict['orbit_name']}.EOF")
         if not os.path.exists(orbit_file):
-            _download_orbit_file(orbit_dir, orbit_dict['orbit_url'])
+            _download_orbit_file(orbit_dict['orbit_url'], orbit_file)
 
         return orbit_file
 
@@ -268,32 +267,26 @@ def _get_orbit_dict(mission_id, start_time, end_time, orbit_type):
     return orbit_dict
 
 
-def _download_orbit_file(output_folder, orbit_url):
+def _download_orbit_file(orbit_url: str, output_file: str) -> None:
     '''
     Download S1-A/B orbits
     Parameters
     ----------
-    output_folder: str
-        Path to directory where to store orbits
     orbit_url: str
         Remote url of orbit file to download
+    output_file: str
+        Path to save output file
     '''
     print('downloading URL:', orbit_url)
     response = requests.get(url=orbit_url, auth=(scihub_user, scihub_password))
-
-    # Get header and find filename
-    header = response.headers['content-disposition']
-    header_params = cgi.parse_header(header)[1]
-    # construct orbit filename
-    orbit_file = os.path.join(output_folder, header_params['filename'])
+    response.raise_for_status()
 
     # Save orbits
-    with open(orbit_file, 'wb') as f:
+    with open(output_file, 'wb') as f:
         for chunk in response.iter_content(chunk_size=1024):
             if chunk:
                 f.write(chunk)
                 f.flush()
-    return orbit_file
 
 
 def get_orbit_file_from_dir(zip_path: str, orbit_dir: str,
