@@ -1,6 +1,7 @@
 import os
 from dataclasses import dataclass
 import datetime
+import lxml.etree as ET
 import tempfile
 from typing import Optional
 import warnings
@@ -394,23 +395,23 @@ class Sentinel1BurstSlc:
         gdal_obj = gdal.Open(self.tiff_path, gdal.GA_ReadOnly)
         fullwidth = gdal_obj.RasterXSize
         fulllength = gdal_obj.RasterYSize
+        using_extracted_burst = fulllength == outlength and fullwidth == outwidth
 
-        # TODO maybe cleaner to write with ElementTree
-        tmpl = f'''<VRTDataset rasterXSize="{outwidth}" rasterYSize="{outlength}">
-    <VRTRasterBand dataType="CFloat32" band="1">
-        <NoDataValue>0.0</NoDataValue>
-        <SimpleSource>
-            <SourceFilename relativeToVRT="1">{self.tiff_path}</SourceFilename>
-            <SourceBand>1</SourceBand>
-            <SourceProperties RasterXSize="{fullwidth}" RasterYSize="{fulllength}" DataType="CInt16"/>
-            <SrcRect xOff="{xoffset}" yOff="{yoffset}" xSize="{inwidth}" ySize="{inlength}"/>
-            <DstRect xOff="{xoffset}" yOff="{localyoffset}" xSize="{inwidth}" ySize="{inlength}"/>
-        </SimpleSource>
-    </VRTRasterBand>
-</VRTDataset>'''
-
-        with open(out_path, 'w') as fid:
-            fid.write(tmpl)
+        vrt_dataset = ET.Element('VRTDataset', rasterXSize=str(outwidth), rasterYSize=str(outlength))
+        vrt_raster_band = ET.SubElement(vrt_dataset, 'VRTRasterBand', dataType='CFloat32', band='1')
+        no_data_value = ET.SubElement(vrt_raster_band, 'NoDataValue')
+        no_data_value.text = '0.0'
+        simple_source = ET.SubElement(vrt_raster_band, 'SimpleSource')
+        source_filename = ET.SubElement(simple_source, 'SourceFilename', relativeToVRT='1')
+        source_filename.text = self.tiff_path
+        source_band = ET.SubElement(simple_source, 'SourceBand')
+        source_band.text = '1'
+        if not using_extracted_burst:
+            ET.SubElement(simple_source, 'SourceProperties', RasterXSize=str(fullwidth), RasterYSize=str(fulllength), DataType='CInt16')
+            ET.SubElement(simple_source, 'SrcRect', xOff=str(xoffset), yOff=str(yoffset), xSize=str(inwidth), ySize=str(inlength))
+            ET.SubElement(simple_source, 'DstRect', xOff=str(xoffset), yOff=str(localyoffset), xSize=str(inwidth), ySize=str(inlength))
+        tree = ET.ElementTree(vrt_dataset)
+        tree.write(out_path, pretty_print=True, xml_declaration=False, encoding='utf-8')
 
     def get_az_carrier_poly(self, offset=0.0, xstep=500, ystep=50,
                             az_order=5, rg_order=3, index_as_coord=False):

@@ -399,7 +399,7 @@ def _get_manifest_pattern(tree: ET, keys: list):
     return f'{xml_meta_path}/{safe_terms}', nsmap
 
 
-def get_path_aux_cal(directory_aux_cal: str, str_annotation: str):
+def get_path_aux_cal(directory_aux_cal: str, str_platform: str, sensing_start: datetime.datetime):
     '''
     Decide which aux_cal to load
     Criteria to select an AUX_CAL:
@@ -416,8 +416,10 @@ def get_path_aux_cal(directory_aux_cal: str, str_annotation: str):
     -----------
     diectory_aux_cal: str
         Directory for the AUX_CAL .zip files
-    str_annotation: str
-        annotation_path that is used in `burst_from_xml()`
+    str_platform: str
+        either s1a or s1b
+    sensing_start: datetime.datetime
+        time when collection of the SLC data began
 
     Return:
     --------
@@ -426,22 +428,13 @@ def get_path_aux_cal(directory_aux_cal: str, str_annotation: str):
         None if the matching AUX_CAL is not found in `directory_aux_cal`
 
     '''
-
-    # extract the date string and platform info from str_annotation
-    str_safe = os.path.basename(str_annotation.split('.SAFE')[0])
-
-    token_safe = str_safe.split('_')
-    str_platform = token_safe[0]
-    str_sensing_start = token_safe[5]
+    format_datetime = '%Y%m%dT%H%M%S'
 
     list_aux_cal = glob.glob(f'{directory_aux_cal}/{str_platform}_AUX_CAL_V*.SAFE.zip')
 
     if len(list_aux_cal) == 0:
         raise ValueError(f'Cannot find AUX_CAL files from {directory_aux_cal} .')
 
-    format_datetime = '%Y%m%dT%H%M%S'
-
-    datetime_sensing_start = datetime.datetime.strptime(str_sensing_start,format_datetime)
 
     # sequentially parse the time info of AUX_CAL and search for the matching file
     id_match = None
@@ -454,8 +447,8 @@ def get_path_aux_cal(directory_aux_cal: str, str_annotation: str):
         datetime_generation = datetime.datetime.strptime(token_aux_cal[4][1:].split('.')[0],
                                                          format_datetime)
 
-        dt_validation = int((datetime_sensing_start - datetime_validation).total_seconds())
-        dt_generation = int((datetime_sensing_start - datetime_generation).total_seconds())
+        dt_validation = int((sensing_start - datetime_validation).total_seconds())
+        dt_generation = int((sensing_start - datetime_generation).total_seconds())
 
         if dt_validation < 0:
             # Validation date is later than the sensing time;
@@ -745,6 +738,7 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
 
     # parse manifest.safe to retrieve IPF version
     # Also load the Product annotation - for EAP calibration and RFI information
+    annotation_datasets = {}
     manifest_path = os.path.dirname(annotation_path).replace('annotation','') + 'manifest.safe'
     with open_method(manifest_path, 'r') as f_manifest, open_method(annotation_path, 'r') as f_lads:
         tree_manifest = ET.parse(f_manifest)
@@ -761,7 +755,7 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
         try:
             with open_method(rfi_annotation_path, 'r') as f_rads:
                 tree_rads = ET.parse(f_rads)
-                burst_rfi_info_swath = SwathRfiInfo.from_et(tree_rads,
+                annotation_datasets['burst_rfi_info_swath'] = SwathRfiInfo.from_et(tree_rads,
                                                             tree_lads,
                                                             ipf_version)
 
@@ -769,12 +763,11 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
             if ipf_version >= RFI_INFO_AVAILABLE_FROM:
                 warnings.warn(f"RFI annotation expected (IPF version={ipf_version}"
                               f" >= {RFI_INFO_AVAILABLE_FROM}), but not loaded.")
-            burst_rfi_info_swath = None
+            annotation_datasets['burst_rfi_info_swath'] = None
 
-        # Load the miscellaneous metadata for CARD4L-NRB
-        swath_misc_metadata = get_swath_misc_metadata(tree_manifest,
-                                                      tree_lads,
-                                                      product_annotation)
+
+    with open_method(iw2_annotation_path, 'r') as iw2_f:
+        tree_lads2 = ET.parse(iw2_f)
 
     # load the Calibraton annotation
     try:
@@ -783,11 +776,11 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
                                     'annotation/calibration/calibration-')
         with open_method(calibration_annotation_path, 'r') as f_cads:
             tree_cads = ET.parse(f_cads)
-            calibration_annotation =\
+            annotation_datasets['calibration_annotation'] =\
                 CalibrationAnnotation.from_et(tree_cads,
                                               calibration_annotation_path)
     except (FileNotFoundError, KeyError):
-        calibration_annotation = None
+        annotation_datasets['calibration_annotation'] = None
 
     # load the Noise annotation
     try:
@@ -795,10 +788,10 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
                                                         'annotation/calibration/noise-')
         with open_method(noise_annotation_path, 'r') as f_nads:
             tree_nads = ET.parse(f_nads)
-            noise_annotation = NoiseAnnotation.from_et(tree_nads, ipf_version,
+            annotation_datasets['noise_annotation'] = NoiseAnnotation.from_et(tree_nads, ipf_version,
                                                        noise_annotation_path)
     except (FileNotFoundError, KeyError):
-        noise_annotation = None
+        annotation_datasets['noise_annotation'] = None
 
 
     # load AUX_CAL annotation
@@ -807,7 +800,10 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
         path_aux_cals = os.path.join(f'{os.path.dirname(s1_annotation.__file__)}',
                                      'data',
                                      'aux_cal')
-        path_aux_cal = get_path_aux_cal(path_aux_cals, annotation_path)
+
+        str_sensing_start = safe_filename[5]
+        sensing_start = datetime.datetime.strptime(str_sensing_start,'%Y%m%dT%H%M%S')
+        path_aux_cal = get_path_aux_cal(path_aux_cals, platform_id, sensing_start)
 
         # Raise error flag when AUX_CAL file cannot be found
         if path_aux_cal is None:
@@ -816,70 +812,251 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
                                     f'config ID: {product_annotation.inst_config_id}')
 
         subswath_id = os.path.basename(annotation_path).split('-')[1]
-        aux_cal_subswath = AuxCal.load_from_zip_file(path_aux_cal,
+        annotation_datasets['aux_cal_subswath'] = AuxCal.load_from_zip_file(path_aux_cal,
                                                      pol,
                                                      subswath_id)
     else:
         # No need to load aux_cal (not applying EAP correction)
-        aux_cal_subswath = None
+        annotation_datasets['aux_cal_subswath'] = None
+
+    bursts = _bursts_from_et(tree_lads, tree_lads2, tree_manifest, annotation_datasets, 
+                             orbit_path, tiff_path, safe_filename)
+    return  bursts
+
+def get_subxml_from_burst_metadata(metadata: ET.Element, xml_type: str, subswath: str=None, polarization: str=None):
+    '''Extract child xml info from ASF combined metadata file.
+
+    Parameters:
+    -----------
+    metadata : ET.Element
+        lxml Element representing combined metadata XML
+    xml_typ : str
+        Desired type of metadata to obtain (product, noise, calibration, or rfi)
+    subswath : str
+        Desired subswath to obtain data for
+    polarization : str
+        Desired polarization to obtain data for
+
+    Returns:
+    --------
+    (name, desired_data):
+        filename and lxml Element for desired metadata
+    '''
+    if xml_type == 'manifest':
+        name = 'manifest.xml'
+        desired_metadata = metadata.find('manifest/{urn:ccsds:schema:xfdu:1}XFDU')
+        return name, desired_metadata
+    
+    possible_types = ['product', 'noise', 'calibration', 'rfi']
+    if xml_type not in possible_types:
+        raise ValueError(f'Metadata type {xml_type} not one of {" ".join(possible_types)}')
+
+    if subswath is None or polarization is None:
+        raise ValueError('subswath and polarization must be provide for non-manifest files')
+    
+    correct_type = [x for x in metadata.find('metadata').iterchildren() if x.tag == xml_type]
+    correct_swath = [x for x in correct_type if x.find('swath').text == subswath]
+    correct_pol = [x for x in correct_swath if x.find('polarisation').text == polarization]
+
+    if not correct_pol:
+        name = None
+        desired_metadata = None
+    else:
+        name = str(correct_pol[0].get('source_filename'))
+        desired_metadata = correct_pol[0].find('content')
+
+    return name, desired_metadata
+    
+
+def burst_from_combined_xml(tiff_path: str, metadata_path, orbit_path: str, flag_apply_eap: bool = True, open_method=open):
+    '''Parse bursts from a ASF combined Sentinel-1 metadata XML.
+
+    Parameters:
+    -----------
+    tiff_path : str
+        Path to tiff file holding Sentinel-1 SLC.
+    metadata_path : str
+        Path to ASF combined metadata file.
+    orbit_path : str
+        Path to orbit file.
+    flag_apply_eqp: bool
+        Flag to turn on/off EAP related functionality
+    open_method : function
+        Function used to open annotation file.
+
+    Returns:
+    --------
+    burst: Sentinel1BurstSlc
+        Sentinel1BurstSlc object found in combined XML that corresponds to the burst SLC tiff.
+    '''
+    tiff_name = os.path.split(tiff_path)[-1]
+    _, short_burst_id, subswath, _, pol = [x.upper() for x in tiff_name.split('_')[:5]]
+
+    # parse manifest.safe to retrieve IPF version
+    # Also load the Product annotation - for EAP calibration and RFI information
+    annotation_datasets = {}
+    with open_method(metadata_path, 'r') as metadata_file:
+        tree_metadata = ET.parse(metadata_file).getroot()
+
+    tree_manifest = get_subxml_from_burst_metadata(tree_metadata, 'manifest')[1]
+    ipf_version = get_ipf_version(tree_manifest)
+    # Parse out the start/end track to determine if we have an
+    # equator crossing (for the burst_id calculation).
+    start_track, end_track = get_start_end_track(tree_manifest)
+    
+    name_lads, tree_lads = get_subxml_from_burst_metadata(tree_metadata, 'product', subswath, pol)
+    product_annotation = ProductAnnotation.from_et(tree_lads)
+    tree_lads2 = get_subxml_from_burst_metadata(tree_metadata, 'product', 'IW2', pol)[1]
+
+    # Load RFI information if available
+    tree_rads = get_subxml_from_burst_metadata(tree_metadata, 'rfi', subswath, pol)[1]
+    if tree_rads is not None:
+        annotation_datasets['burst_rfi_info_swath'] = SwathRfiInfo.from_et(tree_rads,
+                                                    tree_lads,
+                                                    ipf_version)
+    else:
+        if ipf_version >= RFI_INFO_AVAILABLE_FROM:
+            warnings.warn(f"RFI annotation expected (IPF version={ipf_version}"
+                            f" >= {RFI_INFO_AVAILABLE_FROM}), but not loaded.")
+        annotation_datasets['burst_rfi_info_swath'] = None
+
+    # load the Calibraton annotation
+    tree_cads = get_subxml_from_burst_metadata(tree_metadata, 'calibration', subswath, pol)[1]
+    if tree_cads is not None:
+        annotation_datasets['calibration_annotation'] = CalibrationAnnotation.from_et(tree_cads, '')
+    else:
+        annotation_datasets['calibration_annotation'] = None
+
+    # load the Noise annotation
+    tree_nads = get_subxml_from_burst_metadata(tree_metadata, 'noise', subswath, pol)[1]
+    try:
+        annotation_datasets['noise_annotation'] = NoiseAnnotation.from_et(tree_nads, ipf_version, '')
+    except (FileNotFoundError, KeyError):
+        annotation_datasets['noise_annotation'] = None
+
+
+    # load AUX_CAL annotation
+    eap_necessity = is_eap_correction_necessary(ipf_version)
+    if eap_necessity.phase_correction and flag_apply_eap:
+        path_aux_cals = os.path.join(f'{os.path.dirname(s1_annotation.__file__)}',
+                                     'data',
+                                     'aux_cal')
+        platform_id, _, _, _, str_sensing_start = name_lads.split('-')[0:5]
+        sensing_start = datetime.datetime.strptime(str_sensing_start.upper(), '%Y%m%dT%H%M%S')
+
+        path_aux_cal = get_path_aux_cal(path_aux_cals, platform_id, sensing_start)
+
+        # Raise error flag when AUX_CAL file cannot be found
+        if path_aux_cal is None:
+            raise FileNotFoundError(f'Cannot find corresponding AUX_CAL in {path_aux_cals}. '
+                                    f'Platform: {platform_id}, inst, '
+                                    f'config ID: {product_annotation.inst_config_id}')
+
+        annotation_datasets['aux_cal_subswath'] = AuxCal.load_from_zip_file(path_aux_cal,
+                                                     pol,
+                                                     subswath)
+    else:
+        # No need to load aux_cal (not applying EAP correction)
+        annotation_datasets['aux_cal_subswath'] = None
+    
+    bursts = _bursts_from_et(tree_lads, tree_lads2, tree_manifest, annotation_datasets, 
+                             orbit_path, tiff_path, None)
+
+    short_id = '_'.join([short_burst_id, subswath]).lower()
+    burst = [x for x in bursts if str(x.burst_id)[5:] == short_id and x.polarization == pol][0]
+    return burst
+
+def _bursts_from_et(annotation_et: ET.Element, iw2_annotation_et: ET.Element, manifest_et: ET.Element, annotation_datasets: dict,
+                    orbit_path: str, tiff_path: str, safe_filename: str):
+    '''Combine loaded Sentinel-1 SLC metadata into list of Sentinel1BurstSlc objects.
+
+    Parameters:
+    -----------
+    annotation_et : ET.Element
+        Element representing a bursts's annotation file.
+    iw2_annotation_et : ET.Element
+        Element representing a bursts's associated IW2 annoation file.
+    manifest_et : ET.Element
+        Element representing a bursts's associated manifest file.
+    annotation_datasets : dict
+        dictionary containing the various loaded Annotation* classes.
+    orbit_path : str
+        Path to orbit file.
+    tiff_path : str
+        Path to SLC tiff.
+    safe_file : str
+        Name of the bursts's parent SAFE file.
+
+    Returns:
+    --------
+    bursts : list
+        List of Sentinel1BurstSlc objects found in annotation XML.
+    '''
+ 
+    ipf_version = get_ipf_version(manifest_et)
+    # Parse out the start/end track to determine if we have an
+    # equator crossing (for the burst_id calculation).
+    start_track, end_track = get_start_end_track(manifest_et)
+    product_annotation = ProductAnnotation.from_et(annotation_et)
+    # Load the miscellaneous metadata for CARD4L-NRB
+    swath_misc_metadata = get_swath_misc_metadata(manifest_et, annotation_et, product_annotation)
+    
+    platform_id = annotation_et.find('adsHeader/missionId').text.upper()
+    subswath = annotation_et.find('adsHeader/swath').text.upper()
+    pol = annotation_et.find('adsHeader/polarisation').text.upper()
 
     # Nearly all metadata loaded here is common to all bursts in annotation XML
-    with open_method(annotation_path, 'r') as f:
-        tree = ET.parse(f)
+    product_info_element = annotation_et.find('generalAnnotation/productInformation')
+    azimuth_steer_rate =\
+        np.radians(float(product_info_element.find('azimuthSteeringRate').text))
+    radar_freq = float(product_info_element.find('radarFrequency').text)
+    range_sampling_rate = float(product_info_element.find('rangeSamplingRate').text)
+    orbit_direction = product_info_element.find('pass').text
 
-        product_info_element = tree.find('generalAnnotation/productInformation')
-        azimuth_steer_rate =\
-            np.radians(float(product_info_element.find('azimuthSteeringRate').text))
-        radar_freq = float(product_info_element.find('radarFrequency').text)
-        range_sampling_rate = float(product_info_element.find('rangeSamplingRate').text)
-        orbit_direction = product_info_element.find('pass').text
+    image_info_element = annotation_et.find('imageAnnotation/imageInformation')
+    azimuth_time_interval = float(image_info_element.find('azimuthTimeInterval').text)
+    slant_range_time = float(image_info_element.find('slantRangeTime').text)
+    ascending_node_time_annotation =\
+        as_datetime(image_info_element.find('ascendingNodeTime').text)
+    first_line_utc_time = as_datetime(image_info_element.find('productFirstLineUtcTime').text)
+    last_line_utc_time = as_datetime(image_info_element.find('productLastLineUtcTime').text)
 
-        image_info_element = tree.find('imageAnnotation/imageInformation')
-        azimuth_time_interval = float(image_info_element.find('azimuthTimeInterval').text)
-        slant_range_time = float(image_info_element.find('slantRangeTime').text)
-        ascending_node_time_annotation =\
-            as_datetime(image_info_element.find('ascendingNodeTime').text)
-        first_line_utc_time = as_datetime(image_info_element.find('productFirstLineUtcTime').text)
-        last_line_utc_time = as_datetime(image_info_element.find('productLastLineUtcTime').text)
+    downlink_element = annotation_et.find('generalAnnotation/downlinkInformationList/'
+                                    'downlinkInformation')
+    prf_raw_data = float(downlink_element.find('prf').text)
+    rank = int(downlink_element.find('downlinkValues/rank').text)
+    range_chirp_ramp_rate = float(downlink_element.find('downlinkValues/txPulseRampRate').text)
 
-        downlink_element = tree.find('generalAnnotation/downlinkInformationList/'
-                                     'downlinkInformation')
-        prf_raw_data = float(downlink_element.find('prf').text)
-        rank = int(downlink_element.find('downlinkValues/rank').text)
-        range_chirp_ramp_rate = float(downlink_element.find('downlinkValues/txPulseRampRate').text)
+    n_lines = int(annotation_et.find('swathTiming/linesPerBurst').text)
+    n_samples = int(annotation_et.find('swathTiming/samplesPerBurst').text)
 
-        n_lines = int(tree.find('swathTiming/linesPerBurst').text)
-        n_samples = int(tree.find('swathTiming/samplesPerBurst').text)
+    az_rate_list_element = annotation_et.find('generalAnnotation/azimuthFmRateList')
+    poly_name = 'azimuthFmRatePolynomial'
+    az_fm_rate_list = [parse_polynomial_element(x, poly_name) for x in az_rate_list_element]
 
-        az_rate_list_element = tree.find('generalAnnotation/azimuthFmRateList')
-        poly_name = 'azimuthFmRatePolynomial'
-        az_fm_rate_list = [parse_polynomial_element(x, poly_name) for x in az_rate_list_element]
+    doppler_list_element = annotation_et.find('dopplerCentroid/dcEstimateList')
+    poly_name = 'dataDcPolynomial'
+    doppler_list = [parse_polynomial_element(x, poly_name) for x in doppler_list_element]
 
-        doppler_list_element = tree.find('dopplerCentroid/dcEstimateList')
-        poly_name = 'dataDcPolynomial'
-        doppler_list = [parse_polynomial_element(x, poly_name) for x in doppler_list_element]
+    rng_processing_element = annotation_et.find('imageAnnotation/processingInformation/'
+                                        'swathProcParamsList/swathProcParams/'
+                                        'rangeProcessing')
+    rng_processing_bandwidth = float(rng_processing_element.find('processingBandwidth').text)
+    range_window_type = str(rng_processing_element.find('windowType').text)
+    range_window_coeff = float(rng_processing_element.find('windowCoefficient').text)
 
-        rng_processing_element = tree.find('imageAnnotation/processingInformation/'
-                                           'swathProcParamsList/swathProcParams/'
-                                           'rangeProcessing')
-        rng_processing_bandwidth = float(rng_processing_element.find('processingBandwidth').text)
-        range_window_type = str(rng_processing_element.find('windowType').text)
-        range_window_coeff = float(rng_processing_element.find('windowCoefficient').text)
-
-        orbit_number = int(tree.find('adsHeader/absoluteOrbitNumber').text)
+    orbit_number = int(annotation_et.find('adsHeader/absoluteOrbitNumber').text)
 
     wavelength = isce3.core.speed_of_light / radar_freq
     starting_range = slant_range_time * isce3.core.speed_of_light / 2
     range_pxl_spacing = isce3.core.speed_of_light / (2 * range_sampling_rate)
 
     # calculate the range at mid swath (mid of SM swath, mid of IW2 or mid of EW3)
-    with open_method(iw2_annotation_path, 'r') as iw2_f:
-        iw2_tree = ET.parse(iw2_f)
-        iw2_slant_range_time =\
-            float(iw2_tree.find('imageAnnotation/imageInformation/slantRangeTime').text)
-        iw2_n_samples = int(iw2_tree.find('swathTiming/samplesPerBurst').text)
-        iw2_starting_range = iw2_slant_range_time * isce3.core.speed_of_light / 2
-        iw2_mid_range = iw2_starting_range + 0.5 * iw2_n_samples * range_pxl_spacing
+    iw2_slant_range_time =\
+        float(iw2_annotation_et.find('imageAnnotation/imageInformation/slantRangeTime').text)
+    iw2_n_samples = int(iw2_annotation_et.find('swathTiming/samplesPerBurst').text)
+    iw2_starting_range = iw2_slant_range_time * isce3.core.speed_of_light / 2
+    iw2_mid_range = iw2_starting_range + 0.5 * iw2_n_samples * range_pxl_spacing
 
     # find orbit state vectors in 'Data_Block/List_of_OSVs'
     if orbit_path:
@@ -921,11 +1098,11 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
 
     # load individual burst
     half_burst_in_seconds = 0.5 * (n_lines - 1) * azimuth_time_interval
-    burst_list_elements = tree.find('swathTiming/burstList')
+    burst_list_elements = annotation_et.find('swathTiming/burstList')
     n_bursts = int(burst_list_elements.attrib['count'])
     bursts = [[]] * n_bursts
 
-    center_pts, boundary_pts = get_burst_centers_and_boundaries(tree, num_bursts=n_bursts)
+    center_pts, boundary_pts = get_burst_centers_and_boundaries(annotation_et, num_bursts=n_bursts)
 
     for i, burst_list_element in enumerate(burst_list_elements):
         # Zero Doppler azimuth time of the first line of this burst
@@ -974,26 +1151,26 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
                           last_valid_samples[last_line])
 
         # Extract burst-wise information for Calibration, Noise, and EAP correction
-        if calibration_annotation is None:
+        if annotation_datasets['calibration_annotation'] is None:
             burst_calibration = None
         else:
-            burst_calibration = BurstCalibration.from_calibration_annotation(calibration_annotation,
+            burst_calibration = BurstCalibration.from_calibration_annotation(annotation_datasets['calibration_annotation'],
                                                                              sensing_start)
-        if noise_annotation is None:
+        if annotation_datasets['noise_annotation'] is None:
             burst_noise = None
         else:
-            burst_noise = BurstNoise.from_noise_annotation(noise_annotation,
+            burst_noise = BurstNoise.from_noise_annotation(annotation_datasets['noise_annotation'],
                                                            sensing_start,
                                                            i*n_lines,
                                                            (i+1)*n_lines-1,
                                                            ipf_version)
-        if aux_cal_subswath is None:
+        if annotation_datasets['aux_cal_subswath'] is None:
             # Not applying EAP correction; (IPF high enough or user turned that off)
             # No need to fill in `burst_aux_cal`
             burst_aux_cal = None
         else:
             burst_aux_cal = BurstEAP.from_product_annotation_and_aux_cal(product_annotation,
-                                                                         aux_cal_subswath,
+                                                                         annotation_datasets['aux_cal_subswath'],
                                                                          sensing_start)
 
         # Extended FM and DC coefficient information
@@ -1004,11 +1181,11 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
             sensing_start + sensing_duration)
 
         # RFI information
-        if burst_rfi_info_swath is None:
+        if annotation_datasets['burst_rfi_info_swath'] is None:
             burst_rfi_info = None
         else:
             burst_rfi_info =\
-                burst_rfi_info_swath.extract_by_aztime(sensing_start)
+                annotation_datasets['burst_rfi_info_swath'].extract_by_aztime(sensing_start)
 
         # Miscellaneous burst metadata
         burst_misc_metadata = swath_misc_metadata.extract_by_aztime(sensing_start)
@@ -1052,6 +1229,34 @@ def _is_zip_annotation_xml(path: str, id_str: str) -> bool:
         return True
     return False
 
+def load_single_burst(data_path: str, metadata_path: str, orbit_path: str, flag_apply_eap: bool = True):
+    '''Load a burst from an ASF-extracted Sentinel-1 burst SLC data and metadata files.
+
+    Parameters:
+    -----------
+    tiff_path : str
+        Path to tiff file holding Sentinel-1 burst SLC.
+    metadata_path : str
+        Path to ASF combined metadata file.
+    orbit_path : str
+        Path to orbit file.
+    flag_apply_eap: bool
+        Turn on/off EAP related features (AUX_CAL loader)
+
+    Returns:
+    --------
+    burst: Sentinel1BurstSlc
+        Sentinel1BurstSlc object found in combined XML that corresponds to the SLC tiff.
+    '''
+    if not os.path.exists(data_path):
+        raise FileNotFoundError(f'{data_path} not found')
+    if not os.path.exists(metadata_path):
+        raise FileNotFoundError(f'{metadata_path} not found')
+    if not os.path.exists(orbit_path):
+        raise FileNotFoundError(f'{orbit_path} not found')
+
+    burst = burst_from_combined_xml(data_path, metadata_path, orbit_path, flag_apply_eap = flag_apply_eap)
+    return burst
 
 def load_bursts(path: str, orbit_path: str, swath_num: int, pol: str = 'vv',
                 burst_ids: list[Union[str, S1BurstId]] = None,
