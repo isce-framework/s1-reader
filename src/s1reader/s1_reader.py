@@ -835,6 +835,7 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
         orbit_direction = product_info_element.find('pass').text
 
         image_info_element = tree.find('imageAnnotation/imageInformation')
+        average_azimuth_pixel_spacing = float(image_info_element.find('azimuthPixelSpacing').text)
         azimuth_time_interval = float(image_info_element.find('azimuthTimeInterval').text)
         slant_range_time = float(image_info_element.find('slantRangeTime').text)
         ascending_node_time_annotation =\
@@ -1014,7 +1015,8 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
         burst_misc_metadata = swath_misc_metadata.extract_by_aztime(sensing_start)
 
         bursts[i] = Sentinel1BurstSlc(ipf_version, sensing_start, radar_freq, wavelength,
-                                      azimuth_steer_rate, azimuth_time_interval,
+                                      azimuth_steer_rate, average_azimuth_pixel_spacing,
+                                      azimuth_time_interval,
                                       slant_range_time, starting_range, iw2_mid_range,
                                       range_sampling_rate, range_pxl_spacing,
                                       (n_lines, n_samples), az_fm_rate, doppler,
