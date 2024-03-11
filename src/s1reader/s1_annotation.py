@@ -95,14 +95,15 @@ class AnnotationBase:
     A virtual base class of the inheriting annotation class i.e. Product, Calibration, and Noise.
     Not intended for standalone use.
     '''
-    xml_et: ET
 
-    @classmethod
-    def _parse_scalar(cls, path_field: str, str_type: str):
-        '''A class method that parse the scalar value in AnnotationBase.xml_et
+    @staticmethod
+    def _parse_scalar(xml_et: ET.ElementTree, path_field: str, str_type: str):
+        '''A static method that parse the scalar value in AnnotationBase.xml_et
 
         Parameters
         ----------
+        xml_et : lxml.etree.ElementTree
+            XML tree to parse
         path_field : str
             Field in the xml_et to parse
         str_type : str
@@ -112,14 +113,11 @@ class AnnotationBase:
 
         Returns
         -------
-        val_out: {datetime.datetime, int, float, np.array, str}
+        val_out: {datetime.datetime, int, float, str}
             Parsed data in the annotation
             Datatype of vel_out follows str_type.
-            val_out becomes np.array when str_type is vector*
-
         '''
-
-        elem_field = cls.xml_et.find(path_field)
+        elem_field = xml_et.find(path_field)
         if str_type == 'datetime':
             val_out = datetime.datetime.strptime(elem_field.text, '%Y-%m-%dT%H:%M:%S.%f')
 
@@ -129,12 +127,6 @@ class AnnotationBase:
         elif str_type == 'scalar_float':
             val_out = float(elem_field.text)
 
-        elif str_type == 'vector_int':
-            val_out = np.array([int(strin) for strin in elem_field.text.split()])
-
-        elif str_type == 'vector_float':
-            val_out = np.array([float(strin) for strin in elem_field.text.split()])
-
         elif str_type == 'str':
             val_out = elem_field.text
 
@@ -143,16 +135,22 @@ class AnnotationBase:
 
         return val_out
 
-    @classmethod
-    def _parse_vectorlist(cls, name_vector_list: str, name_vector: str, str_type: str):
-        '''A class method that parse the list of the values from xml_et in the class
+
+    @staticmethod
+    def _parse_vectorlist(xml_et: ET.ElementTree,
+                          name_vector_list: str,
+                          name_vector: str,
+                          str_type: str):
+        '''A static method that parse the list of the values from xml_et in the class
 
         Parameters
         ----------
+        xml_et : lxml.etree.ElementTree
+            XML tree to parse
         name_vector_list : str
-            List Field in the xml_et to parse
+            Name of the vector list in the `xml_et` to parse e.g. `noiseVectorList`
         name_vector : str
-            Name of the field in each elements of the VectorList
+            Name of the field in each elements of the `name_vector_list`
             (e.g. 'noiseLut' in 'noiseVectorList')
         str_type : str
             Specify how the texts in the field will be parsed
@@ -163,43 +161,37 @@ class AnnotationBase:
         -------
         val_out: list
             Parsed data in the annotation
-
         '''
+        element_to_parse = xml_et.find(name_vector_list)
+        if not element_to_parse:
+            raise RuntimeError(f'Cannot find {name_vector_list} '
+            'from the input XML element tree')        
 
-        element_to_parse = cls.xml_et.find(name_vector_list)
-        num_element = len(element_to_parse)
+        str_elem_list = [elem.find(name_vector).text for elem in element_to_parse]
+        if str_type == 'str':
+            return str_elem_list
 
-        list_out = [None]*num_element
-
+        list_out = []
+        # All others `str_type`s iterate over the list of elements
         if str_type == 'datetime':
-            for i,elem in enumerate(element_to_parse):
-                str_elem = elem.find(name_vector).text
-                list_out[i] = datetime.datetime.strptime(str_elem, '%Y-%m-%dT%H:%M:%S.%f')
-            list_out = np.array(list_out)
+            for str_elem in str_elem_list:
+                list_out.append(datetime.datetime.strptime(str_elem, '%Y-%m-%dT%H:%M:%S.%f'))
 
         elif str_type == 'scalar_int':
-            for i,elem in enumerate(element_to_parse):
-                str_elem = elem.find(name_vector).text
-                list_out[i] = int(str_elem)
+            for str_elem in str_elem_list:
+                list_out.append(int(str_elem))
 
         elif str_type == 'scalar_float':
-            for i,elem in enumerate(element_to_parse):
-                str_elem = elem.find(name_vector).text
-                list_out[i] = float(str_elem)
+            for str_elem in str_elem_list:
+                list_out.append(float(str_elem))
 
         elif str_type == 'vector_int':
-            for i,elem in enumerate(element_to_parse):
-                str_elem = elem.find(name_vector).text
-                list_out[i] = np.array([int(strin) for strin in str_elem.split()])
+            for str_elem in str_elem_list:
+                list_out.append(np.array([int(strin) for strin in str_elem.split()]))
 
         elif str_type == 'vector_float':
-            for i,elem in enumerate(element_to_parse):
-                str_elem = elem.find(name_vector).text
-                list_out[i] = np.array([float(strin) for strin in str_elem.split()])
-
-        elif str_type == 'str':
-            list_out = element_to_parse[0].find(name_vector).text
-
+            for str_elem in str_elem_list:
+                list_out.append(np.array([float(strin) for strin in str_elem.split()]))
         else:
             raise ValueError(f'Cannot recognize the type of the element: {str_type}')
 
@@ -222,7 +214,7 @@ class CalibrationAnnotation(AnnotationBase):
     @classmethod
     def from_et(cls, et_in: ET, path_annotation: str):
         '''
-        Extracts the list of calibration informaton from etree from
+        Extracts the list of calibration information from etree from
         the Calibration Annotation Data Set (CADS).
         Parameters:
         -----------
@@ -235,40 +227,39 @@ class CalibrationAnnotation(AnnotationBase):
             Instance of CalibrationAnnotation initialized by the input parameter
         '''
 
-        cls.xml_et = et_in
-        cls.basename_annotation = \
-            os.path.basename(path_annotation)
+        basename_annotation = os.path.basename(path_annotation)
 
-        cls.list_azimuth_time = \
-            cls._parse_vectorlist('calibrationVectorList',
-                                  'azimuthTime',
-                                  'datetime')
-        cls.list_line = \
-            cls._parse_vectorlist('calibrationVectorList',
-                                  'line',
-                                  'scalar_int')
-        cls.list_pixel = \
-            cls._parse_vectorlist('calibrationVectorList',
-                                  'pixel',
-                                  'vector_int')
-        cls.list_sigma_nought = \
-            cls._parse_vectorlist('calibrationVectorList',
-                                'sigmaNought',
-                                'vector_float')
-        cls.list_beta_nought = \
-            cls._parse_vectorlist('calibrationVectorList',
-                                  'betaNought',
-                                  'vector_float')
-        cls.list_gamma = \
-            cls._parse_vectorlist('calibrationVectorList',
-                                  'gamma',
-                                  'vector_float')
-        cls.list_dn = \
-            cls._parse_vectorlist('calibrationVectorList',
-                                  'dn',
-                                  'vector_float')
+        list_azimuth_time = cls._parse_vectorlist(et_in,
+                                                  'calibrationVectorList',
+                                                  'azimuthTime',
+                                                  'datetime')
+        list_line = cls._parse_vectorlist(et_in,
+                                          'calibrationVectorList',
+                                          'line',
+                                          'scalar_int')
+        list_pixel = cls._parse_vectorlist(et_in,
+                                           'calibrationVectorList',
+                                           'pixel',
+                                           'vector_int')
+        list_sigma_nought = cls._parse_vectorlist(et_in,
+                                                  'calibrationVectorList',
+                                                  'sigmaNought',
+                                                  'vector_float')
+        list_beta_nought =  cls._parse_vectorlist(et_in,
+                                                  'calibrationVectorList',
+                                                  'betaNought',
+                                                  'vector_float')
+        list_gamma = cls._parse_vectorlist(et_in,
+                                           'calibrationVectorList',
+                                           'gamma',
+                                           'vector_float')
+        list_dn = cls._parse_vectorlist(et_in,
+                                        'calibrationVectorList',
+                                        'dn',
+                                        'vector_float')
 
-        return cls
+        return cls(basename_annotation, list_azimuth_time, list_line, list_pixel,
+                   list_sigma_nought, list_beta_nought, list_gamma, list_dn)
 
 
 @dataclass
@@ -291,7 +282,7 @@ class NoiseAnnotation(AnnotationBase):
     az_noise_azimuth_lut: np.ndarray
 
     @classmethod
-    def from_et(cls,et_in: ET, ipf_version: version.Version, path_annotation: str):
+    def from_et(cls, et_in: ET, ipf_version: version.Version, path_annotation: str):
         '''
         Extracts list of noise information from etree
 
@@ -305,78 +296,102 @@ class NoiseAnnotation(AnnotationBase):
         cls: NoiseAnnotation
             Parsed NADS from et_in
         '''
-
-        cls.xml_et = et_in
-        cls.basename_annotation = os.path.basename(path_annotation)
+        basename_annotation = os.path.basename(path_annotation)
 
         if ipf_version < min_ipf_version_az_noise_vector:  # legacy SAFE data
-            cls.rg_list_azimuth_time = \
-                cls._parse_vectorlist('noiseVectorList',
-                                      'azimuthTime',
-                                      'datetime')
-            cls.rg_list_line = \
-                cls._parse_vectorlist('noiseVectorList',
+            rg_list_azimuth_time = cls._parse_vectorlist(et_in,
+                                                         'noiseVectorList',
+                                                         'azimuthTime',
+                                                         'datetime')
+            rg_list_line = \
+                cls._parse_vectorlist(et_in,
+                                      'noiseVectorList',
                                       'line',
                                       'scalar_int')
-            cls.rg_list_pixel = \
-                cls._parse_vectorlist('noiseVectorList',
+            rg_list_pixel = \
+                cls._parse_vectorlist(et_in,
+                                      'noiseVectorList',
                                       'pixel',
                                       'vector_int')
-            cls.rg_list_noise_range_lut = \
-                cls._parse_vectorlist('noiseVectorList',
+            rg_list_noise_range_lut = \
+                cls._parse_vectorlist(et_in,
+                                      'noiseVectorList',
                                       'noiseLut',
                                       'vector_float')
 
-            cls.az_first_azimuth_line = None
-            cls.az_first_range_sample = None
-            cls.az_last_azimuth_line = None
-            cls.az_last_range_sample = None
-            cls.az_line = None
-            cls.az_noise_azimuth_lut = None
+            az_first_azimuth_line = None
+            az_first_range_sample = None
+            az_last_azimuth_line = None
+            az_last_range_sample = None
+            az_line = None
+            az_noise_azimuth_lut = None
 
         else:
-            cls.rg_list_azimuth_time = \
-                cls._parse_vectorlist('noiseRangeVectorList',
+            rg_list_azimuth_time = \
+                cls._parse_vectorlist(et_in,
+                                      'noiseRangeVectorList',
                                       'azimuthTime',
                                       'datetime')
-            cls.rg_list_line = \
-                cls._parse_vectorlist('noiseRangeVectorList',
+            rg_list_line = \
+                cls._parse_vectorlist(et_in,
+                                      'noiseRangeVectorList',
                                       'line',
                                       'scalar_int')
-            cls.rg_list_pixel = \
-                cls._parse_vectorlist('noiseRangeVectorList',
+            rg_list_pixel = \
+                cls._parse_vectorlist(et_in,
+                                      'noiseRangeVectorList',
                                       'pixel',
                                       'vector_int')
-            cls.rg_list_noise_range_lut = \
-                cls._parse_vectorlist('noiseRangeVectorList',
+            rg_list_noise_range_lut = \
+                cls._parse_vectorlist(et_in,
+                                      'noiseRangeVectorList',
                                       'noiseRangeLut',
                                       'vector_float')
-            cls.az_first_azimuth_line = \
-                cls._parse_vectorlist('noiseAzimuthVectorList',
+            az_first_azimuth_line = \
+                cls._parse_vectorlist(et_in,
+                                      'noiseAzimuthVectorList',
                                       'firstAzimuthLine',
                                       'scalar_int')[0]
-            cls.az_first_range_sample = \
-                cls._parse_vectorlist('noiseAzimuthVectorList',
+            az_first_range_sample = \
+                cls._parse_vectorlist(et_in,
+                                      'noiseAzimuthVectorList',
                                       'firstRangeSample',
                                       'scalar_int')[0]
-            cls.az_last_azimuth_line = \
-                cls._parse_vectorlist('noiseAzimuthVectorList',
+            az_last_azimuth_line = \
+                cls._parse_vectorlist(et_in,
+                                      'noiseAzimuthVectorList',
                                       'lastAzimuthLine',
                                       'scalar_int')[0]
-            cls.az_last_range_sample = \
-                cls._parse_vectorlist('noiseAzimuthVectorList',
+            az_last_range_sample = \
+                cls._parse_vectorlist(et_in,
+                                      'noiseAzimuthVectorList',
                                       'lastRangeSample',
                                       'scalar_int')[0]
-            cls.az_line = \
-                cls._parse_vectorlist('noiseAzimuthVectorList',
+            az_line = \
+                cls._parse_vectorlist(et_in,
+                                      'noiseAzimuthVectorList',
                                       'line',
                                       'vector_int')[0]
-            cls.az_noise_azimuth_lut = \
-                cls._parse_vectorlist('noiseAzimuthVectorList',
+            az_noise_azimuth_lut = \
+                cls._parse_vectorlist(et_in,
+                                      'noiseAzimuthVectorList',
                                       'noiseAzimuthLut',
                                       'vector_float')[0]
 
-        return cls
+        return cls(
+            basename_annotation,
+            rg_list_azimuth_time,
+            rg_list_line,
+            rg_list_pixel,
+            rg_list_noise_range_lut,
+            az_first_azimuth_line,
+            az_first_range_sample,
+            az_last_azimuth_line,
+            az_last_range_sample,
+            az_line,
+            az_noise_azimuth_lut,
+        )
+
 
 
 @dataclass
@@ -420,56 +435,72 @@ class ProductAnnotation(AnnotationBase):
         cls: ProductAnnotation
             Parsed LADS from et_in
         '''
-
-        cls.xml_et = et_in
-
-        cls.antenna_pattern_azimuth_time = \
-            cls._parse_vectorlist('antennaPattern/antennaPatternList',
+        antenna_pattern_azimuth_time = \
+            cls._parse_vectorlist(et_in,
+                                  'antennaPattern/antennaPatternList',
                                   'azimuthTime',
                                   'datetime')
-        cls.antenna_pattern_slant_range_time = \
-            cls._parse_vectorlist('antennaPattern/antennaPatternList',
+        antenna_pattern_slant_range_time = \
+            cls._parse_vectorlist(et_in,
+                                  'antennaPattern/antennaPatternList',
                                   'slantRangeTime',
                                   'vector_float')
-        cls.antenna_pattern_elevation_angle = \
-            cls._parse_vectorlist('antennaPattern/antennaPatternList',
+        antenna_pattern_elevation_angle = \
+            cls._parse_vectorlist(et_in,
+                                  'antennaPattern/antennaPatternList',
                                   'elevationAngle',
                                   'vector_float')
-        cls.antenna_pattern_elevation_pattern = \
-            cls._parse_vectorlist('antennaPattern/antennaPatternList',
+        antenna_pattern_elevation_pattern = \
+            cls._parse_vectorlist(et_in,
+                                  'antennaPattern/antennaPatternList',
                                   'elevationPattern',
                                   'vector_float')
 
-        cls.antenna_pattern_incidence_angle = \
-            cls._parse_vectorlist('antennaPattern/antennaPatternList',
+        antenna_pattern_incidence_angle = \
+            cls._parse_vectorlist(et_in,
+                                  'antennaPattern/antennaPatternList',
                                   'incidenceAngle',
                                   'vector_float')
 
-        cls.image_information_slant_range_time = \
-            cls._parse_scalar('imageAnnotation/imageInformation/slantRangeTime',
+        image_information_slant_range_time = \
+            cls._parse_scalar(et_in,
+                              'imageAnnotation/imageInformation/slantRangeTime',
                               'scalar_float')
-        cls.ascending_node_time = \
-            cls._parse_scalar('imageAnnotation/imageInformation/ascendingNodeTime',
+        ascending_node_time = \
+            cls._parse_scalar(et_in,
+                              'imageAnnotation/imageInformation/ascendingNodeTime',
                               'datetime')
-        cls.number_of_samples = \
-            cls._parse_scalar('imageAnnotation/imageInformation/numberOfSamples',
+        number_of_samples = \
+            cls._parse_scalar(et_in,
+                              'imageAnnotation/imageInformation/numberOfSamples',
                               'scalar_int')
-        cls.number_of_samples = \
-            cls._parse_scalar('imageAnnotation/imageInformation/numberOfSamples',
-                              'scalar_int')
-        cls.range_sampling_rate = \
-            cls._parse_scalar('generalAnnotation/productInformation/rangeSamplingRate',
+        range_sampling_rate = \
+            cls._parse_scalar(et_in,
+                              'generalAnnotation/productInformation/rangeSamplingRate',
                               'scalar_float')
-        cls.slant_range_time =  \
-            cls._parse_scalar('imageAnnotation/imageInformation/slantRangeTime',
+        slant_range_time =  \
+            cls._parse_scalar(et_in,
+                              'imageAnnotation/imageInformation/slantRangeTime',
                               'scalar_float')
-
-        cls.inst_config_id = \
-            cls._parse_scalar('generalAnnotation/downlinkInformationList/downlinkInformation/'
+        instrument_cfg_id = \
+            cls._parse_scalar(et_in,
+                              'generalAnnotation/downlinkInformationList/downlinkInformation/'
                               'downlinkValues/instrumentConfigId',
                               'scalar_int')
 
-        return cls
+        return cls(
+            image_information_slant_range_time,
+            instrument_cfg_id,
+            antenna_pattern_azimuth_time,
+            antenna_pattern_slant_range_time,
+            antenna_pattern_elevation_angle,
+            antenna_pattern_elevation_pattern,
+            antenna_pattern_incidence_angle,
+            ascending_node_time,
+            number_of_samples,
+            range_sampling_rate,
+            slant_range_time,
+        )
 
 
 @dataclass
@@ -537,13 +568,13 @@ class AuxCal(AnnotationBase):
             swath_xml = calibration_params.find('swath').text
             polarisation_xml = calibration_params.find('polarisation').text
             if polarisation_xml == pol.upper() and swath_xml==str_swath.upper():
-                cls.beam_nominal_near_range = \
+                beam_nominal_near_range = \
                     float(calibration_params.
                         find('elevationAntennaPattern/beamNominalNearRange').text)
-                cls.beam_nominal_far_range = \
+                beam_nominal_far_range = \
                     float(calibration_params.
                         find('elevationAntennaPattern/beamNominalFarRange').text)
-                cls.elevation_angle_increment = \
+                elevation_angle_increment = \
                     float(calibration_params.
                         find('elevationAntennaPattern/elevationAngleIncrement').text)
 
@@ -557,37 +588,48 @@ class AuxCal(AnnotationBase):
 
                 if n_val == len(arr_eap_val):
                     # Provided in real numbers: In case of AUX_CAL for old IPFs.
-                    cls.elevation_antenna_pattern = arr_eap_val
+                    elevation_antenna_pattern = arr_eap_val
                 elif n_val*2 == len(arr_eap_val):
                     # Provided in complex numbers: In case of recent IPFs e.g. 3.10
-                    cls.elevation_antenna_pattern = arr_eap_val[0::2] + arr_eap_val[1::2] * 1.0j
+                    elevation_antenna_pattern = arr_eap_val[0::2] + arr_eap_val[1::2] * 1.0j
                 else:
                     raise ValueError('The number of values does not match. '
                                     f'n_val={n_val}, '
                                     f'#len(elevationAntennaPattern/values)={len(arr_eap_val)}')
 
-                cls.azimuth_angle_increment = \
+                azimuth_angle_increment = \
                     float(calibration_params.
                         find('azimuthAntennaPattern/azimuthAngleIncrement').text)
-                cls.azimuth_antenna_pattern = \
+                azimuth_antenna_pattern = \
                     np.array([float(token_val) for \
                               token_val in calibration_params.
                               find('azimuthAntennaPattern/values').text.split()])
 
-                cls.azimuth_antenna_element_pattern_increment = \
+                azimuth_antenna_element_pattern_increment = \
                     float(calibration_params.
                         find('azimuthAntennaElementPattern/azimuthAngleIncrement').text)
-                cls.azimuth_antenna_element_pattern = \
+                azimuth_antenna_element_pattern = \
                     np.array([float(token_val) for \
                               token_val in calibration_params.
                               find('azimuthAntennaElementPattern/values').text.split()])
 
-                cls.absolute_calibration_constant = \
+                absolute_calibration_constant = \
                     float(calibration_params.find('absoluteCalibrationConstant').text)
-                cls.noise_calibration_factor = \
+                noise_calibration_factor = \
                     float(calibration_params.find('noiseCalibrationFactor').text)
 
-        return cls
+        return cls(
+            beam_nominal_near_range,
+            beam_nominal_far_range,
+            elevation_angle_increment,
+            elevation_antenna_pattern,
+            azimuth_angle_increment,
+            azimuth_antenna_pattern,
+            azimuth_antenna_element_pattern_increment,
+            azimuth_antenna_element_pattern,
+            absolute_calibration_constant,
+            noise_calibration_factor,
+        )
 
 
 @dataclass
@@ -610,10 +652,7 @@ class SwathRfiInfo:
     azimuth_time_list: list
 
     @classmethod
-    def from_et(cls,
-                et_rfi: ET,
-                et_product: ET,
-                ipf_version: version.Version):
+    def from_et(cls, et_rfi: ET, et_product: ET):
         '''Load RFI information from etree
 
         Parameters
@@ -622,25 +661,17 @@ class SwathRfiInfo:
             XML ElementTree from RFI annotation
         et_product: ET
             XML ElementTree from product annotation
-        ipf_version: version.Version
-            IPF version of the input sentinel-1 data
 
         Returns
         -------
         cls: SwathRfiInfo
             dataclass populated by this function
         '''
-
-        if ipf_version < RFI_INFO_AVAILABLE_FROM:
-            # RFI related processing is not in place
-            # return an empty dataclass
-            return None
-
         # Attempt to locate the RFI information from the input annotations
         header_lads = et_product.find('imageAnnotation/processingInformation')
         if header_lads is None:
             raise ValueError('Cannot locate the element in the product '
-                             'anotation where RFI mitigation info is located.')
+                             'annotation where RFI mitigation info is located.')
 
         header_rfi = et_rfi.find('rfiBurstReportList')
         if header_rfi is None:
@@ -648,26 +679,29 @@ class SwathRfiInfo:
                              'in the RFI annotation')
 
         # Start to load RFI information
-        cls.rfi_mitigation_performed =\
+        rfi_mitigation_performed =\
             header_lads.find('rfiMitigationPerformed').text
-        cls.rfi_mitigation_domain =\
+        rfi_mitigation_domain =\
             header_lads.find('rfiMitigationDomain').text
 
         num_burst_rfi_report = len(header_rfi)
-        cls.rfi_burst_report_list = [None] * num_burst_rfi_report
-        cls.azimuth_time_list = [None] * num_burst_rfi_report
+        rfi_burst_report_list = [None] * num_burst_rfi_report
+        azimuth_time_list = [None] * num_burst_rfi_report
 
         for i_burst, elem_burst in enumerate(header_rfi):
-            cls.rfi_burst_report_list[i_burst] =\
+            rfi_burst_report_list[i_burst] =\
                 element_to_dict(elem_burst)['rfiBurstReport']
-            cls.azimuth_time_list[i_burst] =\
-                cls.rfi_burst_report_list[i_burst]['azimuthTime']
+            azimuth_time_list[i_burst] =\
+                rfi_burst_report_list[i_burst]['azimuthTime']
 
-        return cls
+        return cls(
+            rfi_mitigation_performed,
+            rfi_mitigation_domain,
+            rfi_burst_report_list,
+            azimuth_time_list,
+        )
 
-
-    @classmethod
-    def extract_by_aztime(cls, aztime_start: datetime.datetime):
+    def extract_by_aztime(self, aztime_start: datetime.datetime):
         '''
         Extract the burst RFI report that is within the azimuth time of a burst
 
@@ -685,14 +719,14 @@ class SwathRfiInfo:
 
         # find the corresponding burst
         index_burst =\
-            closest_block_to_azimuth_time(np.array(cls.azimuth_time_list),
+            closest_block_to_azimuth_time(self.azimuth_time_list,
                                           aztime_start)
 
-        burst_report_out = cls.rfi_burst_report_list[index_burst]
+        burst_report_out = self.rfi_burst_report_list[index_burst]
 
         rfi_info = SimpleNamespace()
-        rfi_info.rfi_mitigation_performed = cls.rfi_mitigation_performed
-        rfi_info.rfi_mitigation_domain = cls.rfi_mitigation_domain
+        rfi_info.rfi_mitigation_performed = self.rfi_mitigation_performed
+        rfi_info.rfi_mitigation_domain = self.rfi_mitigation_domain
         rfi_info.rfi_burst_report = burst_report_out
 
         return rfi_info
@@ -750,7 +784,7 @@ class SwathMiscMetadata:
         return burst_misc_metadata
 
 
-def closest_block_to_azimuth_time(vector_azimuth_time: np.ndarray,
+def closest_block_to_azimuth_time(vector_azimuth_time: list,
                                   azimuth_time_burst: datetime.datetime) -> int:
     '''
     Find the id of the closest data block in annotation.
@@ -758,8 +792,10 @@ def closest_block_to_azimuth_time(vector_azimuth_time: np.ndarray,
 
     Parameters
     ----------
-    vector_azimuth_time : np.ndarray
-        numpy array azimuth time whose data type is datetime.datetime
+    vector_azimuth_time : list
+        list of azimuth times whose data type is datetime.datetime.
+        Comes from `_parse_vectorlist`
+
     azimuth_time_burst: datetime.datetime
         Azimuth time of the burst
 
@@ -770,7 +806,7 @@ def closest_block_to_azimuth_time(vector_azimuth_time: np.ndarray,
 
     '''
 
-    return np.argmin(np.abs(vector_azimuth_time - azimuth_time_burst))
+    return np.argmin(np.abs(np.array(vector_azimuth_time) - azimuth_time_burst))
 
 
 @dataclass
@@ -1100,7 +1136,8 @@ class BurstEAP:
         Implementation from S1A documention.
 
         Code copied from ISCE2.
-
+        See https://eop-cfi.esa.int/Repo/PUBLIC/DOCUMENTATION/SYSTEM_SUPPORT_DOCS/Mission%20Convention%20Documents/MCD_custom_v4_23.pdf
+        table 10.
 
         Parameters:
         -----------

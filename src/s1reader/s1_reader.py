@@ -761,9 +761,7 @@ def burst_from_xml(annotation_path: str, orbit_path: str, tiff_path: str,
         try:
             with open_method(rfi_annotation_path, 'r') as f_rads:
                 tree_rads = ET.parse(f_rads)
-                burst_rfi_info_swath = SwathRfiInfo.from_et(tree_rads,
-                                                            tree_lads,
-                                                            ipf_version)
+                burst_rfi_info_swath = SwathRfiInfo.from_et(tree_rads, tree_lads)
 
         except (FileNotFoundError, KeyError):
             if ipf_version >= RFI_INFO_AVAILABLE_FROM:
