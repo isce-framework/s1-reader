@@ -454,9 +454,6 @@ class ProductAnnotation(AnnotationBase):
         cls.number_of_samples = \
             cls._parse_scalar('imageAnnotation/imageInformation/numberOfSamples',
                               'scalar_int')
-        cls.number_of_samples = \
-            cls._parse_scalar('imageAnnotation/imageInformation/numberOfSamples',
-                              'scalar_int')
         cls.range_sampling_rate = \
             cls._parse_scalar('generalAnnotation/productInformation/rangeSamplingRate',
                               'scalar_float')
