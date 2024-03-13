@@ -38,6 +38,11 @@ def test_burst(bursts):
         assert burst.radar_center_frequency == 5405000454.33435
         assert burst.wavelength == 0.05546576
         assert burst.azimuth_steer_rate == 0.024389943375862838
+
+        # the average azimuth pixel spacing varies across bursts
+        assert burst.average_azimuth_pixel_spacing > 13.9
+        assert burst.average_azimuth_pixel_spacing < 14.0
+
         assert burst.starting_range == 901673.89084624
         assert burst.iw2_mid_range == 875604.926001518
         assert burst.range_sampling_rate == 64345238.12571428

@@ -218,6 +218,7 @@ class Sentinel1BurstSlc:
     radar_center_frequency: float
     wavelength: float
     azimuth_steer_rate: float
+    average_azimuth_pixel_spacing: float
     azimuth_time_interval: float
     slant_range_time: float
     starting_range: float
