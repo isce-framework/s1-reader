@@ -3,6 +3,7 @@ from dataclasses import dataclass
 import datetime
 import lxml.etree as ET
 import tempfile
+from pathlib import Path
 from typing import Optional
 import warnings
 
@@ -402,8 +403,8 @@ class Sentinel1BurstSlc:
         no_data_value = ET.SubElement(vrt_raster_band, 'NoDataValue')
         no_data_value.text = '0.0'
         simple_source = ET.SubElement(vrt_raster_band, 'SimpleSource')
-        source_filename = ET.SubElement(simple_source, 'SourceFilename', relativeToVRT='1')
-        source_filename.text = self.tiff_path
+        source_filename = ET.SubElement(simple_source, 'SourceFilename', relativeToVRT='0')
+        source_filename.text = str(Path(self.tiff_path).resolve())
         source_band = ET.SubElement(simple_source, 'SourceBand')
         source_band.text = '1'
         if not using_extracted_burst:
