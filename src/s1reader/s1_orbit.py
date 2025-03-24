@@ -250,8 +250,9 @@ def _get_orbit_dict(mission_id, start_time, end_time, orbit_type):
     new_start_time = start_time.strftime("%Y-%m-%dT%H:%M:%S")
     new_end_time = end_time.strftime("%Y-%m-%dT%H:%M:%S")
     query_string = (
-        f"startswith(Name,'{mission_id}') and substringof('{orbit_type}',Name) "
-        f"and ContentDate/Start lt datetime'{new_start_time}' and ContentDate/End gt datetime'{new_end_time}'"
+        f"startswith(Name,'{mission_id}') and substringof('{orbit_type}',Name) and"
+        f" ContentDate/Start lt datetime'{new_start_time}' and ContentDate/End gt"
+        f" datetime'{new_end_time}'"
     )
     query_params = {
         "$top": 1,

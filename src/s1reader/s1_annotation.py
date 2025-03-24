@@ -21,7 +21,6 @@ from packaging import version
 from s1reader.s1_orbit import T_ORBIT
 from scipy.interpolate import InterpolatedUnivariateSpline, interp1d
 
-
 # Minimum IPF version from which the S1 product's Noise Annotation
 # Data Set (NADS) includes azimuth noise vector annotation
 min_ipf_version_az_noise_vector = version.parse("2.90")

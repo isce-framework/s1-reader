@@ -361,7 +361,10 @@ class Sentinel1BurstSlc:
             Path of output GTiff file.
         """
         if not self.tiff_path:
-            warn_str = "Unable write SLC to file. Burst does not contain image data; only metadata."
+            warn_str = (
+                "Unable write SLC to file. Burst does not contain image data; only"
+                " metadata."
+            )
             warnings.warn(warn_str)
             return
 
@@ -395,7 +398,10 @@ class Sentinel1BurstSlc:
             Path of output VRT file.
         """
         if not self.tiff_path:
-            warn_str = "Unable write SLC to file. Burst does not contain image data; only metadata."
+            warn_str = (
+                "Unable write SLC to file. Burst does not contain image data; only"
+                " metadata."
+            )
             warnings.warn(warn_str)
             return
 
@@ -412,7 +418,7 @@ class Sentinel1BurstSlc:
         fulllength = gdal_obj.RasterYSize
 
         # TODO maybe cleaner to write with ElementTree
-        tmpl = f'''<VRTDataset rasterXSize="{outwidth}" rasterYSize="{outlength}">
+        tmpl = f"""<VRTDataset rasterXSize="{outwidth}" rasterYSize="{outlength}">
     <VRTRasterBand dataType="CFloat32" band="1">
         <NoDataValue>0.0</NoDataValue>
         <SimpleSource>
@@ -423,7 +429,7 @@ class Sentinel1BurstSlc:
             <DstRect xOff="{xoffset}" yOff="{localyoffset}" xSize="{inwidth}" ySize="{inlength}"/>
         </SimpleSource>
     </VRTRasterBand>
-</VRTDataset>'''
+</VRTDataset>"""
 
         with open(out_path, "w") as fid:
             fid.write(tmpl)
