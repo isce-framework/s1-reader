@@ -1175,5 +1175,10 @@ class Sentinel1BurstSlc:
     @property
     def relative_orbit_number(self):
         """Returns the relative orbit number of the burst."""
-        orbit_number_offset = 73 if self.platform_id == "S1A" else 202
+        if self.platform_id == "S1A":
+            orbit_number_offset = 73
+        elif self.platform_id == "S1B":
+            orbit_number_offset = 27
+        else:
+            orbit_number_offset = 99
         return (self.abs_orbit_number - orbit_number_offset) % 175 + 1
