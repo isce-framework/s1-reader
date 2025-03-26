@@ -114,26 +114,22 @@ def get_orbit_files(orbit_type: Literal["precise", "restituted"]) -> list[str]:
     ValueError
         If an invalid orbit_type is provided.
     """
-    prefix = (
-        "AUX_POEORB"
-        if orbit_type == "precise"
-        else "AUX_RESORB"
-        if orbit_type == "restituted"
-        else None
-    )
-    if prefix is None:
+    if orbit_type not in ("precise", "restituted"):
         raise ValueError("orbit_type must be either 'precise' or 'restituted'")
+        
+    match orbit_type:
+        case  "precise":
+            prefix = "AUX_POEORB"
+        case "restituted":
+            prefix = "AUX_RESORB"
 
-    all_keys = list_public_bucket(ASF_BUCKET_NAME)
-    orbit_files = [key for key in all_keys if key.startswith(prefix)]
-
+    orbit_files = list_public_bucket(ASF_BUCKET_NAME, prefix=prefix)
     logger.info(f"Found {len(orbit_files)} {orbit_type} orbit files")
     return orbit_files
 
 
 def download_orbit_file_from_s3(key: str, orbit_dir: str) -> str:
-    """
-    Download an orbit file from the ASF S3 bucket.
+    """Download an orbit file from the ASF S3 bucket.
 
     Parameters
     ----------
@@ -164,10 +160,8 @@ def retrieve_orbit_file(
     concatenate: bool = False,
     orbit_type_preference: Literal["precise", "restituted"] = "precise",
 ) -> str | list | None:
-    """
-    Retrieve the orbit file for a given SAFE file using the ASF S3 service.
+    """Retrieve the orbit file for a given SAFE file using the ASF S3 service.
 
-    This high-level function replaces the old Scihub-based API.
 
     Parameters
     ----------
@@ -290,8 +284,7 @@ def retrieve_orbit_file(
 
 
 def _parse_safe_filename(safe_filename):
-    """
-    Extract info from S1-A/B SAFE filename.
+    """Extract info from S1-A/B SAFE filename.
 
     SAFE filename structure:
       S1A_IW_SLC__1SDV_20150224T114043_20150224T114111_004764_005E86_AD02.SAFE
@@ -310,8 +303,7 @@ def _parse_safe_filename(safe_filename):
 
 
 def _get_file_name_tokens(zip_path: str) -> tuple[str, list[datetime.datetime]]:
-    """
-    Extract swath platform ID and start/stop times from a SAFE file path.
+    """Extract swath platform ID and start/stop times from a SAFE file path.
 
     Returns
     -------
@@ -329,8 +321,7 @@ def get_orbit_file_from_dir(
     auto_download: bool = False,
     concat_resorb: bool = False,
 ) -> str | list | None:
-    """
-    Get the orbit state vector list for a given swath from a directory.
+    """Get the orbit state vector list for a given swath from a directory.
 
     If the orbit file is not found locally and auto_download is True,
     the file is retrieved from ASF S3.
@@ -379,9 +370,7 @@ def get_orbit_file_from_dir(
 def get_orbit_file_from_list(
     zip_path: str, orbit_file_list: list, concat_resorb: bool = False
 ) -> str | list | None:
-    """
-    Get the orbit file for a given S-1 swath from a list of files.
-    """
+    """Get the orbit file for a given S-1 swath from a list of files."""
 
     mission_id, t_swath_start_stop = _get_file_name_tokens(zip_path)
     t_search_window = [t_swath_start_stop[0] - margin_start_time, t_swath_start_stop[1]]
@@ -417,8 +406,7 @@ def get_orbit_file_from_list(
 
 
 def _covers_timeframe(orbit_file: str, t_start_stop_frame: list) -> bool:
-    """
-    Check if the orbit file covers the specified time frame.
+    """Check if the orbit file covers the specified time frame.
 
     Parameters
     ----------
@@ -441,8 +429,7 @@ def _covers_timeframe(orbit_file: str, t_start_stop_frame: list) -> bool:
 def get_resorb_pair_from_list(
     zip_path: str, orbit_file_list: list, concatenate_resorb: bool = False
 ) -> list | str | None:
-    """
-    Find two RESORB files that cover the required time frame.
+    """Find two RESORB files that cover the required time frame.
 
     Used if POEORB is not found, or there is no RESORB file that
     covers the sensing period + margin at the starting time.
@@ -550,8 +537,7 @@ def get_resorb_pair_from_list(
 
 
 def combine_xml_orbit_elements(file1: str, file2: str) -> str:
-    """
-    Combine the orbit elements from two XML orbit files.
+    """Combine the orbit elements from two XML orbit files.
 
     `file1` is the "base" of the output: All of the orbit state vectors from `file1` are used,
     and only the OSVs from `file2` which do fall within the time range of `file1` are included.
@@ -601,8 +587,7 @@ def combine_xml_orbit_elements(file1: str, file2: str) -> str:
 
 
 def merge_osv_list(list_of_osvs1, list_of_osvs2):
-    """
-    Merge two orbit state vector lists and sort them in chronological order.
+    """Merge two orbit state vector lists and sort them in chronological order.
 
     Apply sorting to make sure the OSVs are in chronological order
     `list_of_osvs1` will be the "base OSV list" while the OSVs in
@@ -629,8 +614,7 @@ def merge_osv_list(list_of_osvs1, list_of_osvs2):
 def _generate_filename(
     file_base: str, new_start: datetime.datetime, new_stop: datetime.datetime
 ) -> str:
-    """
-    Generate a new filename for the concatenated orbit file.
+    """Generate a new filename for the concatenated orbit file.
 
     Parameters
     ----------
@@ -655,8 +639,7 @@ def _generate_filename(
 
 
 def _sort_list_of_osv(list_of_osvs):
-    """
-    Sort the orbit state vector elements by UTC timestamp.
+    """Sort the orbit state vector elements by UTC timestamp.
 
     Parameters
     ----------
@@ -680,8 +663,7 @@ def _sort_list_of_osv(list_of_osvs):
 
 
 def _get_utc_time_from_osv(osv):
-    """
-    Extract the UTC time from an orbit state vector element.
+    """Extract the UTC time from an orbit state vector element.
 
     Parameters
     ----------
