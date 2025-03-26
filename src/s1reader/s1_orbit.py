@@ -116,13 +116,8 @@ def get_orbit_files(orbit_type: Literal["precise", "restituted"]) -> list[str]:
     """
     if orbit_type not in ("precise", "restituted"):
         raise ValueError("orbit_type must be either 'precise' or 'restituted'")
-        
-    match orbit_type:
-        case  "precise":
-            prefix = "AUX_POEORB"
-        case "restituted":
-            prefix = "AUX_RESORB"
 
+    prefix = "AUX_POEORB" if orbit_type == "precise" else "AUX_RESORB"
     orbit_files = list_public_bucket(ASF_BUCKET_NAME, prefix=prefix)
     logger.info(f"Found {len(orbit_files)} {orbit_type} orbit files")
     return orbit_files
