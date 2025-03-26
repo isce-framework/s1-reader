@@ -588,7 +588,20 @@ def merge_osv_list(list_of_osvs1, list_of_osvs2):
     `list_of_osvs1` will be the "base OSV list" while the OSVs in
     `list_of_osvs2` not in the time range of the base OSV list will be
     appended.
+
+    Parameters
+    ---------
+    list_of_osvs1: ElementTree
+        Base OSV list.
+    list_of_osvs2: ElementTree
+        OSV list to be augmented to the base OSV list
+
+    Returns
+    -------
+    ElementTree
+        Merged OSV list
     """
+    # Extract the UTC from the OSV of the first XML
     osv1_utc_list = [_get_utc_time_from_osv(osv1) for osv1 in list_of_osvs1]
     min_utc_osv1 = min(osv1_utc_list)
     max_utc_osv1 = max(osv1_utc_list)

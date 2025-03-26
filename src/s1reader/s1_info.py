@@ -1,4 +1,5 @@
 """Extract the burst ID information from a Sentinel-1 SLC product."""
+
 from __future__ import annotations
 
 import argparse
@@ -207,7 +208,10 @@ def get_cli_args():
     parser.add_argument(
         "--frame-bbox",
         action="store_true",
-        help="Print the frame bounding box (lonmin, latmin, lonmax, latmax) of the S1 product.",
+        help=(
+            "Print the frame bounding box (lonmin, latmin, lonmax, latmax) of the S1"
+            " product."
+        ),
     )
     parser.add_argument(
         "--burst-bbox",
