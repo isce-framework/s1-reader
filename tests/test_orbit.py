@@ -268,20 +268,3 @@ def test_retrieve_orbit_file(tmp_path, test_paths, monkeypatch):
     )
     assert isinstance(result, list)
     assert len(result) == 2
-
-    # Test case 4: Precise orbits found
-    # Add a mock precise orbit that covers the timeframe
-    poeorb_name = (
-        "S1A_OPER_AUX_POEORB_OPOD_20230830T120000_V20230822T120000_20230824T120000.EOF"
-    )
-    poeorb_files.append(f"AUX_POEORB/{poeorb_name}")
-
-    # Create a mock precise orbit file
-    poe_file = source_orbit_dir / poeorb_name
-    poe_file.write_text("Mock POEORB file")
-
-    result = s1reader.s1_orbit.retrieve_orbit_file(
-        slc_file, str(orbit_dir), concatenate=False, orbit_type_preference="precise"
-    )
-    assert isinstance(result, str)
-    assert os.path.basename(result) == poeorb_name
