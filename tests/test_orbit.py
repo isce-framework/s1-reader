@@ -22,6 +22,7 @@ from s1reader.s1_orbit import (
     list_public_bucket,
 )
 from s1reader.s1_reader import as_datetime, get_ascending_node_time_orbit
+import s1reader.s1_orbit
 
 
 @pytest.mark.vcr
@@ -158,7 +159,7 @@ def test_anx_time(test_paths):
 def test_combine_xml_orbit_elements(tmp_path, test_paths):
     slc_file = (
         tmp_path
-        / "S1A_IW_SLC__1SDV_20230823T154908_20230823T154935_050004_060418_521B.SAFE"
+        / "S1A_IW_SLC__1SDV_20230823T154908_20230823T154935_050004_060418_521B.SAFES1A_IW_SLC__1SDV_20230823T154908_20230823T154935_050004_060418_521B"
     )
     slc_file.write_text("")
     orbit_dir = Path(test_paths.orbit_dir)
@@ -190,3 +191,97 @@ def test_combine_xml_orbit_elements(tmp_path, test_paths):
     assert len(list(tmp_path.glob("*RESORB*.EOF"))) == 3
     assert orbit_filename == new_resorb_file
     assert get_orbit_file_from_dir(slc_file, tmp_path) == new_resorb_file
+
+
+def test_retrieve_orbit_file(tmp_path, test_paths, monkeypatch):
+    """Test retrieving orbit files for an edge case where a pair of restituted orbit files is needed."""
+    # Setup test data
+    slc_file = (
+        "S1A_IW_SLC__1SDV_20230823T154908_20230823T154935_050004_060418_521B.SAFE"
+    )
+    orbit_dir = tmp_path / "orbits"
+    orbit_dir.mkdir()
+
+    # File names from the previous test
+    candidates = [
+        "S1A_OPER_AUX_RESORB_OPOD_20230823T192850_V20230823T154908_20230823T190638.EOF",
+        "S1A_OPER_AUX_RESORB_OPOD_20230823T174849_V20230823T141024_20230823T172754.EOF",
+        "S1A_OPER_AUX_RESORB_OPOD_20230823T162050_V20230823T123139_20230823T154909.EOF",
+        "S1A_OPER_AUX_RESORB_OPOD_20230823T144155_V20230823T105254_20230823T141024.EOF",
+    ]
+    expected = [
+        "S1A_OPER_AUX_RESORB_OPOD_20230823T162050_V20230823T123139_20230823T154909.EOF",
+        "S1A_OPER_AUX_RESORB_OPOD_20230823T174849_V20230823T141024_20230823T172754.EOF",
+    ]
+
+    # Mock orbit files to return
+    resorb_files = [f"AUX_RESORB/{f}" for f in candidates]
+    poeorb_files = []  # No precise orbit files for this test
+
+    # Mock functions
+    def mock_get_orbit_files(orbit_type):
+        return poeorb_files if orbit_type == "precise" else resorb_files
+
+    def mock_download_orbit_file_from_s3(key, dir_path):
+        # Simulate downloading by copying from test_paths
+        source_file = Path(test_paths.orbit_dir) / os.path.basename(key)
+        dest_file = Path(dir_path) / os.path.basename(key)
+        shutil.copy(source_file, dest_file)
+        return str(dest_file)
+
+    # Apply the monkeypatches
+    monkeypatch.setattr("s1reader.s1_orbit.get_orbit_files", mock_get_orbit_files)
+    monkeypatch.setattr(
+        "s1reader.s1_orbit.download_orbit_file_from_s3",
+        mock_download_orbit_file_from_s3,
+    )
+    # monkeypatch.setattr("get_orbit_files", mock_get_orbit_files)
+    # monkeypatch.setattr("download_orbit_file_from_s3", mock_download_orbit_file_from_s3)
+
+    # Copy the real orbit files to the test_paths directory for the mock to use
+    source_orbit_dir = Path(test_paths.orbit_dir)
+
+    # Test case 1: Without concatenation
+    result = s1reader.s1_orbit.retrieve_orbit_file(
+        slc_file, str(orbit_dir), concatenate=False, orbit_type_preference="precise"
+    )
+    assert isinstance(result, list)
+    assert len(result) == 2
+    result_basenames = [os.path.basename(path) for path in result]
+    assert expected == result_basenames
+    result_contents = [Path(r).read_text() for r in result]
+
+    # Test case 2: With concatenation
+    result = s1reader.s1_orbit.retrieve_orbit_file(
+        slc_file, str(orbit_dir), concatenate=True, orbit_type_preference="precise"
+    )
+    assert isinstance(result, str)
+    # Verify it's a concatenated file
+    result_content2 = Path(result).read_text()
+    assert len(result_content2) > len(result_contents[0])
+    assert len(result_content2) > len(result_contents[1])
+    assert os.path.basename(result).startswith("S1A_OPER_AUX_RESORB")
+
+    # Test case 3: Direct restituted search
+    result = s1reader.s1_orbit.retrieve_orbit_file(
+        slc_file, str(orbit_dir), concatenate=False, orbit_type_preference="restituted"
+    )
+    assert isinstance(result, list)
+    assert len(result) == 2
+
+    # Test case 4: Precise orbits found
+    # Add a mock precise orbit that covers the timeframe
+    poeorb_name = (
+        "S1A_OPER_AUX_POEORB_OPOD_20230830T120000_V20230822T120000_20230824T120000.EOF"
+    )
+    poeorb_files.append(f"AUX_POEORB/{poeorb_name}")
+
+    # Create a mock precise orbit file
+    poe_file = source_orbit_dir / poeorb_name
+    poe_file.write_text("Mock POEORB file")
+
+    result = s1reader.s1_orbit.retrieve_orbit_file(
+        slc_file, str(orbit_dir), concatenate=False, orbit_type_preference="precise"
+    )
+    assert isinstance(result, str)
+    assert os.path.basename(result) == poeorb_name
