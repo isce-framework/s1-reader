@@ -159,7 +159,7 @@ def test_anx_time(test_paths):
 def test_combine_xml_orbit_elements(tmp_path, test_paths):
     slc_file = (
         tmp_path
-        / "S1A_IW_SLC__1SDV_20230823T154908_20230823T154935_050004_060418_521B.SAFES1A_IW_SLC__1SDV_20230823T154908_20230823T154935_050004_060418_521B"
+        / "S1A_IW_SLC__1SDV_20230823T154908_20230823T154935_050004_060418_521B.SAFE"
     )
     slc_file.write_text("")
     orbit_dir = Path(test_paths.orbit_dir)
