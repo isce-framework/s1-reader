@@ -6,7 +6,7 @@ import os
 import warnings
 import logging
 import requests
-import xml.etree.ElementTree as ET
+import lxml.etree as ET
 from pathlib import Path
 from functools import cache
 from typing import Literal
