@@ -4,24 +4,46 @@ Unit tests for orbit
 
 import datetime
 import os
-from pathlib import Path
 import shutil
 import zipfile
+from pathlib import Path
 
 import isce3
 import lxml.etree as ET
 import numpy as np
+import pytest
 from shapely.geometry import Point
 
 
-from s1reader.s1_orbit import get_orbit_file_from_dir, combine_xml_orbit_elements
+from s1reader.s1_orbit import (
+    ASF_BUCKET_NAME,
+    get_orbit_file_from_dir,
+    combine_xml_orbit_elements,
+    list_public_bucket,
+)
 from s1reader.s1_reader import as_datetime, get_ascending_node_time_orbit
+import s1reader.s1_orbit
 
 
-def test_get_orbit_file(test_paths):
-    """
-    Unit test for `get_orbit_file_from_dir`
-    """
+@pytest.mark.vcr
+def test_list_public_bucket_resorb():
+    resorbs = list_public_bucket(ASF_BUCKET_NAME, prefix="AUX_RESORB")
+    assert (
+        resorbs[0]
+        == "AUX_RESORB/S1A_OPER_AUX_RESORB_OPOD_20231002T140558_V20231002T102001_20231002T133731.EOF"
+    )
+
+
+@pytest.mark.vcr
+def test_list_public_bucket_poeorb():
+    precise = list_public_bucket(ASF_BUCKET_NAME, prefix="AUX_POEORB")
+    assert (
+        precise[0]
+        == "AUX_POEORB/S1A_OPER_AUX_POEORB_OPOD_20210203T122423_V20210113T225942_20210115T005942.EOF"
+    )
+
+
+def test_get_orbit_file_from_dir(test_paths):
     orbit_file = get_orbit_file_from_dir(test_paths.safe, test_paths.orbit_dir)
 
     expected_orbit_path = f"{test_paths.orbit_dir}/{test_paths.orbit_file}"
@@ -169,3 +191,106 @@ def test_combine_xml_orbit_elements(tmp_path, test_paths):
     assert len(list(tmp_path.glob("*RESORB*.EOF"))) == 3
     assert orbit_filename == new_resorb_file
     assert get_orbit_file_from_dir(slc_file, tmp_path) == new_resorb_file
+
+
+@pytest.fixture
+def resorb_edge_case_setup(tmp_path, test_paths, monkeypatch):
+    """Setup common test components for the edge case RESORB tests."""
+    slc_file = (
+        "S1A_IW_SLC__1SDV_20230823T154908_20230823T154935_050004_060418_521B.SAFE"
+    )
+    orbit_dir = tmp_path / "orbits"
+    orbit_dir.mkdir()
+
+    candidates = [
+        "S1A_OPER_AUX_RESORB_OPOD_20230823T192850_V20230823T154908_20230823T190638.EOF",
+        "S1A_OPER_AUX_RESORB_OPOD_20230823T174849_V20230823T141024_20230823T172754.EOF",
+        "S1A_OPER_AUX_RESORB_OPOD_20230823T162050_V20230823T123139_20230823T154909.EOF",
+        "S1A_OPER_AUX_RESORB_OPOD_20230823T144155_V20230823T105254_20230823T141024.EOF",
+    ]
+    expected = [
+        "S1A_OPER_AUX_RESORB_OPOD_20230823T162050_V20230823T123139_20230823T154909.EOF",
+        "S1A_OPER_AUX_RESORB_OPOD_20230823T174849_V20230823T141024_20230823T172754.EOF",
+    ]
+
+    resorb_files = [f"AUX_RESORB/{f}" for f in candidates]
+    poeorb_files = []  # No precise orbit files for these tests
+
+    # Override calls to list orbits and download
+    # We have nowhere that stores the old RESORBs indefinitely
+    def mock_get_orbit_files(orbit_type):
+        return poeorb_files if orbit_type == "precise" else resorb_files
+
+    def mock_download_orbit_file_from_s3(key, dir_path):
+        source_file = Path(test_paths.orbit_dir) / os.path.basename(key)
+        dest_file = Path(dir_path) / os.path.basename(key)
+        shutil.copy(source_file, dest_file)
+        return str(dest_file)
+
+    monkeypatch.setattr("s1reader.s1_orbit.get_orbit_files", mock_get_orbit_files)
+    monkeypatch.setattr(
+        "s1reader.s1_orbit.download_orbit_file_from_s3",
+        mock_download_orbit_file_from_s3,
+    )
+
+    return {
+        "slc_file": slc_file,
+        "orbit_dir": str(orbit_dir),
+        "expected_files": expected,
+    }
+
+
+def test_retrieve_orbit_file_without_concatenation(resorb_edge_case_setup):
+    """Test retrieving orbit files without concatenation."""
+    slc_file = resorb_edge_case_setup["slc_file"]
+    orbit_dir = resorb_edge_case_setup["orbit_dir"]
+    expected = resorb_edge_case_setup["expected_files"]
+
+    result = s1reader.s1_orbit.retrieve_orbit_file(
+        slc_file, orbit_dir, concatenate=False, orbit_type_preference="precise"
+    )
+
+    assert isinstance(result, list)
+    assert len(result) == 2
+    result_basenames = [os.path.basename(path) for path in result]
+    assert sorted(expected) == sorted(result_basenames)
+
+
+def test_retrieve_orbit_file_with_concatenation(resorb_edge_case_setup):
+    """Test retrieving orbit files with concatenation."""
+    slc_file = resorb_edge_case_setup["slc_file"]
+    orbit_dir = resorb_edge_case_setup["orbit_dir"]
+
+    # First get the individual files to compare content sizes
+    individual_files = s1reader.s1_orbit.retrieve_orbit_file(
+        slc_file, orbit_dir, concatenate=False, orbit_type_preference="precise"
+    )
+    individual_contents = [Path(f).read_text() for f in individual_files]
+
+    # Test retrieving with concatenation
+    result = s1reader.s1_orbit.retrieve_orbit_file(
+        slc_file, orbit_dir, concatenate=True, orbit_type_preference="precise"
+    )
+
+    assert isinstance(result, str)
+    result_content = Path(result).read_text()
+    assert len(result_content) > len(individual_contents[0])
+    assert len(result_content) > len(individual_contents[1])
+    assert os.path.basename(result).startswith("S1A_OPER_AUX_RESORB")
+
+
+def test_retrieve_orbit_file_direct_restituted(resorb_edge_case_setup):
+    """Test directly retrieving restituted orbit files."""
+    slc_file = resorb_edge_case_setup["slc_file"]
+    orbit_dir = resorb_edge_case_setup["orbit_dir"]
+    expected = resorb_edge_case_setup["expected_files"]
+
+    # Test direct restituted search
+    result = s1reader.s1_orbit.retrieve_orbit_file(
+        slc_file, orbit_dir, concatenate=False, orbit_type_preference="restituted"
+    )
+
+    assert isinstance(result, list)
+    assert len(result) == 2
+    result_basenames = [os.path.basename(path) for path in result]
+    assert sorted(expected) == sorted(result_basenames)

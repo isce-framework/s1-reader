@@ -25,6 +25,7 @@ jobs:
       - run:
           name: "Run unit tests"
           command: |
+            python -m pip install pytest-recording
             python3 -m pytest
 
 workflows:
