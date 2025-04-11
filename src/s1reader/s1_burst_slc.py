@@ -245,7 +245,7 @@ class Sentinel1BurstSlc:
     range_bandwidth: float
     polarization: str  # {VV, VH, HH, HV}
     burst_id: S1BurstId
-    platform_id: str  # S1{A,B}
+    platform_id: str  # S1{A,B,C}
     safe_filename: str  # SAFE file name
     center: tuple  # {center lon, center lat} in degrees
     border: list  # list of lon, lat coordinate tuples (in degrees) representing burst border
@@ -1179,6 +1179,8 @@ class Sentinel1BurstSlc:
             orbit_number_offset = 73
         elif self.platform_id == "S1B":
             orbit_number_offset = 27
+        elif self.platform_id == "S1C":
+            orbit_number_offset = 172
         else:
-            orbit_number_offset = 99
+            raise ValueError(f"Unknown platform_id: {self.platform_id}")
         return (self.abs_orbit_number - orbit_number_offset) % 175 + 1
