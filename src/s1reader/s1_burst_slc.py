@@ -1179,6 +1179,8 @@ class Sentinel1BurstSlc:
             orbit_number_offset = 73
         elif self.platform_id == "S1B":
             orbit_number_offset = 27
-        else:
+        elif self.platform_id == "S1C":
             orbit_number_offset = 172
+        else:
+            raise ValueError(f"Unknown platform_id: {self.platform_id}")
         return (self.abs_orbit_number - orbit_number_offset) % 175 + 1
