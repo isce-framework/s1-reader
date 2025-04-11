@@ -1180,5 +1180,5 @@ class Sentinel1BurstSlc:
         elif self.platform_id == "S1B":
             orbit_number_offset = 27
         else:
-            orbit_number_offset = 99
+            orbit_number_offset = 172
         return (self.abs_orbit_number - orbit_number_offset) % 175 + 1
