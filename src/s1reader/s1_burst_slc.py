@@ -94,7 +94,7 @@ def polyfit(
 
     val, res, _, _ = np.linalg.lstsq(A, z, rcond=cond)
     if len(res) > 0:
-        print("Chi squared: %f" % (np.sqrt(res / (1.0 * len(z)))))
+        print("Chi squared: %f" % np.sqrt(res / (1.0 * len(z))).item())
     else:
         print("No chi squared value....")
         print("Try reducing rank of polynomial.")
