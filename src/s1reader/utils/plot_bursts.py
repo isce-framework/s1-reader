@@ -13,6 +13,7 @@ from osgeo import osr
 from shapely.geometry import Polygon
 from shapely import wkt
 
+from s1reader.constants import SENSOR_MODE_SUBSWATHS
 from s1reader.s1_orbit import get_orbit_file_from_dir
 from s1reader.s1_reader import load_bursts
 
@@ -91,11 +92,13 @@ def burst_map(slc, orbit_dir, x_spacing, y_spacing, epsg, output_filename):
         "last_valid_sample": [],
         "border": [],
     }
-    i_subswath = [1, 2, 3]
+    # get the sensory acquisition mode, iw or ew
+    sensor_mode = str(Path(slc).name).split("_")[1].lower()
+    subswaths = SENSOR_MODE_SUBSWATHS[sensor_mode]
     pol = "vv"
     orbit_path = get_orbit_file_from_dir(slc, orbit_dir) if orbit_dir else None
 
-    for subswath in i_subswath:
+    for subswath in subswaths:
         ref_bursts = load_bursts(slc, orbit_path, subswath, pol)
         for burst in ref_bursts:
             burst_map["burst_id"].append(burst.burst_id)

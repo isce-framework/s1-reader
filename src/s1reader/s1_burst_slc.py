@@ -236,7 +236,7 @@ class Sentinel1BurstSlc:
     azimuth_time_interval: float
     slant_range_time: float
     starting_range: float
-    iw2_mid_range: float
+    iw2_mid_range: Optional[float]
     range_sampling_rate: float
     range_pixel_spacing: float
     shape: tuple()
@@ -278,6 +278,8 @@ class Sentinel1BurstSlc:
     burst_rfi_info: SimpleNamespace
 
     burst_misc_metadata: SimpleNamespace
+
+    ew3_mid_range: Optional[float]
 
     def __str__(self):
         return f"Sentinel1BurstSlc: {self.burst_id} at {self.sensing_start}"
@@ -611,7 +613,11 @@ class Sentinel1BurstSlc:
 
         pri = 1.0 / self.prf_raw_data
         tau0 = self.rank * pri
-        tau_mid = self.iw2_mid_range * 2.0 / isce3.core.speed_of_light
+
+        if self.iw2_mid_range is not None:
+            tau_mid = self.iw2_mid_range * 2.0 / isce3.core.speed_of_light
+        else:
+            tau_mid = self.ew3_mid_range * 2.0 / isce3.core.speed_of_light
 
         slant_vec, az_vec = self._steps_to_vecs(range_step, az_step)
 
@@ -624,6 +630,8 @@ class Sentinel1BurstSlc:
         # currently we have not been able to verify this from ESA documents.
         # This implementation follows the Gisinger et al. (2021) for now, we
         # can revise when we hear back from ESA folks.
+        # For EW, the mid of third subswath is used and will similarly need to
+        # be verified
         bistatic_correction_vec = tau_mid / 2 + tau / 2 - tau0
         ny = az_vec.size
         bistatic_correction = np.tile(bistatic_correction_vec.reshape(1, -1), (ny, 1))
@@ -1142,7 +1150,7 @@ class Sentinel1BurstSlc:
 
     @property
     def swath_name(self):
-        """Swath name in iw1, iw2, iw3."""
+        """Swath name in iw1, iw2, iw3, ew1, ew2, ew3, ew4, ew5"""
         return self.burst_id.subswath.lower()
 
     @property
