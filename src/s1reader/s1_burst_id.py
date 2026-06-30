@@ -66,7 +66,7 @@ class S1BurstId:
         https://sentinels.copernicus.eu/documents/247904/1877131/S1-TN-MDA-52-7445_Sentinel-1+Level+1+Detailed+Algorithm+Definition_v2-4.pdf/83624863-6429-cfb8-2371-5c5ca82907b8
         """
         # map the subswath onto the sensor mode
-        sensor_mode = {"I" : "iw", "E" : "ew"}[subswath[0].upper()]
+        sensor_mode = {"I": "iw", "E": "ew"}[subswath[0].upper()]
         swath_num = int(subswath[-1])
         # Since we only have access to the current subswath, we need to use the
         # burst-to-burst times to figure out
@@ -85,17 +85,19 @@ class S1BurstId:
         EW_BURST_TIMES = np.array([0.68268, 0.55873, 0.61234, 0.56538, 0.61925])
         IW_BURST_TIMES = np.array([0.832, 1.078, 0.848])
         burst_times = {"iw": IW_BURST_TIMES, "ew": EW_BURST_TIMES}[sensor_mode]
-        
+
         # generalise offset for swath 1
         s1_start_offsets = np.concatenate([[0], -np.cumsum(burst_times[:-1])])
         s1_start_offset = s1_start_offsets[swath_num - 1]
         start_s_t = sensing_time + datetime.timedelta(seconds=s1_start_offset)
-        
+
         # generalise offset to mid swath, array indexed at zero (e.g. swath 1 = idx 0)
-        mid_swath = SENSOR_MODE_MID_SWATH[sensor_mode] # e.g. 2 for IW, 3 for EW
+        mid_swath = SENSOR_MODE_MID_SWATH[sensor_mode]  # e.g. 2 for IW, 3 for EW
         ref_idx = mid_swath - 1  # 0-based index of reference swath
-        start_s_to_mid_s_offset = float(np.sum(burst_times[:ref_idx])) + burst_times[ref_idx] / 2
-        mid_s_t = start_s_t +  datetime.timedelta(seconds=start_s_to_mid_s_offset)
+        start_s_to_mid_s_offset = (
+            float(np.sum(burst_times[:ref_idx])) + burst_times[ref_idx] / 2
+        )
+        mid_s_t = start_s_t + datetime.timedelta(seconds=start_s_to_mid_s_offset)
 
         has_anx_crossing = (end_track == start_track + 1) or (
             end_track == 1 and start_track == 175

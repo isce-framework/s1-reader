@@ -7,20 +7,96 @@ import numpy as np
 def test_ew3_burst(ew3_bursts):
     """Detailed per-burst assertions for EW3 (reference subswath), all 21 bursts."""
     first_valid_lines = [
-        11, 10, 10, 10, 10, 11, 11, 10, 11, 10,
-        10, 10, 10, 10, 11, 10, 10, 11, 10, 10, 11,
+        11,
+        10,
+        10,
+        10,
+        10,
+        11,
+        11,
+        10,
+        11,
+        10,
+        10,
+        10,
+        10,
+        10,
+        11,
+        10,
+        10,
+        11,
+        10,
+        10,
+        11,
     ]
     last_valid_lines = [
-        1158, 1159, 1159, 1159, 1159, 1160, 1160, 1158, 1159, 1159,
-        1159, 1159, 1159, 1159, 1159, 1159, 1158, 1159, 1159, 1158, 1159,
+        1158,
+        1159,
+        1159,
+        1159,
+        1159,
+        1160,
+        1160,
+        1158,
+        1159,
+        1159,
+        1159,
+        1159,
+        1159,
+        1159,
+        1159,
+        1159,
+        1158,
+        1159,
+        1159,
+        1158,
+        1159,
     ]
     first_valid_samples = [
-        177, 177, 177, 177, 177, 144, 144, 144, 144, 144,
-        144, 144, 144, 109, 109, 109, 109, 109, 109, 109, 109,
+        177,
+        177,
+        177,
+        177,
+        177,
+        144,
+        144,
+        144,
+        144,
+        144,
+        144,
+        144,
+        144,
+        109,
+        109,
+        109,
+        109,
+        109,
+        109,
+        109,
+        109,
     ]
     last_valid_samples = [
-        8264, 8290, 8290, 8290, 8290, 8258, 8258, 8258, 8258, 8258,
-        8258, 8258, 8258, 8222, 8222, 8222, 8222, 8222, 8222, 8222, 8222,
+        8264,
+        8290,
+        8290,
+        8290,
+        8290,
+        8258,
+        8258,
+        8258,
+        8258,
+        8258,
+        8258,
+        8258,
+        8258,
+        8222,
+        8222,
+        8222,
+        8222,
+        8222,
+        8222,
+        8222,
+        8222,
     ]
     doppler_poly1d_means = [
         757722.593502511,
@@ -216,10 +292,16 @@ def test_ew_subswath_properties(ew_bursts_by_subswath):
             assert burst.polarization == "HH"
             assert burst.platform_id == "S1A"
             assert burst.azimuth_steer_rate == expected_az_steer_rates[swath_num]
-            assert burst.average_azimuth_pixel_spacing == expected_az_pix_spacings[swath_num]
+            assert (
+                burst.average_azimuth_pixel_spacing
+                == expected_az_pix_spacings[swath_num]
+            )
             assert burst.range_bandwidth == expected_rg_bandwidths[swath_num]
             assert burst.range_window_type == "Hamming"
-            assert burst.range_window_coefficient == expected_rg_win_coefficients[swath_num]
+            assert (
+                burst.range_window_coefficient
+                == expected_rg_win_coefficients[swath_num]
+            )
             assert burst.prf_raw_data == expected_prfs[swath_num]
             assert burst.rank == expected_ranks[swath_num]
             assert burst.range_chirp_rate == expected_chirp_rates[swath_num]

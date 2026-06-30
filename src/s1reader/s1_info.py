@@ -19,15 +19,18 @@ from s1reader.constants import SENSOR_MODE_SUBSWATHS
 
 
 def get_bursts(
-    filename: Union[Path, str], pol: str = "vv", iw: Optional[int] = None, ew: Optional[int] = None,
+    filename: Union[Path, str],
+    pol: str = "vv",
+    iw: Optional[int] = None,
+    ew: Optional[int] = None,
 ) -> list[s1reader.Sentinel1BurstSlc]:
-    
-    # get the sensory acquisition mode 
+
+    # get the sensory acquisition mode
     sensor_mode = str(Path(filename).name).split("_")[1].lower()
 
-    if (iw is not None) and (sensor_mode =="iw"):
+    if (iw is not None) and (sensor_mode == "iw"):
         swath_nums = [iw]
-    elif (ew is not None) and (sensor_mode =="ew"):
+    elif (ew is not None) and (sensor_mode == "ew"):
         swath_nums = [ew]
     else:
         # set to all slc swaths

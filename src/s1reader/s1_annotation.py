@@ -477,7 +477,7 @@ class AuxCal(AnnotationBase):
             Path to the AUX_CAL .zip file
         pol: str {'vv','vh','hh','hv'}
             Polarization of interest
-        str_swath: IW -> {'iw1','iw2','iw3'}, 
+        str_swath: IW -> {'iw1','iw2','iw3'},
             EW -> {'ew1','ew2','ew3','ew4','ew5'}
             subswath of interest
 
