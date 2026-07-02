@@ -1180,9 +1180,12 @@ class Sentinel1BurstSlc:
         elif self.platform_id == "S1B":
             orbit_number_offset = 27
         elif self.platform_id == "S1C":
-            orbit_number_offset = 172
+            # 24 June 2026, S1C orbits aligned for 6-days offset with S1D
+            if self.sensing_start < datetime.datetime(2026, 6, 24):
+                orbit_number_offset = 172
+            else:
+                orbit_number_offset = 99
         elif self.platform_id == "S1D":
-            # Note: adjust in July 26 with cal. S1D
             orbit_number_offset = 42
         else:
             raise ValueError(f"Unknown platform_id: {self.platform_id}")
