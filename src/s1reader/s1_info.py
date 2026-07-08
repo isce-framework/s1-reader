@@ -245,7 +245,7 @@ def main():
             all_files.append(path)
         elif path.is_dir():
             # Get all matching files within the directory
-            files = path.glob("S1[AB]_IW*")
+            files = path.glob("S1[ABCD]_IW*")
             all_files.extend(list(sorted(files)))
         else:
             warnings.warn(f"{path} is not a file or directory. Skipping.")

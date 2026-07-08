@@ -94,7 +94,7 @@ def polyfit(
 
     val, res, _, _ = np.linalg.lstsq(A, z, rcond=cond)
     if len(res) > 0:
-        print("Chi squared: %f" % (np.sqrt(res / (1.0 * len(z)))))
+        print("Chi squared: %f" % np.sqrt(res / (1.0 * len(z))).item())
     else:
         print("No chi squared value....")
         print("Try reducing rank of polynomial.")
@@ -1180,7 +1180,13 @@ class Sentinel1BurstSlc:
         elif self.platform_id == "S1B":
             orbit_number_offset = 27
         elif self.platform_id == "S1C":
-            orbit_number_offset = 172
+            # 24 June 2026, S1C orbits aligned for 6-days offset with S1D
+            if self.sensing_start < datetime.datetime(2026, 6, 24):
+                orbit_number_offset = 172
+            else:
+                orbit_number_offset = 99
+        elif self.platform_id == "S1D":
+            orbit_number_offset = 42
         else:
             raise ValueError(f"Unknown platform_id: {self.platform_id}")
         return (self.abs_orbit_number - orbit_number_offset) % 175 + 1
