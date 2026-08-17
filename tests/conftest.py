@@ -29,3 +29,37 @@ def bursts(test_paths):
     bursts = s1_reader.load_bursts(test_paths.safe, orbit_path, i_subswath, pol)
 
     return bursts
+
+
+@pytest.fixture(scope="session")
+def ew_test_paths():
+    ew_test_paths = types.SimpleNamespace()
+
+    test_path = pathlib.Path(__file__).parent.resolve()
+    ew_test_paths.safe = f"{test_path}/data/S1A_EW_SLC__1SDH_20220330T185405_20220330T185511_042554_051380_3E95.zip"
+    ew_test_paths.orbit_dir = f"{test_path}/data/orbits"
+    ew_test_paths.orbit_file = (
+        "S1A_OPER_AUX_POEORB_OPOD_20220419T081726_V20220329T225942_20220331T005942.EOF"
+    )
+
+    return ew_test_paths
+
+
+@pytest.fixture(scope="session")
+def ew3_bursts(ew_test_paths):
+    subswath = 3
+    pol = "hh"
+
+    orbit_path = f"{ew_test_paths.orbit_dir}/{ew_test_paths.orbit_file}"
+    return s1_reader.load_bursts(ew_test_paths.safe, orbit_path, subswath, pol)
+
+
+@pytest.fixture(scope="session")
+def ew_bursts_by_subswath(ew_test_paths):
+    """Returns a dict {subswath_num: [bursts]} for all 5 EW subswaths."""
+    pol = "hh"
+    orbit_path = f"{ew_test_paths.orbit_dir}/{ew_test_paths.orbit_file}"
+    return {
+        i: s1_reader.load_bursts(ew_test_paths.safe, orbit_path, i, pol)
+        for i in range(1, 6)
+    }

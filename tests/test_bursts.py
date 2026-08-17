@@ -47,6 +47,7 @@ def test_burst(bursts):
 
         assert burst.starting_range == 901673.89084624
         assert burst.iw2_mid_range == 875604.926001518
+        assert burst.ew3_mid_range is None
         assert burst.range_sampling_rate == 64345238.12571428
         assert burst.range_pixel_spacing == 2.329562114715323
         assert burst.shape == (1515, 24492)

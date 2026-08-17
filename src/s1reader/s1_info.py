@@ -15,18 +15,30 @@ import shapely.geometry
 import shapely.ops
 
 import s1reader
+from s1reader.constants import SENSOR_MODE_SUBSWATHS
 
 
 def get_bursts(
-    filename: Union[Path, str], pol: str = "vv", iw: Optional[int] = None
+    filename: Union[Path, str],
+    pol: str = "vv",
+    iw: Optional[int] = None,
+    ew: Optional[int] = None,
 ) -> list[s1reader.Sentinel1BurstSlc]:
-    if iw is not None:
-        iws = [iw]
+
+    # get the sensory acquisition mode
+    sensor_mode = str(Path(filename).name).split("_")[1].lower()
+
+    if (iw is not None) and (sensor_mode == "iw"):
+        swath_nums = [iw]
+    elif (ew is not None) and (sensor_mode == "ew"):
+        swath_nums = [ew]
     else:
-        iws = [1, 2, 3]
+        # set to all slc swaths
+        swath_nums = SENSOR_MODE_SUBSWATHS[sensor_mode]
+
     burst_nested_list = [
-        s1reader.load_bursts(filename, None, iw, pol, flag_apply_eap=False)
-        for iw in iws
+        s1reader.load_bursts(filename, None, swath_num, pol, flag_apply_eap=False)
+        for swath_num in swath_nums
     ]
     return list(chain.from_iterable(burst_nested_list))
 
@@ -196,8 +208,15 @@ def get_cli_args():
         "-i",
         "--iw",
         type=int,
-        choices=[1, 2, 3],
+        choices=SENSOR_MODE_SUBSWATHS["iw"],
         help="Print only the burst IDs for the given IW.",
+    )
+    parser.add_argument(
+        "-e",
+        "--ew",
+        type=int,
+        choices=SENSOR_MODE_SUBSWATHS["ew"],
+        help="Print only the burst IDs for the given EW.",
     )
     parser.add_argument(
         "-b",
@@ -245,7 +264,7 @@ def main():
             all_files.append(path)
         elif path.is_dir():
             # Get all matching files within the directory
-            files = path.glob("S1[ABCD]_IW*")
+            files = path.glob("S1[ABCD]_[IE]W*")
             all_files.extend(list(sorted(files)))
         else:
             warnings.warn(f"{path} is not a file or directory. Skipping.")
@@ -263,7 +282,7 @@ def main():
         print(f"Bursts in {path}:")
         print("-" * 80)
         # Do we want to pretty-print this with rich?
-        for burst in get_bursts(path, args.pol, args.iw):
+        for burst in get_bursts(path, args.pol, args.iw, args.ew):
             if args.burst_id:
                 print(burst.burst_id, end=" ")
             else:

@@ -36,6 +36,7 @@ from s1reader.s1_annotation import (
 from s1reader.s1_burst_slc import Doppler, Sentinel1BurstSlc
 from s1reader.s1_burst_id import S1BurstId
 from s1reader.s1_orbit import T_ORBIT, PADDING_SHORT, merge_osv_list
+from s1reader.constants import SENSOR_MODE_MID_SWATH, SUPPORTED_SENSOR_MODES
 
 # Tolerance of the ascending node crossing time in seconds
 ASCENDING_NODE_TIME_TOLERANCE_IN_SEC = 1.0
@@ -777,9 +778,10 @@ def burst_from_xml(
     annotation_path: str,
     orbit_path: str,
     tiff_path: str,
-    iw2_annotation_path: str,
+    iw2_annotation_path: str | None,
     open_method=open,
     flag_apply_eap: bool = True,
+    ew3_annotation_path: str | None = None,
 ):
     """Parse bursts in Sentinel-1 annotation XML.
 
@@ -792,12 +794,15 @@ def burst_from_xml(
         Path the orbit file.
     tiff_path : str
         Path to tiff file holding Sentinel-1 SLCs.
-    iw2_annotation_path : str
+    iw2_annotation_path : str | None
         Path to Sentinel-1 annotation XML file of IW2 subswath.
     open_method : function
         Function used to open annotation file.
     flag_apply_eqp: bool
         Flag to turn on/off EAP related functionality
+    ew3_annotation_path : str | None
+        Path to Sentinel-1 annotation XML file of EW3 subswath.
+        Last variable for backwards compatibility.
 
     Returns:
     --------
@@ -971,15 +976,35 @@ def burst_from_xml(
     starting_range = slant_range_time * isce3.core.speed_of_light / 2
     range_pxl_spacing = isce3.core.speed_of_light / (2 * range_sampling_rate)
 
-    # calculate the range at mid swath (mid of SM swath, mid of IW2 or mid of EW3)
-    with open_method(iw2_annotation_path, "r") as iw2_f:
-        iw2_tree = ET.parse(iw2_f)
-        iw2_slant_range_time = float(
-            iw2_tree.find("imageAnnotation/imageInformation/slantRangeTime").text
+    # calculate the range at mid swath (mid of IW2 or mid of EW3)
+    if iw2_annotation_path:
+        mid_swath_annotation_path = iw2_annotation_path
+    elif ew3_annotation_path:
+        mid_swath_annotation_path = ew3_annotation_path
+    else:
+        raise ValueError(f"must provide `iw2_annotation_path` or `ew3_annotation_path`")
+
+    with open_method(mid_swath_annotation_path, "r") as mid_swath_f:
+        mid_swath_tree = ET.parse(mid_swath_f)
+        mid_swath_slant_range_time = float(
+            mid_swath_tree.find("imageAnnotation/imageInformation/slantRangeTime").text
         )
-        iw2_n_samples = int(iw2_tree.find("swathTiming/samplesPerBurst").text)
-        iw2_starting_range = iw2_slant_range_time * isce3.core.speed_of_light / 2
-        iw2_mid_range = iw2_starting_range + 0.5 * iw2_n_samples * range_pxl_spacing
+        mid_swath_n_samples = int(
+            mid_swath_tree.find("swathTiming/samplesPerBurst").text
+        )
+        mid_swath_starting_range = (
+            mid_swath_slant_range_time * isce3.core.speed_of_light / 2
+        )
+        mid_swath_mid_range = (
+            mid_swath_starting_range + 0.5 * mid_swath_n_samples * range_pxl_spacing
+        )
+
+    if iw2_annotation_path:
+        ew3_mid_range = None
+        iw2_mid_range = mid_swath_mid_range
+    elif ew3_annotation_path:
+        iw2_mid_range = None
+        ew3_mid_range = mid_swath_mid_range
 
     # find orbit state vectors in 'Data_Block/List_of_OSVs'
     if orbit_path:
@@ -1183,6 +1208,7 @@ def burst_from_xml(
             extended_coeffs,
             burst_rfi_info,
             burst_misc_metadata,
+            ew3_mid_range,
         )
 
     return bursts
@@ -1228,7 +1254,8 @@ def load_bursts(
     orbit_path : str
         Path the orbit file.
     swath_num : int
-        Integer of subswath of desired burst. {1, 2, 3}
+        Integer of subswath of desired burst.
+        IW -> {1, 2, 3}, EW -> {1, 2, 3, 4, 5}
     pol : str
         Polarization of desired burst. {hh, vv, hv, vh}
     burst_ids : list[str] or list[S1BurstId]
@@ -1244,8 +1271,29 @@ def load_bursts(
     bursts : list
         List of Sentinel1BurstSlc objects found in annotation XML.
     """
-    if swath_num < 1 or swath_num > 3:
-        raise ValueError("swath_num not <1 or >3")
+
+    # Get acquisition mode of the SLC S1A_IW_* -> iw, S1B_EW_* -> ew
+    try:
+        sensor_mode = os.path.basename(str(path)).split("_")[1].lower()
+        if sensor_mode not in SUPPORTED_SENSOR_MODES:
+            raise ValueError(
+                "sensor acquisition mode of SLC must be one of"
+                f" {SUPPORTED_SENSOR_MODES}, got : {sensor_mode}"
+            )
+    except ValueError:
+        raise
+    except Exception:
+        raise ValueError(
+            f"could not extract valid acquisition mode {SUPPORTED_SENSOR_MODES} from"
+            f" path : {path}"
+        )
+
+    if sensor_mode == "iw":
+        if swath_num < 1 or swath_num > 3:
+            raise ValueError("swath_num not <1 or >3")
+    elif sensor_mode == "ew":
+        if swath_num < 1 or swath_num > 5:
+            raise ValueError("swath_num not <1 or >5")
 
     if burst_ids is None:
         burst_ids = []
@@ -1260,7 +1308,7 @@ def load_bursts(
     if pol not in pols:
         raise ValueError(f"polarization not in {pols}")
 
-    id_str = f"iw{swath_num}-slc-{pol}"
+    id_str = f"{sensor_mode}{swath_num}-slc-{pol}"
 
     if not os.path.exists(path):
         raise FileNotFoundError(f"{path} not found")
@@ -1299,7 +1347,7 @@ def _burst_from_zip(zip_path: str, id_str: str, orbit_path: str, flag_apply_eap:
     path : str
         Path to zip file.
     id_str: str
-        Identification of desired burst. Format: iw[swath_num]-slc-[pol]
+        Identification of desired burst. Format: [sensor_mode][swath_num]-slc-[pol]
     orbit_path : str
         Path the orbit file.
     flag_apply_eap: bool
@@ -1319,14 +1367,24 @@ def _burst_from_zip(zip_path: str, id_str: str, orbit_path: str, flag_apply_eap:
             raise ValueError(f"burst {id_str} not in SAFE: {zip_path}")
         f_annotation = f_annotation[0]
 
-        # find annotation file - IW2
-        iw2_id_str = f"iw2-{id_str[4:]}"
-        iw2_f_annotation = [
-            f for f in z_file_list if _is_zip_annotation_xml(f, iw2_id_str)
+        # sensor acquisition mode, e.g. iw or ew
+        sensor_mode = id_str[0:2]
+        mid_swath = SENSOR_MODE_MID_SWATH[sensor_mode]
+
+        # find annotation file - IW2 or EW3
+        mid_swath_id_str = f"{sensor_mode}{mid_swath}-{id_str[4:]}"
+        mid_swath_f_annotation = [
+            f for f in z_file_list if _is_zip_annotation_xml(f, mid_swath_id_str)
         ]
-        if not iw2_f_annotation:
-            raise ValueError(f"burst {iw2_id_str} not in SAFE: {zip_path}")
-        iw2_f_annotation = iw2_f_annotation[0]
+        if not mid_swath_f_annotation:
+            raise ValueError(f"burst {mid_swath_id_str} not in SAFE: {zip_path}")
+
+        if sensor_mode == "iw":
+            iw2_f_annotation = mid_swath_f_annotation[0]
+            ew3_f_annotation = None
+        elif sensor_mode == "ew":
+            iw2_f_annotation = None
+            ew3_f_annotation = mid_swath_f_annotation[0]
 
         # find tiff file
         f_tiff = [
@@ -1341,6 +1399,7 @@ def _burst_from_zip(zip_path: str, id_str: str, orbit_path: str, flag_apply_eap:
             iw2_f_annotation,
             z_file.open,
             flag_apply_eap=flag_apply_eap,
+            ew3_annotation_path=ew3_f_annotation,
         )
         return bursts
 
@@ -1355,7 +1414,7 @@ def _burst_from_safe_dir(
     path : str
         Path to SAFE directory.
     id_str: str
-        Identification of desired burst. Format: iw[swath_num]-slc-[pol]
+        Identification of desired burst. Format: [sensor_mode][swath_num]-slc-[pol]
     orbit_path : str
         Path the orbit file.
     flag_apply_eap: bool
@@ -1374,12 +1433,23 @@ def _burst_from_safe_dir(
         raise ValueError(f"burst {id_str} not in SAFE: {safe_dir_path}")
     f_annotation = f"{safe_dir_path}/annotation/{f_annotation[0]}"
 
-    # find annotation file - IW2
-    iw2_id_str = f"iw2-{id_str[4:]}"
-    iw2_f_annotation = [f for f in annotation_list if iw2_id_str in f]
-    if not iw2_f_annotation:
-        raise ValueError(f"burst {iw2_id_str} not in SAFE: {safe_dir_path}")
-    iw2_f_annotation = f"{safe_dir_path}/annotation/{iw2_f_annotation[0]}"
+    # sensor acquisition mode, e.g. iw or ew
+    sensor_mode = id_str[0:2]
+    mid_swath = SENSOR_MODE_MID_SWATH[sensor_mode]
+
+    # find annotation file - IW2 / EW3
+    mid_swath_id_str = f"{sensor_mode}{mid_swath}-{id_str[4:]}"
+    mid_swath_f_annotation = [f for f in annotation_list if mid_swath_id_str in f]
+    if not mid_swath_f_annotation:
+        raise ValueError(f"burst {mid_swath_id_str} not in SAFE: {safe_dir_path}")
+    mid_swath_f_annotation = f"{safe_dir_path}/annotation/{mid_swath_f_annotation[0]}"
+
+    if sensor_mode == "iw":
+        iw2_f_annotation = mid_swath_f_annotation
+        ew3_f_annotation = None
+    elif sensor_mode == "ew":
+        iw2_f_annotation = None
+        ew3_f_annotation = mid_swath_f_annotation
 
     # find tiff file if measurement directory found
     if os.path.isdir(f"{safe_dir_path}/measurement"):
@@ -1397,5 +1467,6 @@ def _burst_from_safe_dir(
         f_tiff,
         iw2_f_annotation,
         flag_apply_eap=flag_apply_eap,
+        ew3_annotation_path=ew3_f_annotation,
     )
     return bursts
