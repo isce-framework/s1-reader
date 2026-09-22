@@ -279,6 +279,13 @@ class Sentinel1BurstSlc:
 
     burst_misc_metadata: SimpleNamespace
 
+    #: Azimuth time bias [s] from the AUX_INS the IPF used to focus this
+    #: product, or 0.0 when that file is unavailable. Zero for S1A/S1B; S1C and
+    #: S1D carry -19.685 us and -66.299 us from the June 2026 aux generation.
+    #: Last field, with a default, so existing positional construction of this
+    #: frozen dataclass keeps working.
+    azimuth_time_bias: float = 0.0
+
     def __str__(self):
         return f"Sentinel1BurstSlc: {self.burst_id} at {self.sensing_start}"
 

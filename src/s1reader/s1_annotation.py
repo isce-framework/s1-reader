@@ -600,6 +600,105 @@ class AuxCal(AnnotationBase):
 
 
 @dataclass
+class AuxIns:
+    """AUX_INS instrument timing parameters for one swath/polarisation channel.
+
+    Unlike :class:`AuxCal`, which has to be chosen by validity window because an
+    SLC never records which calibration file focused it, the AUX_INS *is* named
+    outright in the product's ``manifest.safe``
+    (:func:`s1reader.s1_reader.get_aux_ins_name`), so the lookup is an exact
+    match rather than a heuristic.
+
+    Not derived from :class:`AnnotationBase`: the fields here are plain scalars
+    read straight out of ``internalCalibrationParamsList``, so none of the
+    ``_parse_*`` helpers (nor the ``xml_et`` field they need) buy anything.
+    """
+
+    swath: str
+    polarisation: str
+    #: Azimuth time bias [s]. Zero for S1A/S1B; nonzero for S1C and S1D from the
+    #: June 2026 aux generation onward (S1C -19.685 us, S1D -66.299 us).
+    #:
+    #: ESA ships one value for the whole instrument: it is identical across all
+    #: 88 swath/polarisation entries -- all 23 swaths (IW1-3, EW1-5, WV1-2,
+    #: S1-6, N1-6, EN) and all four pols. That is what a spacecraft *timing*
+    #: bias should look like, and it is why a single bulk offset is legitimate
+    #: where a beam-dependent term (e.g. the bistatic azimuth delay) would not
+    #: be. The swath/pol filter below therefore cannot pick a wrong value; it is
+    #: kept because the file is structured per channel and ESA could change
+    #: that.
+    azimuth_time_bias: float
+    #: Sampling window start time bias [s] -- the slant-range analogue.
+    swst_bias: float
+
+    @classmethod
+    def load_from_zip_file(cls, path_aux_ins_zip: str, pol: str, str_swath: str):
+        """Read one swath/pol channel out of an AUX_INS ``.SAFE.zip``.
+
+        Parameters
+        ----------
+        path_aux_ins_zip : str
+            Path to the AUX_INS ``.zip`` file. The name must match the ``.SAFE``
+            directory inside it, which is how ESA ships them.
+        pol : str
+            Polarisation, e.g. ``"vv"``. Case-insensitive.
+        str_swath : str
+            Subswath, e.g. ``"iw2"``. Case-insensitive.
+
+        Returns
+        -------
+        AuxIns
+            The parameters for that channel.
+
+        Raises
+        ------
+        ValueError
+            If the path is not a ``.zip``, does not exist, holds no
+            ``*-aux-ins.xml``, or has no entry for ``str_swath``/``pol``.
+        """
+        if not path_aux_ins_zip.endswith(".zip"):
+            raise ValueError("Only AUX_INS files in .zip format are accepted.")
+        if not os.path.exists(path_aux_ins_zip):
+            raise ValueError(f"Cannot find AUX_INS .zip file: {path_aux_ins_zip}")
+
+        str_safe_aux_ins = os.path.basename(path_aux_ins_zip).replace(".zip", "")
+        str_platform = str_safe_aux_ins.split("_")[0]
+
+        with zipfile.ZipFile(path_aux_ins_zip, "r") as zipfile_aux_ins:
+            filepath_xml = f"{str_safe_aux_ins}/data/{str_platform.lower()}-aux-ins.xml"
+            list_files_in_zip = [zf.filename for zf in zipfile_aux_ins.filelist]
+            if filepath_xml not in list_files_in_zip:
+                raise ValueError(
+                    f"Cannot find {filepath_xml} in "
+                    f"zip file {path_aux_ins_zip}.\n"
+                    "Make sure if the legit AUX_INS .zip file is provided."
+                )
+            with zipfile_aux_ins.open(filepath_xml, "r") as f_aux_ins:
+                et_in = ET.parse(f_aux_ins)
+
+        params_list = et_in.find("internalCalibrationParamsList")
+        if params_list is None:
+            raise ValueError(f"No internalCalibrationParamsList in {path_aux_ins_zip}")
+
+        # findall rather than iterating the element: ET here is lxml, whose
+        # iteration also yields comment nodes.
+        for params in params_list.findall("internalCalibrationParams"):
+            swath_xml = (params.findtext("swath") or "").upper()
+            pol_xml = (params.findtext("polarisation") or "").upper()
+            if swath_xml == str_swath.upper() and pol_xml == pol.upper():
+                return cls(
+                    swath=swath_xml,
+                    polarisation=pol_xml,
+                    azimuth_time_bias=float(params.findtext("azimuthTimeBias")),
+                    swst_bias=float(params.findtext("swstBias")),
+                )
+
+        raise ValueError(
+            f"No AUX_INS entry for swath={str_swath}, pol={pol} in {path_aux_ins_zip}"
+        )
+
+
+@dataclass
 class SwathRfiInfo:
     """
     Burst RFI information in a swath

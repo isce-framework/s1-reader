@@ -23,6 +23,7 @@ from s1reader.s1_annotation import (
     RFI_INFO_AVAILABLE_FROM,
     CalibrationAnnotation,
     AuxCal,
+    AuxIns,
     BurstCalibration,
     BurstEAP,
     BurstNoise,
@@ -336,6 +337,39 @@ def get_ipf_version(tree: ET):
     return ipf_version
 
 
+def get_aux_ins_name(tree: ET):
+    """Extract the AUX_INS product name from the ET of manifest.safe.
+
+    The IPF records every auxiliary product it used as a ``safe:resource`` in
+    the processing metadata, so the AUX_INS that focused *this* SLC can be
+    looked up by name -- unlike AUX_CAL, which has to be guessed from validity
+    windows because the product never says which one was used.
+
+    The resources are searched at any depth below ``safe:processing``: ESA
+    nests AUX_INS one level deeper than the top-level processing block (and
+    other roles deeper still), and that nesting is not worth depending on.
+
+    Parameters
+    ----------
+    tree : xml.etree.ElementTree
+        ElementTree containing the parsed 'manifest.safe' file.
+
+    Returns
+    -------
+    str or None
+        The AUX_INS product name without its ``.SAFE`` suffix, e.g.
+        ``"S1C_AUX_INS_V20250224T000000_G20260604T134021"``. None when the
+        manifest names no AUX_INS.
+    """
+    search_term, nsmap = _get_manifest_pattern(tree, ["processing"])
+    for processing in tree.findall(search_term, nsmap):
+        for resource in processing.iterfind(".//safe:resource", nsmap):
+            if resource.attrib.get("role") == "AUX_INS":
+                name = os.path.basename(resource.attrib["name"])
+                return name.replace(".SAFE", "")
+    return None
+
+
 def get_swath_misc_metadata(
     et_manifest: ET, et_product: ET, product_annotation: ProductAnnotation
 ):
@@ -530,6 +564,36 @@ def get_path_aux_cal(directory_aux_cal: str, str_annotation: str):
         return None
 
     return list_aux_cal[id_match]
+
+
+def get_path_aux_ins(directory_aux_ins: str, aux_ins_name: str):
+    """Locate the AUX_INS named by a product's manifest.
+
+    Deliberately an **exact match only**, with no best-effort fallback to a
+    different generation. ESA revises AUX_INS in place: S1C and S1D carry the
+    same validity start but a nonzero ``azimuthTimeBias`` only from the June
+    2026 generation onward. Substituting a neighbouring generation would hand
+    back a bias the IPF never saw, which is worse than admitting we do not know
+    it -- so an unknown generation returns None and the caller falls back to
+    zero.
+
+    Parameters
+    ----------
+    directory_aux_ins : str
+        Directory holding AUX_INS ``.SAFE.zip`` files.
+    aux_ins_name : str
+        Product name from :func:`get_aux_ins_name`, without the ``.SAFE``
+        suffix.
+
+    Returns
+    -------
+    str or None
+        Path to the matching ``.zip``, or None when it is not on disk.
+    """
+    if not aux_ins_name:
+        return None
+    path = os.path.join(directory_aux_ins, f"{aux_ins_name}.SAFE.zip")
+    return path if os.path.exists(path) else None
 
 
 def is_eap_correction_necessary(ipf_version: version.Version) -> SimpleNamespace:
@@ -780,6 +844,7 @@ def burst_from_xml(
     iw2_annotation_path: str,
     open_method=open,
     flag_apply_eap: bool = True,
+    flag_apply_aux_ins: bool = True,
 ):
     """Parse bursts in Sentinel-1 annotation XML.
 
@@ -876,6 +941,8 @@ def burst_from_xml(
     except (FileNotFoundError, KeyError):
         noise_annotation = None
 
+    subswath_id = os.path.basename(annotation_path).split("-")[1]
+
     # load AUX_CAL annotation
     eap_necessity = is_eap_correction_necessary(ipf_version)
     if eap_necessity.phase_correction and flag_apply_eap:
@@ -892,11 +959,32 @@ def burst_from_xml(
                 f"config ID: {product_annotation.inst_config_id}"
             )
 
-        subswath_id = os.path.basename(annotation_path).split("-")[1]
         aux_cal_subswath = AuxCal.load_from_zip_file(path_aux_cal, pol, subswath_id)
     else:
         # No need to load aux_cal (not applying EAP correction)
         aux_cal_subswath = None
+
+    # load AUX_INS annotation for the azimuth timing bias
+    azimuth_time_bias = 0.0
+    if flag_apply_aux_ins:
+        aux_ins_name = get_aux_ins_name(tree_manifest)
+        path_aux_inss = os.path.join(
+            f"{os.path.dirname(s1_annotation.__file__)}", "data", "aux_ins"
+        )
+        path_aux_ins = get_path_aux_ins(path_aux_inss, aux_ins_name)
+        if path_aux_ins is None:
+            # Not fatal, unlike the AUX_CAL case above: the bias is a refinement
+            # and every pre-June-2026 generation has it at zero anyway. Warning
+            # rather than silence, so a missing generation is visible.
+            warnings.warn(
+                f"AUX_INS {aux_ins_name} not found in {path_aux_inss}; "
+                "azimuth_time_bias falls back to 0.0.",
+                stacklevel=2,
+            )
+        else:
+            azimuth_time_bias = AuxIns.load_from_zip_file(
+                path_aux_ins, pol, subswath_id
+            ).azimuth_time_bias
 
     # Nearly all metadata loaded here is common to all bursts in annotation XML
     with open_method(annotation_path, "r") as f:
@@ -1183,6 +1271,7 @@ def burst_from_xml(
             extended_coeffs,
             burst_rfi_info,
             burst_misc_metadata,
+            azimuth_time_bias,
         )
 
     return bursts
@@ -1218,6 +1307,7 @@ def load_bursts(
     pol: str = "vv",
     burst_ids: list[Union[str, S1BurstId]] = None,
     flag_apply_eap: bool = True,
+    flag_apply_aux_ins: bool = True,
 ):
     """Find bursts in a Sentinel-1 zip file or a SAFE structured directory.
 
@@ -1238,6 +1328,10 @@ def load_bursts(
         returned (empty list if none are found).
     flag_apply_eap: bool
         Turn on/off EAP related features (AUX_CAL loader)
+    flag_apply_aux_ins: bool
+        Turn on/off the AUX_INS loader that populates
+        ``Sentinel1BurstSlc.azimuth_time_bias``. Reading it only sets the
+        attribute; nothing downstream applies it unless a processor asks.
 
     Returns:
     --------
@@ -1265,9 +1359,13 @@ def load_bursts(
     if not os.path.exists(path):
         raise FileNotFoundError(f"{path} not found")
     elif os.path.isdir(path):
-        bursts = _burst_from_safe_dir(path, id_str, orbit_path, flag_apply_eap)
+        bursts = _burst_from_safe_dir(
+            path, id_str, orbit_path, flag_apply_eap, flag_apply_aux_ins
+        )
     elif os.path.isfile(path):
-        bursts = _burst_from_zip(path, id_str, orbit_path, flag_apply_eap)
+        bursts = _burst_from_zip(
+            path, id_str, orbit_path, flag_apply_eap, flag_apply_aux_ins
+        )
     else:
         raise ValueError(f"{path} is unsupported")
 
@@ -1291,7 +1389,13 @@ def load_bursts(
     return bursts
 
 
-def _burst_from_zip(zip_path: str, id_str: str, orbit_path: str, flag_apply_eap: bool):
+def _burst_from_zip(
+    zip_path: str,
+    id_str: str,
+    orbit_path: str,
+    flag_apply_eap: bool,
+    flag_apply_aux_ins: bool = True,
+):
     """Find bursts in a Sentinel-1 zip file.
 
     Parameters:
@@ -1304,6 +1408,10 @@ def _burst_from_zip(zip_path: str, id_str: str, orbit_path: str, flag_apply_eap:
         Path the orbit file.
     flag_apply_eap: bool
         Turn on/off EAP related features (AUX_CAL loader)
+    flag_apply_aux_ins: bool
+        Turn on/off the AUX_INS loader that populates
+        ``Sentinel1BurstSlc.azimuth_time_bias``. Reading it only sets the
+        attribute; nothing downstream applies it unless a processor asks.
 
     Returns:
     --------
@@ -1341,12 +1449,17 @@ def _burst_from_zip(zip_path: str, id_str: str, orbit_path: str, flag_apply_eap:
             iw2_f_annotation,
             z_file.open,
             flag_apply_eap=flag_apply_eap,
+            flag_apply_aux_ins=flag_apply_aux_ins,
         )
         return bursts
 
 
 def _burst_from_safe_dir(
-    safe_dir_path: str, id_str: str, orbit_path: str, flag_apply_eap: bool
+    safe_dir_path: str,
+    id_str: str,
+    orbit_path: str,
+    flag_apply_eap: bool,
+    flag_apply_aux_ins: bool = True,
 ):
     """Find bursts in a Sentinel-1 SAFE structured directory.
 
@@ -1360,6 +1473,10 @@ def _burst_from_safe_dir(
         Path the orbit file.
     flag_apply_eap: bool
         Turn on/off EAP related features (AUX_CAL loader)
+    flag_apply_aux_ins: bool
+        Turn on/off the AUX_INS loader that populates
+        ``Sentinel1BurstSlc.azimuth_time_bias``. Reading it only sets the
+        attribute; nothing downstream applies it unless a processor asks.
 
     Returns:
     --------
@@ -1397,5 +1514,6 @@ def _burst_from_safe_dir(
         f_tiff,
         iw2_f_annotation,
         flag_apply_eap=flag_apply_eap,
+        flag_apply_aux_ins=flag_apply_aux_ins,
     )
     return bursts
