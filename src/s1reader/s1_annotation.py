@@ -1226,13 +1226,13 @@ class BurstExtendedCoeffs:
         """
 
         # Extract polynomial info for azimuth FM rate
-        (fm_rate_aztime_burst_vec, fm_rate_coeff_burst_arr, fm_rate_tau0_burst_vec) = (
+        fm_rate_aztime_burst_vec, fm_rate_coeff_burst_arr, fm_rate_tau0_burst_vec = (
             cls.extract_polynomial_sequence(
                 az_fm_rate_list, sensing_start, sensing_end, handle_out_of_range=True
             )
         )
 
-        (dc_aztime_burst_vec, dc_coeff_burst_arr, dc_tau0_burst_vec) = (
+        dc_aztime_burst_vec, dc_coeff_burst_arr, dc_tau0_burst_vec = (
             cls.extract_polynomial_sequence(
                 doppler_centroid_list,
                 sensing_start,

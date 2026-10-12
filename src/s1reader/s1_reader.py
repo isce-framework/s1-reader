@@ -151,7 +151,7 @@ def doppler_poly1d_to_lut2d(
     _ : LUT2d
         LUT2d calculated from poly1d.
     """
-    (n_lines, n_samples) = shape
+    n_lines, n_samples = shape
     # calculate all slant ranges in grid
     slant_ranges = starting_slant_range + np.arange(n_samples) * slant_range_res
 
