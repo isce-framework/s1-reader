@@ -14,7 +14,7 @@ from s1reader.s1_reader import get_aux_ins_name, get_path_aux_ins
 AUX_INS_DIR = pathlib.Path(s1_annotation.__file__).parent / "data" / "aux_ins"
 
 #: The values ESA ships, constant across IW1-3 and all polarisations. S1A/S1B
-#: are zero; S1C/S1D became nonzero in the June 2026 generation.
+#: are zero; S1C became nonzero in May 2025 and S1D in April 2026.
 EXPECTED_BIAS = {
     "S1A_AUX_INS_V20250601T000000_G20251015T084917": 0.0,
     "S1B_AUX_INS_V20190514T090000_G20251015T071234": 0.0,
@@ -71,13 +71,13 @@ def test_get_path_aux_ins_does_not_substitute_another_generation():
     """An unknown generation must return None, never a neighbouring file.
 
     ESA revises AUX_INS in place under the same validity start: S1C's
-    azimuthTimeBias is zero before the June 2026 generation and -19.685 us
-    after. Falling back to a different generation would return a bias the IPF
-    never saw.
+    V20250224 file has azimuthTimeBias 0 in generation G20250324T091341 and
+    -19.685 us from G20250519T123409. Falling back to a different generation
+    would return a bias the IPF never saw.
     """
     assert (
         get_path_aux_ins(
-            str(AUX_INS_DIR), "S1C_AUX_INS_V20250224T000000_G20250519T123409"
+            str(AUX_INS_DIR), "S1C_AUX_INS_V20250224T000000_G20250324T091341"
         )
         is None
     )

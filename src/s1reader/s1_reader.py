@@ -975,9 +975,10 @@ def burst_from_xml(
         )
         path_aux_ins = get_path_aux_ins(path_aux_inss, aux_ins_name)
         if path_aux_ins is None:
-            # Not fatal, unlike the AUX_CAL case above: the bias is a refinement
-            # and every pre-June-2026 generation has it at zero anyway. Warning
-            # rather than silence, so a missing generation is visible.
+            # Not fatal, unlike the AUX_CAL case above: the bias is a refinement,
+            # and zero in every S1A/S1B generation and in S1C/S1D generations
+            # before May 2025 / April 2026. Warning rather than silence, so a
+            # missing generation is visible.
             warnings.warn(
                 f"AUX_INS {aux_ins_name} not found in {path_aux_inss}; "
                 "azimuth_time_bias falls back to 0.0.",

@@ -616,8 +616,8 @@ class AuxIns:
 
     swath: str
     polarisation: str
-    #: Azimuth time bias [s]. Zero for S1A/S1B; nonzero for S1C and S1D from the
-    #: June 2026 aux generation onward (S1C -19.685 us, S1D -66.299 us).
+    #: Azimuth time bias [s]. Zero for S1A/S1B; nonzero for S1C from the May
+    #: 2025 generations (-19.685 us) and for S1D from April 2026 (-66.299 us).
     #:
     #: ESA ships one value for the whole instrument: it is identical across all
     #: 88 swath/polarisation entries -- all 23 swaths (IW1-3, EW1-5, WV1-2,
