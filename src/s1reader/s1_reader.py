@@ -964,10 +964,12 @@ def burst_from_xml(
         # No need to load aux_cal (not applying EAP correction)
         aux_cal_subswath = None
 
-    # load AUX_INS annotation for the azimuth timing bias
+    # load AUX_INS annotation for the azimuth timing bias. The name is recorded
+    # whether or not the bias is read: a consumer correcting the timing from its
+    # own table needs to know which generation the IPF used.
+    aux_ins_name = get_aux_ins_name(tree_manifest)
     azimuth_time_bias = 0.0
     if flag_apply_aux_ins:
-        aux_ins_name = get_aux_ins_name(tree_manifest)
         path_aux_inss = os.path.join(
             f"{os.path.dirname(s1_annotation.__file__)}", "data", "aux_ins"
         )
@@ -1272,6 +1274,7 @@ def burst_from_xml(
             burst_rfi_info,
             burst_misc_metadata,
             azimuth_time_bias,
+            aux_ins_name,
         )
 
     return bursts

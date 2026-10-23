@@ -200,12 +200,32 @@ def test_burst_exposes_azimuth_time_bias(bursts):
     assert bursts[0].azimuth_time_bias == 0.0
 
 
+def test_burst_records_aux_ins_name(bursts):
+    """The AUX_INS name from manifest.safe rides on every burst, even though
+    this generation is not vendored and the bias falls back to 0.0."""
+    assert bursts[0].aux_ins_name == "S1A_AUX_INS_V20171017T080000_G20180313T104658"
+
+
+def test_burst_records_aux_ins_name_without_reading_bias(test_paths):
+    """flag_apply_aux_ins=False skips the bias, not the name: a downstream
+    timing correction still needs to know which generation focused the SLC."""
+    from s1reader import s1_reader
+
+    orbit_path = f"{test_paths.orbit_dir}/{test_paths.orbit_file}"
+    bursts = s1_reader.load_bursts(
+        test_paths.safe, orbit_path, 3, "vv", flag_apply_aux_ins=False
+    )
+    assert bursts[0].azimuth_time_bias == 0.0
+    assert bursts[0].aux_ins_name == "S1A_AUX_INS_V20171017T080000_G20180313T104658"
+
+
 def test_burst_default_keeps_positional_construction_working(bursts):
-    """``azimuth_time_bias`` is last and defaulted, so the frozen dataclass can
-    still be built positionally by callers that predate it."""
+    """The AUX_INS fields are last and defaulted, so the frozen dataclass can
+    still be built positionally by callers that predate them."""
     from s1reader.s1_burst_slc import Sentinel1BurstSlc
     from dataclasses import fields
 
     flds = fields(Sentinel1BurstSlc)
-    assert flds[-1].name == "azimuth_time_bias"
-    assert flds[-1].default == 0.0
+    assert [f.name for f in flds[-2:]] == ["azimuth_time_bias", "aux_ins_name"]
+    assert flds[-2].default == 0.0
+    assert flds[-1].default is None

@@ -285,6 +285,11 @@ class Sentinel1BurstSlc:
     #: Last field, with a default, so existing positional construction of this
     #: frozen dataclass keeps working.
     azimuth_time_bias: float = 0.0
+    #: Name of the AUX_INS the IPF used, from ``manifest.safe`` (no ``.SAFE``
+    #: suffix), or None if the manifest names none. Recorded even when the bias
+    #: itself is not read, so a downstream timing correction can check which
+    #: generation it is correcting.
+    aux_ins_name: Optional[str] = None
 
     def __str__(self):
         return f"Sentinel1BurstSlc: {self.burst_id} at {self.sensing_start}"
