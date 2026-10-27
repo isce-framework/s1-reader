@@ -44,7 +44,7 @@ class FakeResponse:
 
     def iter_content(self, chunk_size):
         for i in range(0, len(self.body), chunk_size):
-            yield self.body[i:i + chunk_size]
+            yield self.body[i : i + chunk_size]
 
     def __enter__(self):
         return self
@@ -74,12 +74,24 @@ def page(results, next_url=None):
 
 
 S1D_INS = [
-    api_entry("S1D_AUX_INS_V20260319T000000_G20260318T105812",
-              "2026-03-19T00:00:00Z", "2026-03-18T10:58:12Z", "a"),
-    api_entry("S1D_AUX_INS_V20260319T000000_G20260603T113743",
-              "2026-03-19T00:00:00Z", "2026-06-03T11:37:43Z", "b"),
-    api_entry("S1D_AUX_INS_V20251104T000000_G20251029T104247",
-              "2025-11-04T00:00:00Z", "2025-10-29T10:42:47Z", "c"),
+    api_entry(
+        "S1D_AUX_INS_V20260319T000000_G20260318T105812",
+        "2026-03-19T00:00:00Z",
+        "2026-03-18T10:58:12Z",
+        "a",
+    ),
+    api_entry(
+        "S1D_AUX_INS_V20260319T000000_G20260603T113743",
+        "2026-03-19T00:00:00Z",
+        "2026-06-03T11:37:43Z",
+        "b",
+    ),
+    api_entry(
+        "S1D_AUX_INS_V20251104T000000_G20251029T104247",
+        "2025-11-04T00:00:00Z",
+        "2025-10-29T10:42:47Z",
+        "c",
+    ),
 ]
 
 
@@ -91,13 +103,13 @@ def api_key(**params):
 # search
 # --------------------------------------------------------------------------- #
 def test_search_sends_api_filters_and_parses_records():
-    session = FakeSession(pages={
-        api_key(product_type="AUX_INS", sentinel1__mission="S1D"): page(S1D_INS)
-    })
+    session = FakeSession(
+        pages={api_key(product_type="AUX_INS", sentinel1__mission="S1D"): page(S1D_INS)}
+    )
     records = s1_aux.search_aux("AUX_INS", "S1D", session=session)
-    assert session.calls == [(s1_aux.SAR_MPC_API,
-                              {"product_type": "AUX_INS",
-                               "sentinel1__mission": "S1D"})]
+    assert session.calls == [
+        (s1_aux.SAR_MPC_API, {"product_type": "AUX_INS", "sentinel1__mission": "S1D"})
+    ]
     rec = records[1]
     assert rec.product_name == "S1D_AUX_INS_V20260319T000000_G20260603T113743"
     assert rec.platform == "S1D"
@@ -109,19 +121,24 @@ def test_search_sends_api_filters_and_parses_records():
 
 def test_search_follows_every_page():
     nxt = "https://sar-mpc.eu/api/v1/?page=2&product_type=AUX_INS"
-    session = FakeSession(pages={
-        api_key(product_type="AUX_INS"): page(S1D_INS[:1], nxt),
-        (nxt, ()): page(S1D_INS[1:]),
-    })
+    session = FakeSession(
+        pages={
+            api_key(product_type="AUX_INS"): page(S1D_INS[:1], nxt),
+            (nxt, ()): page(S1D_INS[1:]),
+        }
+    )
     assert len(s1_aux.search_aux("AUX_INS", session=session)) == 3
     # the next link carries its own query string; params are not resent
     assert session.calls[1] == (nxt, None)
 
 
-@pytest.mark.parametrize("kwargs,match", [
-    ({}, "product_type or a product_name"),
-    ({"product_type": "AUX_FOO"}, "product_type must be one of"),
-])
+@pytest.mark.parametrize(
+    "kwargs,match",
+    [
+        ({}, "product_type or a product_name"),
+        ({"product_type": "AUX_FOO"}, "product_type must be one of"),
+    ],
+)
 def test_search_rejects_bad_queries(kwargs, match):
     with pytest.raises(ValueError, match=match):
         s1_aux.search_aux(session=FakeSession(), **kwargs)
@@ -136,14 +153,12 @@ def records():
 
 def test_latest_picks_newest_validity_then_newest_generation():
     chosen = s1_aux.latest_aux(records(), at=datetime.datetime(2026, 10, 23))
-    assert chosen["S1D"].product_name == \
-        "S1D_AUX_INS_V20260319T000000_G20260603T113743"
+    assert chosen["S1D"].product_name == "S1D_AUX_INS_V20260319T000000_G20260603T113743"
 
 
 def test_latest_ignores_products_not_yet_valid():
     chosen = s1_aux.latest_aux(records(), at=datetime.datetime(2026, 1, 1))
-    assert chosen["S1D"].product_name == \
-        "S1D_AUX_INS_V20251104T000000_G20251029T104247"
+    assert chosen["S1D"].product_name == "S1D_AUX_INS_V20251104T000000_G20251029T104247"
     assert s1_aux.latest_aux(records(), at=datetime.datetime(2025, 1, 1)) == {}
 
 
@@ -175,8 +190,9 @@ def test_download_replaces_a_stale_file(tmp_path):
     assert (tmp_path / rec.file_name).read_bytes() == BODY
 
 
-@pytest.mark.parametrize("body,match", [(BODY[:-1], "size"),
-                                        (BODY[::-1], "MD5 mismatch")])
+@pytest.mark.parametrize(
+    "body,match", [(BODY[:-1], "size"), (BODY[::-1], "MD5 mismatch")]
+)
 def test_download_discards_a_bad_file(tmp_path, body, match):
     rec = records()[1]
     session = FakeSession(files={rec.url: body})
@@ -189,40 +205,52 @@ def test_download_discards_a_bad_file(tmp_path, body, match):
 # SAFE manifest + CLI
 # --------------------------------------------------------------------------- #
 def test_aux_ins_name_from_test_safe(test_paths):
-    assert s1_aux.aux_ins_name_from_safe(test_paths.safe) == \
-        "S1A_AUX_INS_V20171017T080000_G20180313T104658"
+    assert (
+        s1_aux.aux_ins_name_from_safe(test_paths.safe)
+        == "S1A_AUX_INS_V20171017T080000_G20180313T104658"
+    )
 
 
-def test_cli_from_safe_fetches_exactly_that_generation(test_paths, tmp_path,
-                                                       capsys):
+def test_cli_from_safe_fetches_exactly_that_generation(test_paths, tmp_path, capsys):
     name = "S1A_AUX_INS_V20171017T080000_G20180313T104658"
     entry = api_entry(name, "2017-10-17T08:00:00Z", "2018-03-13T10:46:58Z")
-    session = FakeSession(pages={api_key(product_name=name): page([entry])},
-                          files={entry["remote_url"]: BODY})
-    paths = s1_aux.main(["--from-safe", test_paths.safe, "-o", str(tmp_path)],
-                        session=session)
+    session = FakeSession(
+        pages={api_key(product_name=name): page([entry])},
+        files={entry["remote_url"]: BODY},
+    )
+    paths = s1_aux.main(
+        ["--from-safe", test_paths.safe, "-o", str(tmp_path)], session=session
+    )
     assert [pathlib.Path(p).name for p in paths] == [f"{name}.SAFE.zip"]
     assert capsys.readouterr().out.split() == paths
 
 
 def test_cli_type_and_platform_takes_the_current_generation(tmp_path):
     session = FakeSession(
-        pages={api_key(product_type="AUX_INS", sentinel1__mission="S1D"):
-               page(S1D_INS)},
-        files={e["remote_url"]: BODY for e in S1D_INS})
-    paths = s1_aux.main(["--type", "AUX_INS", "--platform", "S1D",
-                         "-o", str(tmp_path)], session=session)
-    assert [pathlib.Path(p).name for p in paths] == \
-        ["S1D_AUX_INS_V20260319T000000_G20260603T113743.SAFE.zip"]
+        pages={
+            api_key(product_type="AUX_INS", sentinel1__mission="S1D"): page(S1D_INS)
+        },
+        files={e["remote_url"]: BODY for e in S1D_INS},
+    )
+    paths = s1_aux.main(
+        ["--type", "AUX_INS", "--platform", "S1D", "-o", str(tmp_path)], session=session
+    )
+    assert [pathlib.Path(p).name for p in paths] == [
+        "S1D_AUX_INS_V20260319T000000_G20260603T113743.SAFE.zip"
+    ]
 
 
 def test_cli_all_takes_every_generation(tmp_path):
     session = FakeSession(
-        pages={api_key(product_type="AUX_INS", sentinel1__mission="S1D"):
-               page(S1D_INS)},
-        files={e["remote_url"]: BODY for e in S1D_INS})
-    paths = s1_aux.main(["--type", "AUX_INS", "--platform", "S1D", "--all",
-                         "-o", str(tmp_path)], session=session)
+        pages={
+            api_key(product_type="AUX_INS", sentinel1__mission="S1D"): page(S1D_INS)
+        },
+        files={e["remote_url"]: BODY for e in S1D_INS},
+    )
+    paths = s1_aux.main(
+        ["--type", "AUX_INS", "--platform", "S1D", "--all", "-o", str(tmp_path)],
+        session=session,
+    )
     assert len(paths) == 3
 
 

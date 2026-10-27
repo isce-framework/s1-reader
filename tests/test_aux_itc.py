@@ -44,9 +44,7 @@ def write_itc_zip(path, reference, offsets):
         ET.SubElement(entry, "rangeOffset").text = str(rg)
         ET.SubElement(entry, "azimuthOffset").text = str(az)
     with zipfile.ZipFile(path, "w") as z:
-        z.writestr(
-            f"{stem}/data/{stem[:3].lower()}-aux-itc.xml", ET.tostring(root)
-        )
+        z.writestr(f"{stem}/data/{stem[:3].lower()}-aux-itc.xml", ET.tostring(root))
     return str(path)
 
 

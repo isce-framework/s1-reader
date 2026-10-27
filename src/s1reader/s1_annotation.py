@@ -800,8 +800,10 @@ class AuxItc:
                 f"No instrumentTimingCalibrationReference in {path_aux_itc_zip}"
             )
         offset_list = et_in.find("instrumentTimingCalibrationOffsetList")
-        offsets = [] if offset_list is None else offset_list.findall(
-            "instrumentTimingCalibrationOffset"
+        offsets = (
+            []
+            if offset_list is None
+            else offset_list.findall("instrumentTimingCalibrationOffset")
         )
 
         for offset in offsets:
@@ -811,9 +813,7 @@ class AuxItc:
                 return cls(
                     swath=swath_xml,
                     polarisation=pol_xml,
-                    azimuth_calibration=float(
-                        reference.findtext("azimuthCalibration")
-                    ),
+                    azimuth_calibration=float(reference.findtext("azimuthCalibration")),
                     range_calibration=float(reference.findtext("rangeCalibration")),
                     azimuth_offset=float(offset.findtext("azimuthOffset")),
                     range_offset=float(offset.findtext("rangeOffset")),

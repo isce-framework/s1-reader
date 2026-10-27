@@ -240,28 +240,40 @@ def aux_ins_name_from_safe(safe_path: str) -> str | None:
 def get_parser() -> argparse.ArgumentParser:
     """Command line of :func:`main`."""
     parser = argparse.ArgumentParser(
-        description="Download Sentinel-1 auxiliary products from ESA SAR-MPC "
-        "(https://sar-mpc.eu). Pick them by type and platform (the generation "
-        "in force now, or every generation with --all), by exact name, or as "
-        "the AUX_INS a SAFE was focused with.",
+        description=(
+            "Download Sentinel-1 auxiliary products from ESA SAR-MPC "
+            "(https://sar-mpc.eu). Pick them by type and platform (the generation "
+            "in force now, or every generation with --all), by exact name, or as "
+            "the AUX_INS a SAFE was focused with."
+        ),
     )
     parser.add_argument(
-        "--type", nargs="+", choices=AUX_TYPES, default=[], dest="types",
+        "--type",
+        nargs="+",
+        choices=AUX_TYPES,
+        default=[],
+        dest="types",
         help="Product types, e.g. AUX_INS AUX_ITC",
     )
     parser.add_argument(
-        "--platform", nargs="+", default=[],
+        "--platform",
+        nargs="+",
+        default=[],
         help="Platforms, e.g. S1C S1D (default: all)",
     )
     parser.add_argument(
-        "--all", action="store_true",
+        "--all",
+        action="store_true",
         help="Every generation, not only the one in force now",
     )
     parser.add_argument(
         "--name", nargs="+", default=[], help="Exact product names (no .SAFE)"
     )
     parser.add_argument(
-        "--from-safe", nargs="+", default=[], metavar="SAFE",
+        "--from-safe",
+        nargs="+",
+        default=[],
+        metavar="SAFE",
         help="SLC .zip/.SAFE whose manifest names the AUX_INS to fetch",
     )
     parser.add_argument("-o", "--out-dir", default=".", help="Output directory")
