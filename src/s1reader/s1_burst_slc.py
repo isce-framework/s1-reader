@@ -279,6 +279,12 @@ class Sentinel1BurstSlc:
 
     burst_misc_metadata: SimpleNamespace
 
+    # Azimuth time bias [s] of the AUX_INS used by the IPF. None when not read
+    # or that generation is not shipped with s1-reader: unknown, not zero.
+    azimuth_time_bias: Optional[float] = None
+    # Name of the AUX_INS used by the IPF, from manifest.safe (no .SAFE suffix)
+    aux_ins_name: Optional[str] = None
+
     def __str__(self):
         return f"Sentinel1BurstSlc: {self.burst_id} at {self.sensing_start}"
 

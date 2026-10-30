@@ -599,6 +599,197 @@ class AuxCal(AnnotationBase):
         return cls
 
 
+def _parse_aux_zip_xml(path_aux_zip: str, product_type: str):
+    """Parse `<NAME>.SAFE/data/<platform>-aux-<type>.xml` out of `<NAME>.SAFE.zip`.
+
+    Parameters
+    ----------
+    path_aux_zip : str
+        Path to the aux `.zip` file.
+    product_type : str
+        `"AUX_INS"` or `"AUX_ITC"`; names the XML and the error messages.
+
+    Returns
+    -------
+    lxml.etree._ElementTree
+        The parsed data XML.
+
+    Raises
+    ------
+    ValueError
+        If the path is not a `.zip`, does not exist, or holds no data XML.
+    """
+    if not path_aux_zip.endswith(".zip"):
+        raise ValueError(f"Only {product_type} files in .zip format are accepted.")
+    if not os.path.exists(path_aux_zip):
+        raise ValueError(f"Cannot find {product_type} .zip file: {path_aux_zip}")
+
+    str_safe = os.path.basename(path_aux_zip).replace(".zip", "")
+    str_platform = str_safe.split("_")[0]
+    str_suffix = product_type.lower().replace("_", "-")
+
+    with zipfile.ZipFile(path_aux_zip, "r") as zipfile_aux:
+        filepath_xml = f"{str_safe}/data/{str_platform.lower()}-{str_suffix}.xml"
+        list_files_in_zip = [zf.filename for zf in zipfile_aux.filelist]
+        if filepath_xml not in list_files_in_zip:
+            raise ValueError(
+                f"Cannot find {filepath_xml} in "
+                f"zip file {path_aux_zip}.\n"
+                f"Make sure if the legit {product_type} .zip file is provided."
+            )
+        with zipfile_aux.open(filepath_xml, "r") as f_aux:
+            return ET.parse(f_aux)
+
+
+@dataclass
+class AuxIns:
+    """AUX_INS instrument timing parameters for one swath/polarisation channel."""
+
+    swath: str
+    polarisation: str
+    azimuth_time_bias: float  # Azimuth time bias [s]
+    swst_bias: float  # Sampling window start time bias [s]
+
+    @classmethod
+    def load_from_zip_file(cls, path_aux_ins_zip: str, pol: str, str_swath: str):
+        """Read one swath/pol channel out of an AUX_INS `.SAFE.zip`.
+
+        Parameters
+        ----------
+        path_aux_ins_zip : str
+            Path to the AUX_INS `.zip` file. The name must match the `.SAFE`
+            directory inside it, which is how ESA ships them.
+        pol : str
+            Polarisation, e.g. `"vv"`. Case-insensitive.
+        str_swath : str
+            Subswath, e.g. `"iw2"`. Case-insensitive.
+
+        Returns
+        -------
+        AuxIns
+            The parameters for that channel.
+
+        Raises
+        ------
+        ValueError
+            If the path is not a `.zip`, does not exist, holds no
+            `*-aux-ins.xml`, or has no entry for `str_swath`/`pol`.
+        """
+        et_in = _parse_aux_zip_xml(path_aux_ins_zip, "AUX_INS")
+
+        params_list = et_in.find("internalCalibrationParamsList")
+        if params_list is None:
+            raise ValueError(f"No internalCalibrationParamsList in {path_aux_ins_zip}")
+
+        # findall: iterating an lxml element also yields comment nodes
+        for params in params_list.findall("internalCalibrationParams"):
+            swath_xml = (params.findtext("swath") or "").upper()
+            pol_xml = (params.findtext("polarisation") or "").upper()
+            if swath_xml == str_swath.upper() and pol_xml == pol.upper():
+                bias = params.findtext("azimuthTimeBias")
+                swst = params.findtext("swstBias")
+                if bias is None or swst is None:
+                    # Generations from before early 2018 predate azimuthTimeBias
+                    raise ValueError(
+                        f"No azimuthTimeBias/swstBias for swath={str_swath}, "
+                        f"pol={pol} in {path_aux_ins_zip}"
+                    )
+                return cls(
+                    swath=swath_xml,
+                    polarisation=pol_xml,
+                    azimuth_time_bias=float(bias),
+                    swst_bias=float(swst),
+                )
+
+        raise ValueError(
+            f"No AUX_INS entry for swath={str_swath}, pol={pol} in {path_aux_ins_zip}"
+        )
+
+
+@dataclass
+class AuxItc:
+    """AUX_ITC instrument timing calibration for one swath/polarisation channel.
+
+    Not applied by the IPF and named in no L1 manifest: pick the file by platform
+    and validity. All per-swath offsets read so far are zero, and so are the
+    S1C/S1D references.
+    """
+
+    swath: str
+    polarisation: str
+    azimuth_calibration: float  # Instrument-wide azimuth calibration [s]
+    range_calibration: float  # Instrument-wide two-way range calibration [s]
+    azimuth_offset: float  # Per-swath/pol azimuth offset [s]
+    range_offset: float  # Per-swath/pol two-way range offset [s]
+
+    @property
+    def azimuth_time_total(self) -> float:
+        """Azimuth timing calibration of this channel [s]."""
+        return self.azimuth_calibration + self.azimuth_offset
+
+    @property
+    def range_time_total(self) -> float:
+        """Two-way range timing calibration of this channel [s]."""
+        return self.range_calibration + self.range_offset
+
+    @classmethod
+    def load_from_zip_file(cls, path_aux_itc_zip: str, pol: str, str_swath: str):
+        """Read one swath/pol channel out of an AUX_ITC `.SAFE.zip`.
+
+        Parameters
+        ----------
+        path_aux_itc_zip : str
+            Path to the AUX_ITC `.zip` file. The name must match the `.SAFE`
+            directory inside it, which is how ESA ships them.
+        pol : str
+            Polarisation, e.g. `"vv"`. Case-insensitive.
+        str_swath : str
+            Subswath, e.g. `"iw2"`. Case-insensitive.
+
+        Returns
+        -------
+        AuxItc
+            The calibration for that channel.
+
+        Raises
+        ------
+        ValueError
+            If the path is not a `.zip`, does not exist, holds no
+            `*-aux-itc.xml`, lacks the reference block, or has no entry for
+            `str_swath`/`pol`.
+        """
+        et_in = _parse_aux_zip_xml(path_aux_itc_zip, "AUX_ITC")
+
+        reference = et_in.find("instrumentTimingCalibrationReference")
+        if reference is None:
+            raise ValueError(
+                f"No instrumentTimingCalibrationReference in {path_aux_itc_zip}"
+            )
+        offset_list = et_in.find("instrumentTimingCalibrationOffsetList")
+        offsets = (
+            []
+            if offset_list is None
+            else offset_list.findall("instrumentTimingCalibrationOffset")
+        )
+
+        for offset in offsets:
+            swath_xml = (offset.findtext("swath") or "").upper()
+            pol_xml = (offset.findtext("polarisation") or "").upper()
+            if swath_xml == str_swath.upper() and pol_xml == pol.upper():
+                return cls(
+                    swath=swath_xml,
+                    polarisation=pol_xml,
+                    azimuth_calibration=float(reference.findtext("azimuthCalibration")),
+                    range_calibration=float(reference.findtext("rangeCalibration")),
+                    azimuth_offset=float(offset.findtext("azimuthOffset")),
+                    range_offset=float(offset.findtext("rangeOffset")),
+                )
+
+        raise ValueError(
+            f"No AUX_ITC entry for swath={str_swath}, pol={pol} in {path_aux_itc_zip}"
+        )
+
+
 @dataclass
 class SwathRfiInfo:
     """
