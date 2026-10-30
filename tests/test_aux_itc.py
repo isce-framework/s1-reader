@@ -6,9 +6,10 @@ import zipfile
 import lxml.etree as ET
 import pytest
 
+from s1reader import s1_annotation
 from s1reader.s1_annotation import AuxItc
 
-AUX_ITC_DIR = pathlib.Path(__file__).parent / "data" / "aux_itc"
+AUX_ITC_DIR = pathlib.Path(s1_annotation.__file__).parent / "data" / "aux_itc"
 
 # (azimuthCalibration, rangeCalibration) as ESA ships them. S1C/S1D are zero,
 # which looks like a placeholder rather than a measurement.
