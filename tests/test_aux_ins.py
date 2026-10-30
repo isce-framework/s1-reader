@@ -169,6 +169,22 @@ def test_load_rejects_unknown_swath():
         AuxIns.load_from_zip_file(str(AUX_INS_DIR / f"{name}.SAFE.zip"), "vv", "iw9")
 
 
+def test_load_rejects_a_generation_without_the_bias(tmp_path):
+    """Generations from before early 2018 have no azimuthTimeBias element."""
+    name = "S1A_AUX_INS_V1_G2.SAFE"
+    xml = (
+        "<auxiliaryInstrument><internalCalibrationParamsList>"
+        "<internalCalibrationParams><swath>IW1</swath>"
+        "<polarisation>VV</polarisation></internalCalibrationParams>"
+        "</internalCalibrationParamsList></auxiliaryInstrument>"
+    )
+    p = tmp_path / f"{name}.zip"
+    with zipfile.ZipFile(p, "w") as z:
+        z.writestr(f"{name}/data/s1a-aux-ins.xml", xml)
+    with pytest.raises(ValueError, match="No azimuthTimeBias/swstBias"):
+        AuxIns.load_from_zip_file(str(p), "vv", "iw1")
+
+
 def test_load_rejects_zip_without_aux_ins_xml(tmp_path):
     """A .zip that is not an AUX_INS product fails loudly, not with a KeyError."""
     p = tmp_path / "S1C_AUX_INS_V1_G2.SAFE.zip"

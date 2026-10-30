@@ -686,11 +686,19 @@ class AuxIns:
             swath_xml = (params.findtext("swath") or "").upper()
             pol_xml = (params.findtext("polarisation") or "").upper()
             if swath_xml == str_swath.upper() and pol_xml == pol.upper():
+                bias = params.findtext("azimuthTimeBias")
+                swst = params.findtext("swstBias")
+                if bias is None or swst is None:
+                    # Generations from before early 2018 predate azimuthTimeBias
+                    raise ValueError(
+                        f"No azimuthTimeBias/swstBias for swath={str_swath}, "
+                        f"pol={pol} in {path_aux_ins_zip}"
+                    )
                 return cls(
                     swath=swath_xml,
                     polarisation=pol_xml,
-                    azimuth_time_bias=float(params.findtext("azimuthTimeBias")),
-                    swst_bias=float(params.findtext("swstBias")),
+                    azimuth_time_bias=float(bias),
+                    swst_bias=float(swst),
                 )
 
         raise ValueError(
