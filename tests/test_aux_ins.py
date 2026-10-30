@@ -190,33 +190,41 @@ def test_load_rejects_zip_without_aux_ins_xml(tmp_path):
 # --------------------------------------------------------------------------- #
 # burst wiring
 # --------------------------------------------------------------------------- #
-def test_burst_exposes_azimuth_time_bias(bursts):
-    """The test SAFE's AUX_INS generation is not vendored, so the bias is 0.0.
-
-    The attribute must still exist and be a float -- a missing AUX_INS is a
-    fallback, not an error, unlike the AUX_CAL path.
-    """
-    assert isinstance(bursts[0].azimuth_time_bias, float)
-    assert bursts[0].azimuth_time_bias == 0.0
+def test_burst_does_not_read_the_bias_by_default(bursts):
+    assert bursts[0].azimuth_time_bias is None
 
 
 def test_burst_records_aux_ins_name(bursts):
-    """The AUX_INS name from manifest.safe rides on every burst, even though
-    this generation is not vendored and the bias falls back to 0.0."""
+    """The AUX_INS name from manifest.safe rides on every burst, whether or not
+    the bias is read: a downstream timing correction needs the generation."""
     assert bursts[0].aux_ins_name == "S1A_AUX_INS_V20171017T080000_G20180313T104658"
 
 
-def test_burst_records_aux_ins_name_without_reading_bias(test_paths):
-    """flag_apply_aux_ins=False skips the bias, not the name: a downstream
-    timing correction still needs to know which generation focused the SLC."""
+def test_burst_bias_is_unknown_for_a_generation_not_shipped(test_paths):
+    """Not 0.0: real S1C/S1D products name generations with a nonzero bias that
+    are not shipped, e.g. S1D_AUX_INS_V20260319T000000_G20260415T150144."""
     from s1reader import s1_reader
 
     orbit_path = f"{test_paths.orbit_dir}/{test_paths.orbit_file}"
-    bursts = s1_reader.load_bursts(
-        test_paths.safe, orbit_path, 3, "vv", flag_apply_aux_ins=False
-    )
-    assert bursts[0].azimuth_time_bias == 0.0
+    with pytest.warns(UserWarning, match="azimuth_time_bias is unknown"):
+        bursts = s1_reader.load_bursts(
+            test_paths.safe, orbit_path, 3, "vv", flag_read_aux_ins=True
+        )
+    assert bursts[0].azimuth_time_bias is None
     assert bursts[0].aux_ins_name == "S1A_AUX_INS_V20171017T080000_G20180313T104658"
+
+
+def test_burst_reads_the_bias_of_a_shipped_generation(test_paths, monkeypatch):
+    from s1reader import s1_reader
+
+    name = "S1C_AUX_INS_V20250224T000000_G20260604T134021"
+    monkeypatch.setattr(s1_reader, "get_aux_ins_name", lambda tree: name)
+    orbit_path = f"{test_paths.orbit_dir}/{test_paths.orbit_file}"
+    bursts = s1_reader.load_bursts(
+        test_paths.safe, orbit_path, 3, "vv", flag_read_aux_ins=True
+    )
+    assert bursts[0].azimuth_time_bias == pytest.approx(-1.9685e-05, abs=1e-12)
+    assert bursts[0].aux_ins_name == name
 
 
 def test_burst_default_keeps_positional_construction_working(bursts):
@@ -227,5 +235,5 @@ def test_burst_default_keeps_positional_construction_working(bursts):
 
     flds = fields(Sentinel1BurstSlc)
     assert [f.name for f in flds[-2:]] == ["azimuth_time_bias", "aux_ins_name"]
-    assert flds[-2].default == 0.0
+    assert flds[-2].default is None
     assert flds[-1].default is None

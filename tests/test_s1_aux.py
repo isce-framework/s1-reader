@@ -9,6 +9,7 @@ import datetime
 import hashlib
 import json
 import pathlib
+import sys
 
 import pytest
 
@@ -218,40 +219,53 @@ def test_cli_from_safe_fetches_exactly_that_generation(test_paths, tmp_path, cap
         pages={api_key(product_name=name): page([entry])},
         files={entry["remote_url"]: BODY},
     )
-    paths = s1_aux.main(
-        ["--from-safe", test_paths.safe, "-o", str(tmp_path)], session=session
-    )
+    s1_aux.main(["--from-safe", test_paths.safe, "-o", str(tmp_path)], session=session)
+    paths = capsys.readouterr().out.split()
     assert [pathlib.Path(p).name for p in paths] == [f"{name}.SAFE.zip"]
-    assert capsys.readouterr().out.split() == paths
 
 
-def test_cli_type_and_platform_takes_the_current_generation(tmp_path):
+def test_cli_type_and_platform_takes_the_current_generation(tmp_path, capsys):
     session = FakeSession(
         pages={
             api_key(product_type="AUX_INS", sentinel1__mission="S1D"): page(S1D_INS)
         },
         files={e["remote_url"]: BODY for e in S1D_INS},
     )
-    paths = s1_aux.main(
+    s1_aux.main(
         ["--type", "AUX_INS", "--platform", "S1D", "-o", str(tmp_path)], session=session
     )
+    paths = capsys.readouterr().out.split()
     assert [pathlib.Path(p).name for p in paths] == [
         "S1D_AUX_INS_V20260319T000000_G20260603T113743.SAFE.zip"
     ]
 
 
-def test_cli_all_takes_every_generation(tmp_path):
+def test_cli_all_takes_every_generation(tmp_path, capsys):
     session = FakeSession(
         pages={
             api_key(product_type="AUX_INS", sentinel1__mission="S1D"): page(S1D_INS)
         },
         files={e["remote_url"]: BODY for e in S1D_INS},
     )
-    paths = s1_aux.main(
+    s1_aux.main(
         ["--type", "AUX_INS", "--platform", "S1D", "--all", "-o", str(tmp_path)],
         session=session,
     )
-    assert len(paths) == 3
+    assert len(capsys.readouterr().out.split()) == 3
+
+
+def test_cli_success_exits_zero(tmp_path):
+    """The console script runs sys.exit(main()); a return value there is a failure."""
+    session = FakeSession(
+        pages={
+            api_key(product_type="AUX_INS", sentinel1__mission="S1D"): page(S1D_INS)
+        },
+        files={e["remote_url"]: BODY for e in S1D_INS},
+    )
+    argv = ["--type", "AUX_INS", "--platform", "S1D", "-o", str(tmp_path)]
+    with pytest.raises(SystemExit) as err:
+        sys.exit(s1_aux.main(argv, session=session))
+    assert err.value.code is None
 
 
 def test_cli_unknown_name_fails():

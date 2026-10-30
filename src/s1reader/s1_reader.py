@@ -570,12 +570,11 @@ def get_path_aux_ins(directory_aux_ins: str, aux_ins_name: str):
     """Locate the AUX_INS named by a product's manifest.
 
     Deliberately an **exact match only**, with no best-effort fallback to a
-    different generation. ESA revises AUX_INS in place: S1C and S1D carry the
-    same validity start but a nonzero ``azimuthTimeBias`` only from the June
-    2026 generation onward. Substituting a neighbouring generation would hand
-    back a bias the IPF never saw, which is worse than admitting we do not know
-    it -- so an unknown generation returns None and the caller falls back to
-    zero.
+    different generation. ESA revises AUX_INS in place, and ``azimuthTimeBias``
+    changed between generations under one validity start: S1C became nonzero in
+    May 2025 and S1D in April 2026. Substituting a neighbouring generation could
+    hand back a bias the IPF never saw, which is worse than admitting we do not
+    know it -- so an unknown generation returns None.
 
     Parameters
     ----------
@@ -844,7 +843,7 @@ def burst_from_xml(
     iw2_annotation_path: str,
     open_method=open,
     flag_apply_eap: bool = True,
-    flag_apply_aux_ins: bool = True,
+    flag_read_aux_ins: bool = False,
 ):
     """Parse bursts in Sentinel-1 annotation XML.
 
@@ -863,6 +862,10 @@ def burst_from_xml(
         Function used to open annotation file.
     flag_apply_eqp: bool
         Flag to turn on/off EAP related functionality
+    flag_read_aux_ins: bool
+        Read ``Sentinel1BurstSlc.azimuth_time_bias`` from the AUX_INS named by
+        the manifest. Only the generations shipped in ``data/aux_ins`` are
+        known; for any other the attribute stays None. Nothing applies the bias.
 
     Returns:
     --------
@@ -968,20 +971,19 @@ def burst_from_xml(
     # whether or not the bias is read: a consumer correcting the timing from its
     # own table needs to know which generation the IPF used.
     aux_ins_name = get_aux_ins_name(tree_manifest)
-    azimuth_time_bias = 0.0
-    if flag_apply_aux_ins:
+    azimuth_time_bias = None
+    if flag_read_aux_ins:
         path_aux_inss = os.path.join(
             f"{os.path.dirname(s1_annotation.__file__)}", "data", "aux_ins"
         )
         path_aux_ins = get_path_aux_ins(path_aux_inss, aux_ins_name)
         if path_aux_ins is None:
-            # Not fatal, unlike the AUX_CAL case above: the bias is a refinement,
-            # and zero in every S1A/S1B generation and in S1C/S1D generations
-            # before May 2025 / April 2026. Warning rather than silence, so a
-            # missing generation is visible.
+            # Not fatal, unlike the AUX_CAL case above: nothing here needs the
+            # bias. None rather than 0.0, because this generation may well be
+            # nonzero (only one per platform is shipped).
             warnings.warn(
                 f"AUX_INS {aux_ins_name} not found in {path_aux_inss}; "
-                "azimuth_time_bias falls back to 0.0.",
+                "azimuth_time_bias is unknown (None).",
                 stacklevel=2,
             )
         else:
@@ -1311,7 +1313,7 @@ def load_bursts(
     pol: str = "vv",
     burst_ids: list[Union[str, S1BurstId]] = None,
     flag_apply_eap: bool = True,
-    flag_apply_aux_ins: bool = True,
+    flag_read_aux_ins: bool = False,
 ):
     """Find bursts in a Sentinel-1 zip file or a SAFE structured directory.
 
@@ -1332,10 +1334,10 @@ def load_bursts(
         returned (empty list if none are found).
     flag_apply_eap: bool
         Turn on/off EAP related features (AUX_CAL loader)
-    flag_apply_aux_ins: bool
-        Turn on/off the AUX_INS loader that populates
-        ``Sentinel1BurstSlc.azimuth_time_bias``. Reading it only sets the
-        attribute; nothing downstream applies it unless a processor asks.
+    flag_read_aux_ins: bool
+        Read ``Sentinel1BurstSlc.azimuth_time_bias`` from the AUX_INS named by
+        the manifest. Only the generations shipped in ``data/aux_ins`` are
+        known; for any other the attribute stays None. Nothing applies the bias.
 
     Returns:
     --------
@@ -1364,11 +1366,11 @@ def load_bursts(
         raise FileNotFoundError(f"{path} not found")
     elif os.path.isdir(path):
         bursts = _burst_from_safe_dir(
-            path, id_str, orbit_path, flag_apply_eap, flag_apply_aux_ins
+            path, id_str, orbit_path, flag_apply_eap, flag_read_aux_ins
         )
     elif os.path.isfile(path):
         bursts = _burst_from_zip(
-            path, id_str, orbit_path, flag_apply_eap, flag_apply_aux_ins
+            path, id_str, orbit_path, flag_apply_eap, flag_read_aux_ins
         )
     else:
         raise ValueError(f"{path} is unsupported")
@@ -1398,7 +1400,7 @@ def _burst_from_zip(
     id_str: str,
     orbit_path: str,
     flag_apply_eap: bool,
-    flag_apply_aux_ins: bool = True,
+    flag_read_aux_ins: bool,
 ):
     """Find bursts in a Sentinel-1 zip file.
 
@@ -1412,10 +1414,10 @@ def _burst_from_zip(
         Path the orbit file.
     flag_apply_eap: bool
         Turn on/off EAP related features (AUX_CAL loader)
-    flag_apply_aux_ins: bool
-        Turn on/off the AUX_INS loader that populates
-        ``Sentinel1BurstSlc.azimuth_time_bias``. Reading it only sets the
-        attribute; nothing downstream applies it unless a processor asks.
+    flag_read_aux_ins: bool
+        Read ``Sentinel1BurstSlc.azimuth_time_bias`` from the AUX_INS named by
+        the manifest. Only the generations shipped in ``data/aux_ins`` are
+        known; for any other the attribute stays None. Nothing applies the bias.
 
     Returns:
     --------
@@ -1453,7 +1455,7 @@ def _burst_from_zip(
             iw2_f_annotation,
             z_file.open,
             flag_apply_eap=flag_apply_eap,
-            flag_apply_aux_ins=flag_apply_aux_ins,
+            flag_read_aux_ins=flag_read_aux_ins,
         )
         return bursts
 
@@ -1463,7 +1465,7 @@ def _burst_from_safe_dir(
     id_str: str,
     orbit_path: str,
     flag_apply_eap: bool,
-    flag_apply_aux_ins: bool = True,
+    flag_read_aux_ins: bool,
 ):
     """Find bursts in a Sentinel-1 SAFE structured directory.
 
@@ -1477,10 +1479,10 @@ def _burst_from_safe_dir(
         Path the orbit file.
     flag_apply_eap: bool
         Turn on/off EAP related features (AUX_CAL loader)
-    flag_apply_aux_ins: bool
-        Turn on/off the AUX_INS loader that populates
-        ``Sentinel1BurstSlc.azimuth_time_bias``. Reading it only sets the
-        attribute; nothing downstream applies it unless a processor asks.
+    flag_read_aux_ins: bool
+        Read ``Sentinel1BurstSlc.azimuth_time_bias`` from the AUX_INS named by
+        the manifest. Only the generations shipped in ``data/aux_ins`` are
+        known; for any other the attribute stays None. Nothing applies the bias.
 
     Returns:
     --------
@@ -1518,6 +1520,6 @@ def _burst_from_safe_dir(
         f_tiff,
         iw2_f_annotation,
         flag_apply_eap=flag_apply_eap,
-        flag_apply_aux_ins=flag_apply_aux_ins,
+        flag_read_aux_ins=flag_read_aux_ins,
     )
     return bursts

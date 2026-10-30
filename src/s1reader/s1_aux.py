@@ -280,8 +280,11 @@ def get_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def main(argv=None, session: requests.Session | None = None) -> list[str]:
-    """Download what the command line asks for; print and return the paths."""
+def main(argv=None, session: requests.Session | None = None) -> None:
+    """Download what the command line asks for and print the paths.
+
+    Returns None: the console script passes the return value to sys.exit.
+    """
     args = get_parser().parse_args(argv)
     if not (args.types or args.name or args.from_safe):
         get_parser().error("give --type, --name or --from-safe")
@@ -305,12 +308,8 @@ def main(argv=None, session: requests.Session | None = None) -> list[str]:
             found = search_aux(product_type, platform, session=session)
             records.extend(found if args.all else latest_aux(found).values())
 
-    paths = []
     for record in {r.product_name: r for r in records}.values():
-        path = download_aux(record, args.out_dir, session=session)
-        print(path)
-        paths.append(path)
-    return paths
+        print(download_aux(record, args.out_dir, session=session))
 
 
 if __name__ == "__main__":
