@@ -599,101 +599,15 @@ class AuxCal(AnnotationBase):
         return cls
 
 
-@dataclass
-class AuxIns:
-    """AUX_INS instrument timing parameters for one swath/polarisation channel.
-
-    Unlike :class:`AuxCal`, which has to be chosen by validity window because an
-    SLC never records which calibration file focused it, the AUX_INS *is* named
-    outright in the product's ``manifest.safe``
-    (:func:`s1reader.s1_reader.get_aux_ins_name`), so the lookup is an exact
-    match rather than a heuristic.
-
-    Not derived from :class:`AnnotationBase`: the fields here are plain scalars
-    read straight out of ``internalCalibrationParamsList``, so none of the
-    ``_parse_*`` helpers (nor the ``xml_et`` field they need) buy anything.
-    """
-
-    swath: str
-    polarisation: str
-    #: Azimuth time bias [s]. Zero for S1A/S1B; nonzero for S1C from the May
-    #: 2025 generations (-19.685 us) and for S1D from April 2026 (-66.299 us).
-    #:
-    #: ESA ships one value for the whole instrument: it is identical across all
-    #: 88 swath/polarisation entries -- all 23 swaths (IW1-3, EW1-5, WV1-2,
-    #: S1-6, N1-6, EN) and all four pols. That is what a spacecraft *timing*
-    #: bias should look like, and it is why a single bulk offset is legitimate
-    #: where a beam-dependent term (e.g. the bistatic azimuth delay) would not
-    #: be. The swath/pol filter below therefore cannot pick a wrong value; it is
-    #: kept because the file is structured per channel and ESA could change
-    #: that.
-    azimuth_time_bias: float
-    #: Sampling window start time bias [s] -- the slant-range analogue.
-    swst_bias: float
-
-    @classmethod
-    def load_from_zip_file(cls, path_aux_ins_zip: str, pol: str, str_swath: str):
-        """Read one swath/pol channel out of an AUX_INS ``.SAFE.zip``.
-
-        Parameters
-        ----------
-        path_aux_ins_zip : str
-            Path to the AUX_INS ``.zip`` file. The name must match the ``.SAFE``
-            directory inside it, which is how ESA ships them.
-        pol : str
-            Polarisation, e.g. ``"vv"``. Case-insensitive.
-        str_swath : str
-            Subswath, e.g. ``"iw2"``. Case-insensitive.
-
-        Returns
-        -------
-        AuxIns
-            The parameters for that channel.
-
-        Raises
-        ------
-        ValueError
-            If the path is not a ``.zip``, does not exist, holds no
-            ``*-aux-ins.xml``, or has no entry for ``str_swath``/``pol``.
-        """
-        et_in = _parse_aux_zip_xml(path_aux_ins_zip, "AUX_INS")
-
-        params_list = et_in.find("internalCalibrationParamsList")
-        if params_list is None:
-            raise ValueError(f"No internalCalibrationParamsList in {path_aux_ins_zip}")
-
-        # findall rather than iterating the element: ET here is lxml, whose
-        # iteration also yields comment nodes.
-        for params in params_list.findall("internalCalibrationParams"):
-            swath_xml = (params.findtext("swath") or "").upper()
-            pol_xml = (params.findtext("polarisation") or "").upper()
-            if swath_xml == str_swath.upper() and pol_xml == pol.upper():
-                return cls(
-                    swath=swath_xml,
-                    polarisation=pol_xml,
-                    azimuth_time_bias=float(params.findtext("azimuthTimeBias")),
-                    swst_bias=float(params.findtext("swstBias")),
-                )
-
-        raise ValueError(
-            f"No AUX_INS entry for swath={str_swath}, pol={pol} in {path_aux_ins_zip}"
-        )
-
-
 def _parse_aux_zip_xml(path_aux_zip: str, product_type: str):
-    """Parse the data XML out of an ESA auxiliary ``.SAFE.zip``.
-
-    ESA ships every aux product the same way: ``<NAME>.SAFE.zip`` holding
-    ``<NAME>.SAFE/data/<platform>-aux-<type>.xml``. The ``.SAFE`` name is taken
-    from the zip name, so a renamed download (``... .SAFE(1).zip``) is rejected
-    here rather than silently read.
+    """Parse `<NAME>.SAFE/data/<platform>-aux-<type>.xml` out of `<NAME>.SAFE.zip`.
 
     Parameters
     ----------
     path_aux_zip : str
-        Path to the aux ``.zip`` file.
+        Path to the aux `.zip` file.
     product_type : str
-        ``"AUX_INS"`` or ``"AUX_ITC"``; names the XML and the error messages.
+        `"AUX_INS"` or `"AUX_ITC"`; names the XML and the error messages.
 
     Returns
     -------
@@ -703,7 +617,7 @@ def _parse_aux_zip_xml(path_aux_zip: str, product_type: str):
     Raises
     ------
     ValueError
-        If the path is not a ``.zip``, does not exist, or holds no data XML.
+        If the path is not a `.zip`, does not exist, or holds no data XML.
     """
     if not path_aux_zip.endswith(".zip"):
         raise ValueError(f"Only {product_type} files in .zip format are accepted.")
@@ -728,33 +642,77 @@ def _parse_aux_zip_xml(path_aux_zip: str, product_type: str):
 
 
 @dataclass
+class AuxIns:
+    """AUX_INS instrument timing parameters for one swath/polarisation channel."""
+
+    swath: str
+    polarisation: str
+    azimuth_time_bias: float  # Azimuth time bias [s]
+    swst_bias: float  # Sampling window start time bias [s]
+
+    @classmethod
+    def load_from_zip_file(cls, path_aux_ins_zip: str, pol: str, str_swath: str):
+        """Read one swath/pol channel out of an AUX_INS `.SAFE.zip`.
+
+        Parameters
+        ----------
+        path_aux_ins_zip : str
+            Path to the AUX_INS `.zip` file. The name must match the `.SAFE`
+            directory inside it, which is how ESA ships them.
+        pol : str
+            Polarisation, e.g. `"vv"`. Case-insensitive.
+        str_swath : str
+            Subswath, e.g. `"iw2"`. Case-insensitive.
+
+        Returns
+        -------
+        AuxIns
+            The parameters for that channel.
+
+        Raises
+        ------
+        ValueError
+            If the path is not a `.zip`, does not exist, holds no
+            `*-aux-ins.xml`, or has no entry for `str_swath`/`pol`.
+        """
+        et_in = _parse_aux_zip_xml(path_aux_ins_zip, "AUX_INS")
+
+        params_list = et_in.find("internalCalibrationParamsList")
+        if params_list is None:
+            raise ValueError(f"No internalCalibrationParamsList in {path_aux_ins_zip}")
+
+        # findall: iterating an lxml element also yields comment nodes
+        for params in params_list.findall("internalCalibrationParams"):
+            swath_xml = (params.findtext("swath") or "").upper()
+            pol_xml = (params.findtext("polarisation") or "").upper()
+            if swath_xml == str_swath.upper() and pol_xml == pol.upper():
+                return cls(
+                    swath=swath_xml,
+                    polarisation=pol_xml,
+                    azimuth_time_bias=float(params.findtext("azimuthTimeBias")),
+                    swst_bias=float(params.findtext("swstBias")),
+                )
+
+        raise ValueError(
+            f"No AUX_INS entry for swath={str_swath}, pol={pol} in {path_aux_ins_zip}"
+        )
+
+
+@dataclass
 class AuxItc:
     """AUX_ITC instrument timing calibration for one swath/polarisation channel.
 
-    AUX_ITC is ESA's geometric calibration of the instrument timing, measured
-    against corner reflectors. It is *not* applied by the IPF and appears in no
-    L1 manifest, so there is nothing in a product to match it against: pick the
-    file by platform and validity. Each file holds one instrument-wide reference
-    value per axis plus a per-swath/pol offset on top of it; the total timing
-    error of a channel is the sum, :attr:`azimuth_time_total` and
-    :attr:`range_time_total`.
-
-    In every generation read so far (S1A-S1D) all per-swath offsets are zero, and
-    the S1C/S1D references are zero too, which looks like a placeholder rather
-    than a measurement.
+    Not applied by the IPF and named in no L1 manifest: pick the file by platform
+    and validity. All per-swath offsets read so far are zero, and so are the
+    S1C/S1D references.
     """
 
     swath: str
     polarisation: str
-    #: Instrument-wide azimuth time calibration [s] (S1A +6.3522 us, S1B
-    #: -35.523 us).
-    azimuth_calibration: float
-    #: Instrument-wide range time calibration [s], two-way (S1A +0.741 ns).
-    range_calibration: float
-    #: Per-swath/pol azimuth offset [s] on top of :attr:`azimuth_calibration`.
-    azimuth_offset: float
-    #: Per-swath/pol range offset [s] on top of :attr:`range_calibration`.
-    range_offset: float
+    azimuth_calibration: float  # Instrument-wide azimuth calibration [s]
+    range_calibration: float  # Instrument-wide two-way range calibration [s]
+    azimuth_offset: float  # Per-swath/pol azimuth offset [s]
+    range_offset: float  # Per-swath/pol two-way range offset [s]
 
     @property
     def azimuth_time_total(self) -> float:
@@ -768,17 +726,17 @@ class AuxItc:
 
     @classmethod
     def load_from_zip_file(cls, path_aux_itc_zip: str, pol: str, str_swath: str):
-        """Read one swath/pol channel out of an AUX_ITC ``.SAFE.zip``.
+        """Read one swath/pol channel out of an AUX_ITC `.SAFE.zip`.
 
         Parameters
         ----------
         path_aux_itc_zip : str
-            Path to the AUX_ITC ``.zip`` file. The name must match the ``.SAFE``
+            Path to the AUX_ITC `.zip` file. The name must match the `.SAFE`
             directory inside it, which is how ESA ships them.
         pol : str
-            Polarisation, e.g. ``"vv"``. Case-insensitive.
+            Polarisation, e.g. `"vv"`. Case-insensitive.
         str_swath : str
-            Subswath, e.g. ``"iw2"``. Case-insensitive.
+            Subswath, e.g. `"iw2"`. Case-insensitive.
 
         Returns
         -------
@@ -788,9 +746,9 @@ class AuxItc:
         Raises
         ------
         ValueError
-            If the path is not a ``.zip``, does not exist, holds no
-            ``*-aux-itc.xml``, lacks the reference block, or has no entry for
-            ``str_swath``/``pol``.
+            If the path is not a `.zip`, does not exist, holds no
+            `*-aux-itc.xml`, lacks the reference block, or has no entry for
+            `str_swath`/`pol`.
         """
         et_in = _parse_aux_zip_xml(path_aux_itc_zip, "AUX_ITC")
 

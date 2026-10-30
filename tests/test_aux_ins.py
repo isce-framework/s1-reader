@@ -13,8 +13,8 @@ from s1reader.s1_reader import get_aux_ins_name, get_path_aux_ins
 
 AUX_INS_DIR = pathlib.Path(s1_annotation.__file__).parent / "data" / "aux_ins"
 
-#: The values ESA ships, constant across IW1-3 and all polarisations. S1A/S1B
-#: are zero; S1C became nonzero in May 2025 and S1D in April 2026.
+# The values ESA ships, constant across IW1-3 and all polarisations. S1A/S1B
+# are zero; S1C became nonzero in May 2025 and S1D in April 2026.
 EXPECTED_BIAS = {
     "S1A_AUX_INS_V20250601T000000_G20251015T084917": 0.0,
     "S1B_AUX_INS_V20190514T090000_G20251015T071234": 0.0,
@@ -31,9 +31,6 @@ def manifest_tree(safe_zip):
             return ET.parse(f)
 
 
-# --------------------------------------------------------------------------- #
-# get_aux_ins_name
-# --------------------------------------------------------------------------- #
 def test_get_aux_ins_name_from_test_safe(test_paths):
     """The name comes back without its .SAFE suffix, ready for lookup.
 
@@ -58,9 +55,6 @@ def test_get_aux_ins_name_returns_none_without_resource():
     assert get_aux_ins_name(ET.fromstring(xml).getroottree()) is None
 
 
-# --------------------------------------------------------------------------- #
-# get_path_aux_ins
-# --------------------------------------------------------------------------- #
 @pytest.mark.parametrize("name", sorted(EXPECTED_BIAS))
 def test_get_path_aux_ins_finds_vendored(name):
     path = get_path_aux_ins(str(AUX_INS_DIR), name)
@@ -87,9 +81,6 @@ def test_get_path_aux_ins_handles_missing_name():
     assert get_path_aux_ins(str(AUX_INS_DIR), None) is None
 
 
-# --------------------------------------------------------------------------- #
-# AuxIns.load_from_zip_file
-# --------------------------------------------------------------------------- #
 @pytest.mark.parametrize("name,bias", sorted(EXPECTED_BIAS.items()))
 def test_load_bias_matches_esa_values(name, bias):
     aux = AuxIns.load_from_zip_file(str(AUX_INS_DIR / f"{name}.SAFE.zip"), "vv", "iw2")
@@ -103,7 +94,7 @@ def test_bias_is_constant_across_swath_and_pol(swath, pol):
 
     This is the property that makes a single bulk offset legitimate, so it is
     worth pinning rather than assuming. Checked here for the IW channels a CSLC
-    run actually asks for; ``test_bias_is_single_valued_for_whole_instrument``
+    run actually asks for; `test_bias_is_single_valued_for_whole_instrument`
     pins it for the entire file.
     """
     name = "S1D_AUX_INS_V20260319T000000_G20260603T113743"
@@ -140,8 +131,8 @@ def test_bias_is_single_valued_for_whole_instrument(name, bias):
 def test_load_returns_independent_instances():
     """Two loads must not share state.
 
-    ``AuxCal.load_from_zip_file`` assigns to ``cls`` and hands the class back,
-    so loading a second channel silently rewrites the first. ``AuxIns`` returns
+    `AuxCal.load_from_zip_file` assigns to `cls` and hands the class back,
+    so loading a second channel silently rewrites the first. `AuxIns` returns
     instances instead, and this pins that difference.
     """
     s1c = AUX_INS_DIR / "S1C_AUX_INS_V20250224T000000_G20260604T134021.SAFE.zip"
@@ -187,9 +178,6 @@ def test_load_rejects_zip_without_aux_ins_xml(tmp_path):
         AuxIns.load_from_zip_file(str(p), "vv", "iw1")
 
 
-# --------------------------------------------------------------------------- #
-# burst wiring
-# --------------------------------------------------------------------------- #
 def test_burst_does_not_read_the_bias_by_default(bursts):
     assert bursts[0].azimuth_time_bias is None
 

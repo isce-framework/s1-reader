@@ -100,9 +100,6 @@ def api_key(**params):
     return (s1_aux.SAR_MPC_API, tuple(sorted(params.items())))
 
 
-# --------------------------------------------------------------------------- #
-# search
-# --------------------------------------------------------------------------- #
 def test_search_sends_api_filters_and_parses_records():
     session = FakeSession(
         pages={api_key(product_type="AUX_INS", sentinel1__mission="S1D"): page(S1D_INS)}
@@ -145,9 +142,6 @@ def test_search_rejects_bad_queries(kwargs, match):
         s1_aux.search_aux(session=FakeSession(), **kwargs)
 
 
-# --------------------------------------------------------------------------- #
-# latest
-# --------------------------------------------------------------------------- #
 def records():
     return [AuxRecord.from_api(e) for e in S1D_INS]
 
@@ -163,9 +157,6 @@ def test_latest_ignores_products_not_yet_valid():
     assert s1_aux.latest_aux(records(), at=datetime.datetime(2025, 1, 1)) == {}
 
 
-# --------------------------------------------------------------------------- #
-# download
-# --------------------------------------------------------------------------- #
 def test_download_writes_safe_zip(tmp_path):
     rec = records()[1]
     session = FakeSession(files={rec.url: BODY})
@@ -202,9 +193,6 @@ def test_download_discards_a_bad_file(tmp_path, body, match):
     assert list(tmp_path.iterdir()) == []
 
 
-# --------------------------------------------------------------------------- #
-# SAFE manifest + CLI
-# --------------------------------------------------------------------------- #
 def test_aux_ins_name_from_test_safe(test_paths):
     assert (
         s1_aux.aux_ins_name_from_safe(test_paths.safe)

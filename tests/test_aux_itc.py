@@ -10,8 +10,8 @@ from s1reader.s1_annotation import AuxItc
 
 AUX_ITC_DIR = pathlib.Path(__file__).parent / "data" / "aux_itc"
 
-#: (azimuthCalibration, rangeCalibration) as ESA ships them. S1C/S1D are zero,
-#: which looks like a placeholder rather than a measurement.
+# (azimuthCalibration, rangeCalibration) as ESA ships them. S1C/S1D are zero,
+# which looks like a placeholder rather than a measurement.
 EXPECTED = {
     "S1A_AUX_ITC_V20160627T000000_G20230406T084701": (6.3522e-06, 7.4103e-10),
     "S1B_AUX_ITC_V20160422T000000_G20230406T084600": (-3.5523e-05, -1.2855e-10),
@@ -25,7 +25,7 @@ S1A = str(AUX_ITC_DIR / "S1A_AUX_ITC_V20160627T000000_G20230406T084701.SAFE.zip"
 def write_itc_zip(path, reference, offsets):
     """Write a minimal AUX_ITC .SAFE.zip.
 
-    ``reference`` is (azimuthCalibration, rangeCalibration); ``offsets`` is a
+    `reference` is (azimuthCalibration, rangeCalibration); `offsets` is a
     list of (swath, pol, azimuthOffset, rangeOffset).
     """
     stem = path.name.replace(".zip", "")
@@ -117,7 +117,7 @@ def test_load_rejects_missing_file(tmp_path):
 
 
 def test_load_rejects_renamed_download(tmp_path):
-    """A browser copy named ``... .SAFE(1).zip`` no longer matches its .SAFE
+    """A browser copy named `... .SAFE(1).zip` no longer matches its .SAFE
     directory; it must fail loudly rather than be half-read."""
     src = pathlib.Path(S1A)
     renamed = tmp_path / src.name.replace(".SAFE.zip", ".SAFE(1).zip")

@@ -279,18 +279,10 @@ class Sentinel1BurstSlc:
 
     burst_misc_metadata: SimpleNamespace
 
-    #: Azimuth time bias [s] from the AUX_INS the IPF used to focus this
-    #: product. None when it was not read (the default) or that generation is
-    #: not shipped with s1-reader: unknown, not zero. Zero for S1A/S1B; S1C
-    #: carries -19.685 us from the May 2025 generations, S1D -66.299 us from
-    #: April 2026.
-    #: Last field, with a default, so existing positional construction of this
-    #: frozen dataclass keeps working.
+    # Azimuth time bias [s] of the AUX_INS used by the IPF. None when not read
+    # or that generation is not shipped with s1-reader: unknown, not zero.
     azimuth_time_bias: Optional[float] = None
-    #: Name of the AUX_INS the IPF used, from ``manifest.safe`` (no ``.SAFE``
-    #: suffix), or None if the manifest names none. Recorded even when the bias
-    #: itself is not read, so a downstream timing correction can check which
-    #: generation it is correcting.
+    # Name of the AUX_INS used by the IPF, from manifest.safe (no .SAFE suffix)
     aux_ins_name: Optional[str] = None
 
     def __str__(self):

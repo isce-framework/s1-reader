@@ -44,17 +44,17 @@ class AuxRecord:
 
     @property
     def platform(self) -> str:
-        """Mission identifier, e.g. ``"S1D"``."""
+        """Mission identifier, e.g. `"S1D"`."""
         return self.product_name[:3]
 
     @property
     def file_name(self) -> str:
-        """Name the product is shipped under, ``<product_name>.SAFE.zip``."""
+        """Name the product is shipped under, `<product_name>.SAFE.zip`."""
         return f"{self.product_name}.SAFE.zip"
 
     @classmethod
     def from_api(cls, raw: dict) -> "AuxRecord":
-        """Build from one ``results`` entry of the SAR-MPC API."""
+        """Build from one `results` entry of the SAR-MPC API."""
         hash_ = raw.get("hash") or ""
         return cls(
             product_name=raw["product_name"],
@@ -85,11 +85,11 @@ def search_aux(
     Parameters
     ----------
     product_type : str, optional
-        One of :data:`AUX_TYPES`, e.g. ``"AUX_INS"``.
+        One of `AUX_TYPES`, e.g. `"AUX_INS"`.
     platform : str, optional
-        Mission, e.g. ``"S1D"``.
+        Mission, e.g. `"S1D"`.
     product_name : str, optional
-        Exact product name (no ``.SAFE``); returns at most one record.
+        Exact product name (no `.SAFE`); returns at most one record.
     session : requests.Session, optional
         Session to use; a new one by default.
 
@@ -127,22 +127,22 @@ def search_aux(
 def latest_aux(
     records: list[AuxRecord], at: datetime.datetime | None = None
 ) -> dict[str, AuxRecord]:
-    """Pick the generation in force at ``at`` for each platform.
+    """Pick the generation in force at `at` for each platform.
 
-    The newest validity start not after ``at``, and of those the newest
+    The newest validity start not after `at`, and of those the newest
     generation: ESA revises aux products in place under the same validity start.
 
     Parameters
     ----------
     records : list of AuxRecord
-        Records of one product type, from :func:`search_aux`.
+        Records of one product type, from `search_aux()`.
     at : datetime.datetime, optional
         UTC time; now by default.
 
     Returns
     -------
     dict
-        ``{platform: AuxRecord}``; a platform with nothing valid yet is absent.
+        `{platform: AuxRecord}`; a platform with nothing valid yet is absent.
     """
     at = at or datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
     chosen = {}
@@ -167,7 +167,7 @@ def _md5(path: str) -> str:
 def download_aux(
     record: AuxRecord, out_dir: str, session: requests.Session | None = None
 ) -> str:
-    """Download one auxiliary product as ``<product_name>.SAFE.zip``.
+    """Download one auxiliary product as `<product_name>.SAFE.zip`.
 
     An existing file with the right MD5 is kept; a download that does not match
     the listed size or MD5 is discarded and raises, so a truncated file never
@@ -176,7 +176,7 @@ def download_aux(
     Parameters
     ----------
     record : AuxRecord
-        Product to fetch, from :func:`search_aux`.
+        Product to fetch, from `search_aux()`.
     out_dir : str
         Directory to write into; created if needed.
     session : requests.Session, optional
@@ -185,7 +185,7 @@ def download_aux(
     Returns
     -------
     str
-        Path of the ``.SAFE.zip``.
+        Path of the `.SAFE.zip`.
     """
     os.makedirs(out_dir, exist_ok=True)
     path = os.path.join(out_dir, record.file_name)
@@ -213,17 +213,17 @@ def download_aux(
 
 
 def aux_ins_name_from_safe(safe_path: str) -> str | None:
-    """AUX_INS product name recorded in a SAFE's ``manifest.safe``.
+    """AUX_INS product name recorded in a SAFE's `manifest.safe`.
 
     Parameters
     ----------
     safe_path : str
-        SLC ``.zip`` or ``.SAFE`` directory.
+        SLC `.zip` or `.SAFE` directory.
 
     Returns
     -------
     str or None
-        e.g. ``"S1D_AUX_INS_V20260319T000000_G20260603T113743"``, or None if
+        e.g. `"S1D_AUX_INS_V20260319T000000_G20260603T113743"`, or None if
         the manifest names no AUX_INS.
     """
     if os.path.isdir(safe_path):
@@ -237,8 +237,8 @@ def aux_ins_name_from_safe(safe_path: str) -> str | None:
     return get_aux_ins_name(tree)
 
 
-def get_parser() -> argparse.ArgumentParser:
-    """Command line of :func:`main`."""
+def get_cli_args(argv=None) -> argparse.Namespace:
+    """Parse and check the command line of `main()`."""
     parser = argparse.ArgumentParser(
         description=(
             "Download Sentinel-1 auxiliary products from ESA SAR-MPC "
@@ -277,7 +277,10 @@ def get_parser() -> argparse.ArgumentParser:
         help="SLC .zip/.SAFE whose manifest names the AUX_INS to fetch",
     )
     parser.add_argument("-o", "--out-dir", default=".", help="Output directory")
-    return parser
+    args = parser.parse_args(argv)
+    if not (args.types or args.name or args.from_safe):
+        parser.error("give --type, --name or --from-safe")
+    return args
 
 
 def main(argv=None, session: requests.Session | None = None) -> None:
@@ -285,9 +288,7 @@ def main(argv=None, session: requests.Session | None = None) -> None:
 
     Returns None: the console script passes the return value to sys.exit.
     """
-    args = get_parser().parse_args(argv)
-    if not (args.types or args.name or args.from_safe):
-        get_parser().error("give --type, --name or --from-safe")
+    args = get_cli_args(argv)
 
     session = session or requests.Session()
     names = list(args.name)
